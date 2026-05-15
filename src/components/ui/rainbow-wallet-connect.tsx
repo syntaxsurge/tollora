@@ -38,7 +38,7 @@ export function RainbowWalletConnect() {
             <button
               type='button'
               className={cn(
-                buttonClasses({ variant: 'primary', size: 'sm' }),
+                buttonClasses({ variant: 'outline', size: 'sm' }),
                 'brand-flame-gradient min-w-[11rem] whitespace-nowrap px-5 text-slate-950 shadow-sm shadow-brand-orange/25 hover:shadow-md hover:shadow-brand-orange/35'
               )}
               onClick={openConnectModal}
@@ -53,7 +53,7 @@ export function RainbowWalletConnect() {
             <button
               type='button'
               className={cn(
-                buttonClasses({ variant: 'primary', size: 'sm' }),
+                buttonClasses({ variant: 'outline', size: 'sm' }),
                 'brand-flame-gradient min-w-[11rem] whitespace-nowrap px-5 text-slate-950 shadow-sm shadow-brand-orange/25'
               )}
               onClick={openChainModal}

@@ -5,6 +5,7 @@ import { Geist_Mono, Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import NextTopLoader from 'nextjs-toploader'
 
+import { CursorFlameGlow } from '@/components/effects/cursor-flame-glow'
 import { AppProviders } from '@/components/providers/app-providers'
 import { siteConfig } from '@/lib/config/site'
 
@@ -57,6 +58,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <CursorFlameGlow />
         <NextTopLoader
           color='#14b8a6'
           height={3}

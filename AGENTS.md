@@ -501,7 +501,9 @@ Before creating a new helper or service file:
   `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES`.
 - Global styling via `src/styles/globals.css` and `src/styles/tokens.css`,
   using logo-derived cyan, blue, purple, orange, and yellow brand tokens for
-  light and dark themes.
+  light and dark themes. Pointer-capable devices render a reduced-motion-aware
+  orange flame cursor glow layer through
+  `src/components/effects/cursor-flame-glow.tsx`.
 - Wallet provider toggle via `NEXT_PUBLIC_WALLET_PROVIDER` with Thirdweb or
   RainbowKit integrations.
 - Environment parsing treats blank optional values as unset so local optional
