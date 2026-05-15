@@ -21,14 +21,14 @@ export function SiteHeader() {
     <header className='border-border/80 bg-background/86 supports-[backdrop-filter]:bg-background/72 sticky top-0 z-20 border-b backdrop-blur-xl'>
       <div className='container-page flex min-h-20 items-center gap-3 py-3'>
         <Link href='/' className='group flex min-w-0 items-center gap-3'>
-          <span className='brand-gradient grid h-12 w-12 shrink-0 place-items-center rounded-lg p-1 shadow-md shadow-brand-blue/20 ring-1 ring-white/35 transition group-hover:scale-[1.02]'>
+          <span className='grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border transition group-hover:scale-[1.02] dark:bg-white/95'>
             <Image
               src='/images/tollora-logo.png'
-              alt=''
-              width={44}
-              height={44}
+              alt='Tollora'
+              width={56}
+              height={56}
               priority
-              className='h-10 w-10 object-contain drop-shadow-sm'
+              className='h-12 w-12 object-contain'
             />
           </span>
           <div className='hidden min-w-0 text-left sm:block'>
