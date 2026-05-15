@@ -170,7 +170,10 @@ export default async function MarketingPage({
         </div>
         <div className='grid gap-4 md:grid-cols-4'>
           {flow.map(item => (
-            <Card key={item.title} className='min-h-48'>
+            <Card
+              key={item.title}
+              className='hover:border-brand-orange/70 hover:shadow-brand-orange/25 min-h-48 hover:shadow-lg'
+            >
               <p className='text-lg font-semibold'>{item.title}</p>
               <p className='text-muted-foreground mt-4 text-sm leading-6'>
                 {item.detail}
