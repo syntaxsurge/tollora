@@ -378,9 +378,10 @@ Before creating a new helper or service file:
 - `/developers`, `/developers/docs` (developer onboarding and gateway docs)
 - `/privacy`, `/terms`
 - `/dashboard`, `/marketplace`, `/marketplace/[slug]`, `/orders`, `/orders/new`,
-  `/orders/[orderId]`, `/receipts/[receiptId]`, `/provider`, `/provider/products`,
-  `/provider/products/new`, `/provider/products/[productId]`, `/provider/usage`,
-  `/profile`, `/billing`, `/settings` (wallet-protected app pages)
+  `/orders/[orderId]`, `/receipts/[receiptId]`, `/provider`,
+  `/provider/products`, `/provider/products/new`,
+  `/provider/products/[productId]`, `/provider/usage`, `/profile`, `/billing`,
+  `/settings` (wallet-protected app pages)
 - `/admin`, `/admin/users`, `/admin/products`, `/admin/orders`,
   `/admin/subscriptions`, `/admin/operations` (wallet-protected admin pages for
   allowlisted wallets)
@@ -388,8 +389,8 @@ Before creating a new helper or service file:
 ## API endpoints
 
 - `POST /api/auth` — auth route stub (returns 501)
-- `GET /api/health` — returns Tollora readiness checks for Mezo, x402,
-  wallet onboarding, ClipLore, marketplace listings, and receipts.
+- `GET /api/health` — returns Tollora readiness checks for Mezo, x402, wallet
+  onboarding, ClipLore, marketplace listings, and receipts.
 - `POST /api/webhooks` — webhook intake stub
 - `POST /api/providers/self/products` — validates provider API product input,
   schema JSON, wallet fields, endpoint URL, price, and visibility, then returns
@@ -398,11 +399,11 @@ Before creating a new helper or service file:
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
-- `GET /api/x402/products/[slug]/call` and
-  `POST /api/x402/products/[slug]/call` — protect product calls with x402,
-  return HTTP 402 payment requirements for unpaid requests, verify and settle
-  signed MUSD payments through the configured facilitator, call the registered
-  provider adapter, return paid provider responses, and attach receipt metadata.
+- `GET /api/x402/products/[slug]/call` and `POST /api/x402/products/[slug]/call`
+  — protect product calls with x402, return HTTP 402 payment requirements for
+  unpaid requests, verify and settle signed MUSD payments through the configured
+  facilitator, call the registered provider adapter, return paid provider
+  responses, and attach receipt metadata.
 - `POST /api/provider-webhooks/cliplore` — accepts ClipLore video job status
   updates, validates payload shape, and verifies HMAC signatures when
   `CLIPLORE_WEBHOOK_SECRET` is configured.
@@ -425,7 +426,9 @@ Before creating a new helper or service file:
   `src/components/layout`.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, marketplace search, profile
-  access, theme controls, wallet controls, and public navigation.
+  access, theme controls, wallet controls, and public navigation. The header
+  uses an opaque sticky surface, fixed brand sizing, responsive search
+  visibility, and non-overlapping action controls.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
@@ -488,10 +491,10 @@ Before creating a new helper or service file:
 - Operational readiness checks live in `src/lib/operations/readiness.ts` and
   feed `/api/health` plus the admin operations page.
 - x402 network configuration uses the CAIP-2 identifier `eip155:31611`; the
-  resource server in `src/lib/x402/tollora-resource-server.ts` registers the
-  EVM `exact` scheme, uses `X402_FACILITATOR_URL`, protects product call routes,
-  and relies on the x402 stablecoin registry to resolve dollar-denominated
-  prices to MUSD on Mezo.
+  resource server in `src/lib/x402/tollora-resource-server.ts` registers the EVM
+  `exact` scheme, uses `X402_FACILITATOR_URL`, protects product call routes, and
+  relies on the x402 stablecoin registry to resolve dollar-denominated prices to
+  MUSD on Mezo.
 - Demo and deployment documentation lives in `docs/demo-script.md` and
   `docs/deployment-checklist.md`.
 - The admin subscriptions page reads SubscriptionManager balance, plan prices,
@@ -499,11 +502,9 @@ Before creating a new helper or service file:
   from the configured subscription chain.
 - Admin access is limited to wallets listed in
   `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES`.
-- Global styling via `src/styles/globals.css` and `src/styles/tokens.css`,
-  using logo-derived cyan, blue, purple, orange, and yellow brand tokens for
-  light and dark themes. Pointer-capable devices render a reduced-motion-aware
-  orange flame cursor glow layer through
-  `src/components/effects/cursor-flame-glow.tsx`.
+- Global styling via `src/styles/globals.css` and `src/styles/tokens.css`, using
+  logo-derived cyan, blue, purple, orange, and yellow brand tokens for light and
+  dark themes.
 - Wallet provider toggle via `NEXT_PUBLIC_WALLET_PROVIDER` with Thirdweb or
   RainbowKit integrations.
 - Environment parsing treats blank optional values as unset so local optional
@@ -513,8 +514,6 @@ Before creating a new helper or service file:
   Testnet.
 - RainbowKit wallet buttons show the connected address inline and keep balance
   details inside the wallet dialog.
-- RainbowKit uses a separate header chain selector for switching supported
-  chains.
 - Wallet configuration helpers in `src/lib/wallet`.
 - App route protection uses `src/middleware.ts`,
   `src/lib/auth/wallet-session.ts`, and

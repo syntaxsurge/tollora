@@ -35,13 +35,12 @@ function WalletCheckingButton({
       type='button'
       className={buttonClasses({
         variant,
-        size: 'sm',
-        className: `min-w-32 gap-2 ${className ?? ''}`
+        size: 'md',
+        className: `brand-flame-gradient shadow-brand-orange/25 min-w-[11rem] px-5 whitespace-nowrap text-slate-950 shadow-sm ${className ?? ''}`
       })}
       disabled
     >
-      <span className='border-foreground/30 border-t-foreground h-3.5 w-3.5 animate-spin rounded-full border-2' />
-      Checking
+      Connect Wallet
     </button>
   )
 }

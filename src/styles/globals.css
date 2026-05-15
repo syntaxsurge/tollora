@@ -38,7 +38,6 @@
   body {
     font-family: var(--font-sans);
     min-width: 320px;
-    isolation: isolate;
     background:
       radial-gradient(
         circle at top left,
@@ -145,68 +144,6 @@
       hsl(var(--brand-yellow)) 48%,
       hsl(var(--brand-orange))
     );
-  }
-
-  .cursor-flame-layer {
-    pointer-events: none;
-    position: fixed;
-    inset: 0;
-    z-index: 2;
-    clip-path: inset(5rem 0 0 0);
-    overflow: hidden;
-    opacity: 0.82;
-  }
-
-  .cursor-flame-trail,
-  .cursor-flame-core {
-    pointer-events: none;
-    position: fixed;
-    left: 0;
-    top: 0;
-    border-radius: 9999px;
-    opacity: 0;
-    transition: opacity 180ms ease-out;
-    will-change: transform, opacity;
-  }
-
-  .cursor-flame-trail {
-    width: 50rem;
-    height: 50rem;
-    background:
-      radial-gradient(
-        circle,
-        hsl(var(--brand-yellow) / 0.15) 0%,
-        hsl(var(--brand-orange) / 0.14) 32%,
-        hsl(var(--brand-orange) / 0.08) 56%,
-        transparent 76%
-      );
-    filter: blur(54px);
-    mix-blend-mode: screen;
-  }
-
-  .cursor-flame-core {
-    width: 22rem;
-    height: 22rem;
-    background:
-      radial-gradient(
-        circle,
-        hsl(var(--brand-yellow) / 0.12) 0%,
-        hsl(var(--brand-orange) / 0.13) 44%,
-        transparent 74%
-      );
-    filter: blur(34px);
-    mix-blend-mode: screen;
-  }
-
-  body > :not(.cursor-flame-layer):not(script):not(style) {
-    position: relative;
-    z-index: 1;
-  }
-
-  @media (pointer: coarse), (prefers-reduced-motion: reduce) {
-    .cursor-flame-layer {
-      display: none;
-    }
   }
 
   .logo-mark-surface {

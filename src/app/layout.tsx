@@ -5,7 +5,6 @@ import { Geist_Mono, Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import NextTopLoader from 'nextjs-toploader'
 
-import { CursorFlameGlow } from '@/components/effects/cursor-flame-glow'
 import { AppProviders } from '@/components/providers/app-providers'
 import { siteConfig } from '@/lib/config/site'
 
@@ -54,11 +53,10 @@ export default function RootLayout({
       <body className='bg-background text-foreground min-h-screen antialiased'>
         <a
           href='#main-content'
-          className='focus-ring bg-card text-foreground fixed left-4 top-4 z-[80] -translate-y-24 rounded-lg border border-border px-4 py-2 text-sm font-semibold shadow-md transition focus-visible:translate-y-0'
+          className='focus-ring bg-card text-foreground border-border fixed top-4 left-4 z-[80] -translate-y-24 rounded-lg border px-4 py-2 text-sm font-semibold shadow-md transition focus-visible:translate-y-0'
         >
           Skip to content
         </a>
-        <CursorFlameGlow />
         <NextTopLoader
           color='#14b8a6'
           height={3}
