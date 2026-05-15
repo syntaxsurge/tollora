@@ -1,0 +1,9 @@
+{
+  "name": "Web3 SaaS Starter",
+  "short_name": "Web3 SaaS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#f7f4ee",
+  "icons": []
+}

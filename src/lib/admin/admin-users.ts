@@ -1,0 +1,209 @@
+import 'server-only'
+
+import {
+  normalizeWalletAddress,
+  parseAdminWalletAddresses
+} from '@/lib/auth/admin'
+
+export type AdminUserPlan = 'free' | 'base' | 'plus'
+export type AdminUserStatus = 'active' | 'invited' | 'paused'
+export type AdminUserRole = 'admin' | 'member'
+export type AdminUserSortKey =
+  | 'walletAddress'
+  | 'role'
+  | 'subscriptionStatus'
+  | 'plan'
+  | 'status'
+  | 'lastSeenAt'
+
+export type AdminUserRecord = {
+  id: string
+  walletAddress: string
+  displayName: string
+  email: string
+  role: AdminUserRole
+  plan: AdminUserPlan
+  status: AdminUserStatus
+  createdAt: string
+  lastSeenAt: string
+}
+
+export type AdminUserQuery = {
+  search?: string
+  role?: string
+  plan?: string
+  status?: string
+  sort?: string
+  direction?: string
+  page?: string
+  pageSize?: string
+}
+
+export type AdminUserOverride = Partial<
+  Pick<AdminUserRecord, 'displayName' | 'email' | 'role' | 'plan' | 'status'>
+> & {
+  deleted?: boolean
+}
+
+export type AdminUserOverrides = Record<string, AdminUserOverride>
+
+const sortableColumns: AdminUserSortKey[] = [
+  'walletAddress',
+  'role',
+  'subscriptionStatus',
+  'plan',
+  'status',
+  'lastSeenAt'
+]
+
+const defaultPageSize = 10
+
+export function getAdminUserSeed(currentWallet?: string | null) {
+  const configuredAdmins = parseAdminWalletAddresses(
+    process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES
+  )
+  const current = currentWallet ? [normalizeWalletAddress(currentWallet)] : []
+  const addresses = Array.from(new Set([...configuredAdmins, ...current]))
+  const now = new Date().toISOString()
+
+  return addresses.map((address, index): AdminUserRecord => {
+    const isAdmin = configuredAdmins.includes(address)
+
+    return {
+      id: address,
+      walletAddress: address,
+      displayName: isAdmin ? 'Admin wallet' : 'Connected wallet',
+      email: '',
+      role: isAdmin ? 'admin' : 'member',
+      plan: 'free',
+      status: 'active',
+      createdAt: now,
+      lastSeenAt:
+        index === 0 ? now : new Date(Date.now() - index * 60000).toISOString()
+    }
+  })
+}
+
+export function parseAdminUserOverrides(value?: string) {
+  if (!value) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(decodeURIComponent(value)) as AdminUserOverrides
+  } catch {
+    return {}
+  }
+}
+
+export function serializeAdminUserOverrides(overrides: AdminUserOverrides) {
+  return encodeURIComponent(JSON.stringify(overrides))
+}
+
+export function applyAdminUserOverrides(
+  users: AdminUserRecord[],
+  overrides: AdminUserOverrides
+) {
+  return users
+    .map(user => ({
+      ...user,
+      ...(overrides[user.id] ?? {})
+    }))
+    .filter(user => !overrides[user.id]?.deleted)
+}
+
+export function getAdminUserById(
+  users: AdminUserRecord[],
+  id: string,
+  overrides: AdminUserOverrides
+) {
+  return applyAdminUserOverrides(users, overrides).find(
+    user => user.id === normalizeWalletAddress(id)
+  )
+}
+
+export function queryAdminUsers(
+  users: AdminUserRecord[],
+  query: AdminUserQuery,
+  overrides: AdminUserOverrides
+) {
+  const search = (query.search ?? '').trim().toLowerCase()
+  const sort = isSortableColumn(query.sort) ? query.sort : 'lastSeenAt'
+  const direction: 'asc' | 'desc' = query.direction === 'asc' ? 'asc' : 'desc'
+  const page = clampPositiveInt(query.page, 1)
+  const pageSize = Math.min(
+    clampPositiveInt(query.pageSize, defaultPageSize),
+    50
+  )
+
+  const filtered = applyAdminUserOverrides(users, overrides)
+    .filter(user => (query.role ? user.role === query.role : true))
+    .filter(user => (query.plan ? user.plan === query.plan : true))
+    .filter(user => (query.status ? user.status === query.status : true))
+    .filter(user => {
+      if (!search) {
+        return true
+      }
+
+      return [
+        user.walletAddress,
+        user.displayName,
+        user.email,
+        user.role,
+        getSubscriptionStatus(user.plan),
+        user.plan,
+        user.status
+      ].some(value => value.toLowerCase().includes(search))
+    })
+    .sort((a, b) => {
+      const left =
+        sort === 'subscriptionStatus' ? getSubscriptionStatus(a.plan) : a[sort]
+      const right =
+        sort === 'subscriptionStatus' ? getSubscriptionStatus(b.plan) : b[sort]
+      const comparison = left.localeCompare(right)
+
+      return direction === 'asc' ? comparison : -comparison
+    })
+
+  const total = filtered.length
+  const pageCount = Math.max(Math.ceil(total / pageSize), 1)
+  const currentPage = Math.min(page, pageCount)
+  const start = (currentPage - 1) * pageSize
+
+  return {
+    users: filtered.slice(start, start + pageSize),
+    total,
+    page: currentPage,
+    pageSize,
+    pageCount,
+    sort,
+    direction
+  }
+}
+
+export function getSubscriptionStatus(plan: AdminUserPlan) {
+  return plan === 'free' ? 'free' : 'paid'
+}
+
+export function getAdminStats(users: AdminUserRecord[]) {
+  return {
+    totalUsers: users.length,
+    activeUsers: users.filter(user => user.status === 'active').length,
+    adminUsers: users.filter(user => user.role === 'admin').length,
+    paidUsers: users.filter(user => user.plan !== 'free').length
+  }
+}
+
+function isSortableColumn(value: unknown): value is AdminUserSortKey {
+  return sortableColumns.includes(value as AdminUserSortKey)
+}
+
+function clampPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number(value)
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return fallback
+  }
+
+  return parsed
+}

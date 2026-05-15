@@ -1,0 +1,99 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { FormEvent, useState } from 'react'
+
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import type { ApiProduct } from '@/features/marketplace/products'
+import type { MarketplaceOrder } from '@/features/marketplace/types'
+
+type OrderCreateFormProps = {
+  product: ApiProduct
+}
+
+export function OrderCreateForm({ product }: OrderCreateFormProps) {
+  const router = useRouter()
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+
+    const formData = new FormData(event.currentTarget)
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productSlug: product.slug,
+          buyerWallet: formData.get('buyerWallet'),
+          requestPayloadJson: formData.get('requestPayloadJson')
+        })
+      })
+      const order = (await response.json()) as MarketplaceOrder & {
+        error?: string
+      }
+
+      if (!response.ok) {
+        throw new Error(order.error ?? 'Unable to prepare the API request.')
+      }
+
+      window.sessionStorage.setItem(
+        `tollora:order:${order.id}`,
+        JSON.stringify(order)
+      )
+      router.push(`/orders/${order.id}`)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to prepare the API request.'
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className='space-y-5'>
+      <Card className='space-y-4'>
+        <label className='space-y-2'>
+          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Buyer wallet
+          </span>
+          <Input
+            name='buyerWallet'
+            defaultValue='0x0000000000000000000000000000000000000000'
+            required
+          />
+        </label>
+        <label className='space-y-2'>
+          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Request payload
+          </span>
+          <textarea
+            name='requestPayloadJson'
+            defaultValue={JSON.stringify(product.demoPayload, null, 2)}
+            className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 min-h-72 w-full rounded-2xl border px-4 py-3 font-mono text-xs leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+            required
+          />
+        </label>
+      </Card>
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+        <Button type='submit' disabled={isSubmitting}>
+          {isSubmitting ? 'Preparing request' : 'Create test order'}
+        </Button>
+        {error ? (
+          <p className='text-sm text-red-600' role='alert'>
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </form>
+  )
+}
