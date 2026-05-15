@@ -21,7 +21,7 @@ export function SiteHeader() {
     <header className='border-border/80 bg-background/86 supports-[backdrop-filter]:bg-background/72 sticky top-0 z-20 border-b backdrop-blur-xl'>
       <div className='container-page flex min-h-20 items-center gap-3 py-3'>
         <Link href='/' className='group flex min-w-0 items-center gap-3'>
-          <span className='grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border transition group-hover:scale-[1.02] dark:bg-white/95'>
+          <span className='grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border transition group-hover:scale-[1.02] dark:bg-[#07111f] dark:ring-brand-cyan/25 dark:shadow-brand-cyan/10'>
             <Image
               src='/images/tollora-logo.png'
               alt='Tollora'
