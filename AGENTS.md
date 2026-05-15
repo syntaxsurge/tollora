@@ -424,7 +424,11 @@ Before creating a new helper or service file:
 - Shared UI primitives in `src/components/ui` and layout shells in
   `src/components/layout`.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
-  and app shells, with project image branding and public navigation.
+  and app shells, with Tollora logo branding, marketplace search, profile
+  access, theme controls, wallet controls, and public navigation.
+- The app favicon is generated from the Tollora logo and lives only at
+  `src/app/favicon.ico`; public image branding lives at
+  `public/images/tollora-logo.png`.
 - Authenticated app routes use `src/components/layout/app-sidebar.tsx` for
   dashboard, marketplace, provider, profile, billing, and settings navigation.
 - Tollora marketplace seed data, product schemas, prices, x402 flags, and
@@ -495,9 +499,13 @@ Before creating a new helper or service file:
   from the configured subscription chain.
 - Admin access is limited to wallets listed in
   `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES`.
-- Global styling via `src/styles/globals.css` and `src/styles/tokens.css`.
+- Global styling via `src/styles/globals.css` and `src/styles/tokens.css`,
+  using logo-derived cyan, blue, purple, orange, and yellow brand tokens for
+  light and dark themes.
 - Wallet provider toggle via `NEXT_PUBLIC_WALLET_PROVIDER` with Thirdweb or
   RainbowKit integrations.
+- Environment parsing treats blank optional values as unset so local optional
+  URL fields do not fail validation.
 - RainbowKit configuration uses the shared Mezo Testnet chain registry when
   `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is configured, and initializes on Mezo
   Testnet.

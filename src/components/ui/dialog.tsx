@@ -67,11 +67,11 @@ export function Dialog({
         aria-labelledby='dialog-title'
         aria-describedby={description ? 'dialog-description' : undefined}
         className={cn(
-          'bg-card text-foreground border-foreground/10 relative flex max-h-[min(760px,calc(100vh-2rem))] w-[calc(100vw-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg border shadow-2xl',
+          'bg-card text-foreground border-border relative flex max-h-[min(760px,calc(100vh-2rem))] w-[calc(100vw-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg border shadow-2xl shadow-brand-blue/15',
           className
         )}
       >
-        <div className='border-foreground/10 flex items-start justify-between gap-4 border-b p-5'>
+        <div className='border-border flex items-start justify-between gap-4 border-b p-5'>
           <div className='min-w-0'>
             <h2 id='dialog-title' className='font-display text-2xl'>
               {title}
@@ -79,7 +79,7 @@ export function Dialog({
             {description ? (
               <p
                 id='dialog-description'
-                className='text-foreground/65 mt-2 text-sm leading-6'
+                className='text-muted-foreground mt-2 text-sm leading-6'
               >
                 {description}
               </p>

@@ -6,7 +6,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className='bg-background text-foreground min-h-screen'>
       <SiteHeader />
-      <main className='mx-auto w-full max-w-7xl px-6 py-10'>
+      <main id='main-content' className='container-page py-8 lg:py-10'>
         <ProtectedAppGuard>
           <div className='grid gap-6 lg:grid-cols-[280px_1fr]'>
             <WorkspaceSidebar />

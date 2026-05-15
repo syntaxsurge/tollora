@@ -4,6 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { Menu, Search, UserRound } from 'lucide-react'
+
 import { AdminHeaderLink } from '@/components/layout/admin-header-link'
 import { ChainSelectorButton } from '@/components/ui/chain-selector-button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -16,23 +18,48 @@ export function SiteHeader() {
   const pathname = usePathname()
 
   return (
-    <header className='border-foreground/10 bg-background/85 sticky top-0 z-20 border-b backdrop-blur-xl'>
-      <div className='mx-auto flex w-full max-w-7xl items-center gap-4 px-6 py-4'>
-        <Link href='/' className='flex items-center gap-3'>
-          <Image
-            src='/images/tollora-logo.png'
-            alt=''
-            width={40}
-            height={40}
-            priority
-            className='border-foreground/10 h-10 w-10 rounded-lg border object-cover'
-          />
-          <div className='hidden text-left sm:block'>
-            <p className='text-sm font-semibold'>{siteConfig.name}</p>
+    <header className='border-border/80 bg-background/86 supports-[backdrop-filter]:bg-background/72 sticky top-0 z-20 border-b backdrop-blur-xl'>
+      <div className='container-page flex min-h-20 items-center gap-3 py-3'>
+        <Link href='/' className='group flex min-w-0 items-center gap-3'>
+          <span className='brand-gradient grid h-12 w-12 shrink-0 place-items-center rounded-lg p-1 shadow-md shadow-brand-blue/20 ring-1 ring-white/35 transition group-hover:scale-[1.02]'>
+            <Image
+              src='/images/tollora-logo.png'
+              alt=''
+              width={44}
+              height={44}
+              priority
+              className='h-10 w-10 object-contain drop-shadow-sm'
+            />
+          </span>
+          <div className='hidden min-w-0 text-left sm:block'>
+            <p className='truncate text-base font-semibold leading-5'>
+              {siteConfig.name}
+            </p>
+            <p className='text-muted-foreground hidden text-xs lg:block'>
+              MUSD API commerce
+            </p>
           </div>
         </Link>
+
+        <form
+          action='/marketplace'
+          className='border-border bg-card/80 focus-within:ring-ring/40 ml-2 hidden h-11 w-full max-w-sm items-center gap-2 rounded-lg border px-3 shadow-sm transition focus-within:ring-2 lg:flex'
+          role='search'
+        >
+          <Search className='text-muted-foreground h-4 w-4' aria-hidden />
+          <label htmlFor='global-search' className='sr-only'>
+            Search marketplace
+          </label>
+          <input
+            id='global-search'
+            name='q'
+            className='placeholder:text-muted-foreground h-10 min-w-0 flex-1 bg-transparent text-sm outline-none'
+            placeholder='Search paid APIs'
+          />
+        </form>
+
         <nav
-          className='hidden flex-1 items-center justify-center gap-6 text-sm md:flex'
+          className='hidden flex-1 items-center justify-center gap-2 text-sm md:flex'
           aria-label='Primary'
         >
           {primaryNav.map(item => {
@@ -47,10 +74,10 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'hover:text-foreground rounded-md px-2.5 py-1.5 text-sm transition',
+                  'rounded-md px-3 py-2 text-sm font-medium transition',
                   isActive
-                    ? 'bg-foreground/8 text-foreground'
-                    : 'text-foreground/70'
+                    ? 'bg-accent/12 text-primary shadow-sm dark:text-accent'
+                    : 'text-muted-foreground hover:bg-accent/8 hover:text-foreground'
                 )}
               >
                 {item.label}
@@ -60,10 +87,11 @@ export function SiteHeader() {
         </nav>
         <div className='ml-auto flex items-center gap-2'>
           <details className='relative md:hidden'>
-            <summary className='border-foreground/15 text-foreground/80 hover:border-foreground/40 hover:text-foreground cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition'>
-              Menu
+            <summary className='border-border bg-card text-foreground hover:border-brand-cyan/60 flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border transition'>
+              <Menu className='h-4 w-4' aria-hidden />
+              <span className='sr-only'>Open navigation menu</span>
             </summary>
-            <div className='border-foreground/10 bg-background absolute right-0 mt-2 w-48 rounded-lg border p-2 shadow-lg'>
+            <div className='border-border bg-card absolute right-0 mt-2 w-56 rounded-lg border p-2 shadow-lg'>
               {primaryNav.map(item => {
                 const isActive =
                   item.href === '/'
@@ -77,8 +105,10 @@ export function SiteHeader() {
                     href={item.href}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn(
-                      'hover:bg-foreground/5 hover:text-foreground block rounded-md px-3 py-2 text-sm transition',
-                      isActive ? 'text-foreground' : 'text-foreground/80'
+                      'block rounded-md px-3 py-2 text-sm transition',
+                      isActive
+                        ? 'bg-accent/12 text-primary dark:text-accent'
+                        : 'text-muted-foreground hover:bg-accent/8 hover:text-foreground'
                     )}
                   >
                     {item.label}
@@ -90,6 +120,13 @@ export function SiteHeader() {
           <AdminHeaderLink />
           <ThemeToggle />
           <ChainSelectorButton />
+          <Link
+            href='/profile'
+            aria-label='Open profile'
+            className='border-border bg-card text-foreground hover:border-brand-purple/60 hidden h-10 w-10 items-center justify-center rounded-lg border shadow-sm transition sm:flex'
+          >
+            <UserRound className='h-4 w-4' aria-hidden />
+          </Link>
           <WalletConnectButton />
         </div>
       </div>

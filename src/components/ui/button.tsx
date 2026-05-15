@@ -12,14 +12,14 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 const baseStyles =
-  'inline-flex items-center justify-center rounded-lg font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60'
+  'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-60'
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-foreground text-background shadow-sm hover:bg-foreground/90 focus-visible:ring-foreground',
+    'brand-gradient text-primary-foreground shadow-sm shadow-brand-blue/20 hover:translate-y-[-1px] hover:shadow-md',
   outline:
-    'border border-foreground/20 text-foreground hover:border-foreground/40 focus-visible:ring-foreground',
-  ghost: 'text-foreground hover:bg-foreground/10 focus-visible:ring-foreground'
+    'border border-border bg-card/80 text-foreground shadow-sm hover:border-brand-cyan/70 hover:bg-accent/10',
+  ghost: 'text-foreground hover:bg-accent/10 hover:text-primary'
 }
 
 const sizeStyles: Record<ButtonSize, string> = {

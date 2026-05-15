@@ -1,6 +1,6 @@
 import '../styles/globals.css'
 
-import { Fraunces, Space_Grotesk } from 'next/font/google'
+import { Geist_Mono, Inter } from 'next/font/google'
 
 import type { Metadata, Viewport } from 'next'
 import NextTopLoader from 'nextjs-toploader'
@@ -8,15 +8,15 @@ import NextTopLoader from 'nextjs-toploader'
 import { AppProviders } from '@/components/providers/app-providers'
 import { siteConfig } from '@/lib/config/site'
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap'
 })
 
-const fraunces = Fraunces({
+const geistMono = Geist_Mono({
   subsets: ['latin'],
-  variable: '--font-display',
+  variable: '--font-mono',
   display: 'swap'
 })
 
@@ -47,10 +47,16 @@ export default function RootLayout({
   return (
     <html
       lang='en'
-      className={`${spaceGrotesk.variable} ${fraunces.variable}`}
+      className={`${inter.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <body className='bg-background text-foreground min-h-screen antialiased'>
+        <a
+          href='#main-content'
+          className='focus-ring bg-card text-foreground fixed left-4 top-4 z-[80] -translate-y-24 rounded-lg border border-border px-4 py-2 text-sm font-semibold shadow-md transition focus-visible:translate-y-0'
+        >
+          Skip to content
+        </a>
         <NextTopLoader
           color='#14b8a6'
           height={3}

@@ -13,10 +13,10 @@ export function AppSidebar() {
     <aside className='lg:sticky lg:top-24 lg:self-start'>
       <nav
         aria-label='Workspace'
-        className='border-foreground/10 bg-card rounded-lg border p-2 shadow-sm'
+        className='border-border/80 bg-card/90 rounded-lg border p-2 shadow-sm shadow-brand-blue/5 backdrop-blur'
       >
         <div className='px-3 py-2'>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
             Workspace
           </p>
         </div>
@@ -31,10 +31,10 @@ export function AppSidebar() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'rounded-md px-3 py-3 transition',
+                  'rounded-md px-3 py-3 transition duration-200',
                   isActive
-                    ? 'bg-foreground text-background'
-                    : 'hover:bg-foreground/5 text-foreground'
+                    ? 'brand-gradient text-primary-foreground shadow-sm'
+                    : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >
                 <span className='block text-sm font-semibold'>
@@ -43,7 +43,7 @@ export function AppSidebar() {
                 <span
                   className={cn(
                     'mt-1 block text-xs leading-5',
-                    isActive ? 'text-background/70' : 'text-foreground/60'
+                    isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
                   )}
                 >
                   {item.description}

@@ -15,11 +15,11 @@ export function AdminSidebar() {
     <aside className='lg:sticky lg:top-24 lg:self-start'>
       <nav
         aria-label='Admin'
-        className='border-foreground/10 bg-card rounded-lg border p-2 shadow-sm'
+        className='border-border/80 bg-card/90 rounded-lg border p-2 shadow-sm shadow-brand-purple/5 backdrop-blur'
       >
         <div className='flex items-center gap-2 px-3 py-2'>
           <ShieldCheck className='text-accent h-4 w-4' aria-hidden />
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
             Admin panel
           </p>
         </div>
@@ -36,10 +36,10 @@ export function AdminSidebar() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'rounded-md px-3 py-3 transition',
+                  'rounded-md px-3 py-3 transition duration-200',
                   isActive
-                    ? 'bg-foreground text-background'
-                    : 'hover:bg-foreground/5 text-foreground'
+                    ? 'brand-gradient text-primary-foreground shadow-sm'
+                    : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >
                 <span className='block text-sm font-semibold'>
@@ -48,7 +48,7 @@ export function AdminSidebar() {
                 <span
                   className={cn(
                     'mt-1 block text-xs leading-5',
-                    isActive ? 'text-background/70' : 'text-foreground/60'
+                    isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
                   )}
                 >
                   {item.description}
@@ -59,7 +59,7 @@ export function AdminSidebar() {
         </div>
         <Link
           href='/dashboard'
-          className='text-foreground/65 hover:text-foreground mt-3 block rounded-md px-3 py-2 text-sm transition'
+          className='text-muted-foreground hover:bg-accent/10 hover:text-primary mt-3 block rounded-md px-3 py-2 text-sm transition dark:hover:text-accent'
         >
           Back to workspace
         </Link>

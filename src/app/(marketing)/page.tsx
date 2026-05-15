@@ -58,14 +58,14 @@ export default async function MarketingPage({
   return (
     <div className='bg-app-grid relative overflow-hidden'>
       <AuthRequiredToast reason={params.auth} nextPath={params.next} />
-      <section className='mx-auto grid w-full max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:py-20'>
+      <section className='container-page grid gap-10 py-16 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:py-20'>
         <div className='space-y-7'>
           <Badge>MUSD API marketplace</Badge>
           <div className='space-y-5'>
-            <h1 className='font-display max-w-3xl text-4xl leading-tight sm:text-5xl lg:text-6xl'>
+            <h1 className='font-display max-w-3xl text-4xl font-semibold leading-tight text-balance sm:text-5xl lg:text-6xl'>
               MUSD-native API commerce for humans and AI agents.
             </h1>
-            <p className='text-foreground/70 max-w-2xl text-base leading-7'>
+            <p className='text-lead'>
               {siteConfig.description} Providers list paid endpoints, buyers and
               agents pay per request, and Tollora handles discovery, payment
               verification, request forwarding, receipts, and usage logs.
@@ -90,31 +90,33 @@ export default async function MarketingPage({
             ].map(item => (
               <div
                 key={item.label}
-                className='border-foreground/10 bg-card/90 rounded-lg border p-4'
+                className='border-border bg-card/90 rounded-lg border p-4 shadow-sm shadow-brand-blue/5'
               >
-                <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
                   {item.label}
                 </p>
-                <p className='mt-2 text-2xl font-semibold'>{item.value}</p>
+                <p className='brand-text-gradient mt-2 text-2xl font-semibold'>
+                  {item.value}
+                </p>
               </div>
             ))}
           </div>
         </div>
 
         {featuredProduct ? (
-          <div className='bg-panel-sheen border-foreground/10 rounded-lg border p-4 shadow-sm'>
-            <div className='border-foreground/10 bg-background/85 rounded-md border'>
-              <div className='border-foreground/10 flex items-start justify-between gap-4 border-b p-5'>
+          <div className='bg-panel-sheen border-border rounded-lg border p-4 shadow-md shadow-brand-cyan/10'>
+            <div className='border-border bg-background/85 rounded-md border'>
+              <div className='border-border flex items-start justify-between gap-4 border-b p-5'>
                 <div>
                   <Badge>Featured provider</Badge>
-                  <h2 className='font-display mt-4 text-3xl'>
+                  <h2 className='font-display mt-4 text-3xl font-semibold'>
                     {featuredProduct.name}
                   </h2>
-                  <p className='text-foreground/65 mt-2 text-sm leading-6'>
+                  <p className='text-muted-foreground mt-2 text-sm leading-6'>
                     {featuredProduct.description}
                   </p>
                 </div>
-                <div className='bg-accent h-3 w-3 rounded-full' />
+                <div className='bg-brand-orange h-3 w-3 rounded-full shadow-sm shadow-brand-orange/40' />
               </div>
               <div className='grid gap-4 p-5'>
                 {[
@@ -125,9 +127,9 @@ export default async function MarketingPage({
                 ].map(([label, value]) => (
                   <div
                     key={label}
-                    className='bg-muted flex flex-col gap-1 rounded-md p-4'
+                    className='bg-muted/80 border-border flex flex-col gap-1 rounded-md border p-4'
                   >
-                    <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                    <span className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
                       {label}
                     </span>
                     <span className='text-sm font-semibold break-words'>
@@ -147,15 +149,15 @@ export default async function MarketingPage({
         ) : null}
       </section>
 
-      <section className='mx-auto w-full max-w-6xl px-6 py-14'>
+      <section className='container-page py-14'>
         <div className='mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end'>
           <div className='space-y-3'>
             <Badge>Payment flow</Badge>
-            <h2 className='font-display text-3xl'>
+            <h2 className='font-display text-3xl font-semibold'>
               Discover, pay, call, and receive through one gateway.
             </h2>
           </div>
-          <p className='text-foreground/70 max-w-md text-sm leading-6'>
+          <p className='text-muted-foreground max-w-md text-sm leading-6'>
             Tollora makes Bitcoin-backed MUSD usable for metered APIs, expensive
             AI workflows, and programmatic agent calls without account-specific
             API key setup.
@@ -165,7 +167,7 @@ export default async function MarketingPage({
           {flow.map(item => (
             <Card key={item.title} className='min-h-48'>
               <p className='text-lg font-semibold'>{item.title}</p>
-              <p className='text-foreground/65 mt-4 text-sm leading-6'>
+              <p className='text-muted-foreground mt-4 text-sm leading-6'>
                 {item.detail}
               </p>
             </Card>
@@ -173,14 +175,14 @@ export default async function MarketingPage({
         </div>
       </section>
 
-      <section className='mx-auto w-full max-w-6xl px-6 py-14'>
+      <section className='container-page py-14'>
         <div className='grid gap-8 lg:grid-cols-[0.75fr_1fr] lg:items-start'>
           <div className='space-y-3'>
             <Badge>Use cases</Badge>
-            <h2 className='font-display text-3xl'>
+            <h2 className='font-display text-3xl font-semibold'>
               API commerce for products that need instant settlement.
             </h2>
-            <p className='text-foreground/70 text-sm leading-6'>
+            <p className='text-muted-foreground text-sm leading-6'>
               MUSD is the medium of exchange across every listing, receipt, and
               provider dashboard.
             </p>
@@ -189,7 +191,7 @@ export default async function MarketingPage({
             {useCases.map(item => (
               <Card key={item} className='min-h-28'>
                 <p className='text-sm font-semibold'>{item}</p>
-                <div className='bg-accent mt-6 h-1 w-12 rounded-full' />
+                <div className='brand-gradient mt-6 h-1 w-12 rounded-full' />
               </Card>
             ))}
           </div>
