@@ -62,7 +62,7 @@ export default async function MarketingPage({
         <div className='space-y-7'>
           <Badge>MUSD API marketplace</Badge>
           <div className='space-y-5'>
-            <h1 className='font-display max-w-3xl text-4xl font-semibold leading-tight text-balance sm:text-5xl lg:text-6xl'>
+            <h1 className='font-display max-w-3xl text-4xl leading-tight font-semibold text-balance sm:text-5xl lg:text-6xl'>
               MUSD-native API commerce for humans and AI agents.
             </h1>
             <p className='text-lead'>
@@ -77,7 +77,12 @@ export default async function MarketingPage({
             </Link>
             <Link
               href='/provider'
-              className={buttonClasses({ variant: 'outline', size: 'lg' })}
+              className={buttonClasses({
+                variant: 'outline',
+                size: 'lg',
+                className:
+                  'hover:border-brand-orange/80 hover:bg-brand-orange/10 hover:shadow-brand-orange/25 focus-visible:ring-brand-orange/60 hover:shadow-md'
+              })}
             >
               List an API
             </Link>
@@ -90,12 +95,12 @@ export default async function MarketingPage({
             ].map(item => (
               <div
                 key={item.label}
-                className='border-border bg-card/90 rounded-lg border p-4 shadow-sm shadow-brand-blue/5'
+                className='border-border bg-card/90 shadow-brand-blue/5 rounded-lg border p-4 shadow-sm'
               >
                 <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
                   {item.label}
                 </p>
-                <p className='brand-text-gradient mt-2 text-2xl font-semibold'>
+                <p className='brand-flame-text-gradient mt-2 text-2xl font-semibold'>
                   {item.value}
                 </p>
               </div>
@@ -104,7 +109,7 @@ export default async function MarketingPage({
         </div>
 
         {featuredProduct ? (
-          <div className='bg-panel-sheen border-border rounded-lg border p-4 shadow-md shadow-brand-cyan/10'>
+          <div className='bg-panel-sheen border-border shadow-brand-cyan/10 rounded-lg border p-4 shadow-md'>
             <div className='border-border bg-background/85 rounded-md border'>
               <div className='border-border flex items-start justify-between gap-4 border-b p-5'>
                 <div>
@@ -116,7 +121,7 @@ export default async function MarketingPage({
                     {featuredProduct.description}
                   </p>
                 </div>
-                <div className='bg-brand-orange h-3 w-3 rounded-full shadow-sm shadow-brand-orange/40' />
+                <div className='bg-brand-orange shadow-brand-orange/40 h-3 w-3 rounded-full shadow-sm' />
               </div>
               <div className='grid gap-4 p-5'>
                 {[
@@ -191,7 +196,7 @@ export default async function MarketingPage({
             {useCases.map(item => (
               <Card key={item} className='min-h-28'>
                 <p className='text-sm font-semibold'>{item}</p>
-                <div className='brand-gradient mt-6 h-1 w-12 rounded-full' />
+                <div className='brand-flame-gradient mt-6 h-1 w-12 rounded-full' />
               </Card>
             ))}
           </div>

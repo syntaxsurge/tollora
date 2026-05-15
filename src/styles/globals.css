@@ -168,6 +168,18 @@
     color: transparent;
   }
 
+  .brand-flame-text-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-orange)),
+      hsl(var(--brand-yellow)) 54%,
+      hsl(var(--brand-orange))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   .text-lead {
     max-width: 72ch;
     color: hsl(var(--muted-foreground));
