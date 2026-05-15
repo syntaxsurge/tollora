@@ -1,17 +1,25 @@
 import { z } from 'zod'
 
+const optionalString = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.string().optional()
+)
+
+const optionalUrl = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.string().url().optional()
+)
+
 const serverSchema = z.object({
-  CONVEX_DEPLOYMENT: z.string().optional(),
-  TOLLORA_PLATFORM_FEE_BPS: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .max(10000)
-    .optional(),
-  X402_FACILITATOR_URL: z.string().url().optional(),
-  CLIPLORE_API_URL: z.string().url().optional(),
-  CLIPLORE_API_KEY: z.string().optional(),
-  CLIPLORE_WEBHOOK_SECRET: z.string().optional(),
+  CONVEX_DEPLOYMENT: optionalString,
+  TOLLORA_PLATFORM_FEE_BPS: z.preprocess(
+    value => (value === '' ? undefined : value),
+    z.coerce.number().int().min(0).max(10000).optional()
+  ),
+  X402_FACILITATOR_URL: optionalUrl,
+  CLIPLORE_API_URL: optionalUrl,
+  CLIPLORE_API_KEY: optionalString,
+  CLIPLORE_WEBHOOK_SECRET: optionalString,
   NODE_ENV: z.enum(['development', 'test', 'production']).optional()
 })
 

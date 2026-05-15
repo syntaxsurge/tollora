@@ -1,24 +1,40 @@
 import { z } from 'zod'
 
+const optionalString = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.string().optional()
+)
+
+const optionalUrl = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.string().url().optional()
+)
+
+const optionalNumber = z.preprocess(
+  value => (value === '' ? undefined : value),
+  z.coerce.number().optional()
+)
+
 const clientSchema = z.object({
-  NEXT_PUBLIC_APP_NAME: z.string().optional(),
-  NEXT_PUBLIC_APP_DESCRIPTION: z.string().optional(),
-  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-  NEXT_PUBLIC_CONVEX_URL: z.string().url().optional(),
-  NEXT_PUBLIC_THIRDWEB_CLIENT_ID: z.string().optional(),
-  NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: z.string().optional(),
-  NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES: z.string().optional(),
-  NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS: z.string().optional(),
-  NEXT_PUBLIC_SUBSCRIPTION_CHAIN_ID: z.coerce.number().optional(),
-  NEXT_PUBLIC_SUBSCRIPTION_BASE_PRICE_WEI: z.string().optional(),
-  NEXT_PUBLIC_SUBSCRIPTION_PLUS_PRICE_WEI: z.string().optional(),
-  NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID: z.coerce.number().optional(),
-  NEXT_PUBLIC_MEZO_TESTNET_RPC_URL: z.string().url().optional(),
-  NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL: z.string().url().optional(),
-  NEXT_PUBLIC_X402_NETWORK: z.string().optional(),
-  NEXT_PUBLIC_WALLET_PROVIDER: z
-    .enum(['thirdweb', 'rainbow-kit', 'rainbowkit'])
-    .optional()
+  NEXT_PUBLIC_APP_NAME: optionalString,
+  NEXT_PUBLIC_APP_DESCRIPTION: optionalString,
+  NEXT_PUBLIC_APP_URL: optionalUrl,
+  NEXT_PUBLIC_CONVEX_URL: optionalUrl,
+  NEXT_PUBLIC_THIRDWEB_CLIENT_ID: optionalString,
+  NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: optionalString,
+  NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES: optionalString,
+  NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS: optionalString,
+  NEXT_PUBLIC_SUBSCRIPTION_CHAIN_ID: optionalNumber,
+  NEXT_PUBLIC_SUBSCRIPTION_BASE_PRICE_WEI: optionalString,
+  NEXT_PUBLIC_SUBSCRIPTION_PLUS_PRICE_WEI: optionalString,
+  NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID: optionalNumber,
+  NEXT_PUBLIC_MEZO_TESTNET_RPC_URL: optionalUrl,
+  NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL: optionalUrl,
+  NEXT_PUBLIC_X402_NETWORK: optionalString,
+  NEXT_PUBLIC_WALLET_PROVIDER: z.preprocess(
+    value => (value === '' ? undefined : value),
+    z.enum(['thirdweb', 'rainbow-kit', 'rainbowkit']).optional()
+  )
 })
 
 export const envClient = clientSchema.parse({

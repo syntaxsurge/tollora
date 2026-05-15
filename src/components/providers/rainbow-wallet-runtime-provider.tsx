@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 
-import { mezoTestnet } from '@mezo-org/passport'
 import {
   RainbowKitProvider,
   darkTheme,
@@ -12,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useTheme } from 'next-themes'
 import { WagmiProvider } from 'wagmi'
 
+import { defaultAppChain } from '@/lib/config/chains'
 import { rainbowConfig } from '@/lib/wallet/rainbow'
 
 export function RainbowWalletRuntimeProvider({
@@ -51,7 +51,10 @@ export function RainbowWalletRuntimeProvider({
   return (
     <WagmiProvider config={rainbowConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider initialChain={mezoTestnet} theme={rainbowTheme}>
+        <RainbowKitProvider
+          initialChain={defaultAppChain.viemChain}
+          theme={rainbowTheme}
+        >
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

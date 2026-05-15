@@ -20,7 +20,7 @@ export type UserSettings = {
   publicProfile: boolean
 }
 
-const userSettingsStorageKey = 'web3-saas:user-settings'
+const userSettingsStorageKey = 'tollora:user-settings'
 
 export const defaultUserSettings: UserSettings = {
   fullName: '',

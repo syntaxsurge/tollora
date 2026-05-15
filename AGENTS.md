@@ -498,7 +498,7 @@ Before creating a new helper or service file:
 - Global styling via `src/styles/globals.css` and `src/styles/tokens.css`.
 - Wallet provider toggle via `NEXT_PUBLIC_WALLET_PROVIDER` with Thirdweb or
   RainbowKit integrations.
-- RainbowKit configuration uses Mezo Passport through `@mezo-org/passport` when
+- RainbowKit configuration uses the shared Mezo Testnet chain registry when
   `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is configured, and initializes on Mezo
   Testnet.
 - RainbowKit wallet buttons show the connected address inline and keep balance

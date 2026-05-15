@@ -20,7 +20,7 @@ export function SiteHeader() {
       <div className='mx-auto flex w-full max-w-7xl items-center gap-4 px-6 py-4'>
         <Link href='/' className='flex items-center gap-3'>
           <Image
-            src='/images/web3-saas-logo.png'
+            src='/images/tollora-logo.png'
             alt=''
             width={40}
             height={40}
