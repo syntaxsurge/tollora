@@ -37,7 +37,7 @@ export const apiProductSchema = z.object({
   method: z.enum(['GET', 'POST']),
   requestSchemaJson: z.string().trim().min(2),
   responseSchemaJson: z.string().trim().min(2),
-  demoPayloadJson: z.string().trim().optional(),
+  referencePayloadJson: z.string().trim().optional(),
   receivingWallet: z.string().trim().min(10),
   status: z.enum(apiProductStatuses).default('draft'),
   isX402Protected: z.coerce.boolean().default(true),

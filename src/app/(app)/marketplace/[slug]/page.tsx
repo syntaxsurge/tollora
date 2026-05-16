@@ -96,10 +96,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <section className='grid gap-5 xl:grid-cols-[0.9fr_1.1fr]'>
         <Card>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Example request body
+            Reference request body
           </p>
           <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-            {JSON.stringify(product.demoPayload, null, 2)}
+            {JSON.stringify(product.referencePayload, null, 2)}
           </pre>
         </Card>
         <Card className='space-y-4'>
@@ -116,7 +116,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <pre className='bg-muted overflow-auto rounded-lg p-4 text-xs leading-6'>
             {`curl -X ${product.method} ${product.endpointPath} \\
   -H "Content-Type: application/json" \\
-  -d '${JSON.stringify(product.demoPayload)}'`}
+  -d '${JSON.stringify(product.referencePayload)}'`}
           </pre>
         </Card>
       </section>

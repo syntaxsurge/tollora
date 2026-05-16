@@ -277,7 +277,6 @@ function AdminSubscriptionActionForms({
             <Input
               value={recipient}
               onChange={event => setRecipient(event.target.value)}
-              placeholder='0x...'
               required
             />
           </label>
@@ -291,7 +290,6 @@ function AdminSubscriptionActionForms({
               step='0.000000000000000001'
               value={withdrawAmount}
               onChange={event => setWithdrawAmount(event.target.value)}
-              placeholder='Blank withdraws all'
             />
           </label>
           <Button

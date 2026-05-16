@@ -378,11 +378,10 @@ Before creating a new helper or service file:
 - `/developers`, `/developers/docs` (developer onboarding and gateway docs)
 - `/privacy`, `/terms`
 - `/dashboard`, `/agents`, `/agents/new`, `/agents/[runId]`, `/marketplace`,
-  `/marketplace/[slug]`, `/orders`, `/orders/new`,
-  `/orders/[orderId]`, `/receipts/[receiptId]`, `/provider`,
-  `/provider/products`, `/provider/products/new`,
-  `/provider/products/[productId]`, `/provider/usage`, `/profile`, `/billing`,
-  `/settings` (wallet-protected app pages)
+  `/marketplace/[slug]`, `/orders`, `/orders/new`, `/orders/[orderId]`,
+  `/receipts/[receiptId]`, `/provider`, `/provider/products`,
+  `/provider/products/new`, `/provider/products/[productId]`, `/provider/usage`,
+  `/profile`, `/billing`, `/settings` (wallet-protected app pages)
 - `/proofs/[proofId]` (public autonomous agent proof page)
 - `/admin`, `/admin/users`, `/admin/products`, `/admin/orders`,
   `/admin/subscriptions`, `/admin/operations` (wallet-protected admin pages for
@@ -402,13 +401,15 @@ Before creating a new helper or service file:
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
-  autonomous Launch Pack Agent runs with objective, source context, owner wallet,
-  budget cap, max paid actions, allowed marketplace tools, and signer mode.
+  autonomous Launch Pack Agent runs with objective, source context, owner
+  wallet, budget cap, max paid actions, allowed marketplace tools, and signer
+  mode.
 - `GET /api/agents/runs/[runId]` — returns agent run status, paid actions,
   deliverables, receipts, and proof state.
 - `POST /api/agents/runs/[runId]/execute` — runs the autonomous workflow,
   calling selected Tollora x402 product endpoints with the configured agent
-  spender when available and returning deterministic demo results otherwise.
+  spender when available and returning local tool results without fabricated
+  settlement receipts otherwise.
 - `POST /api/agents/runs/[runId]/attest` — hashes completed run metadata and
   writes the proof to the configured Mezo AgentRunAttestor when available.
 - `GET /api/proofs/[proofId]` — returns a public proof package for a completed
@@ -432,8 +433,7 @@ Before creating a new helper or service file:
 - Convex backend in `convex/` with marketplace tables for providers, API
   products, product versions, orders, receipts, API requests, webhooks, usage
   events, payouts, autonomous agent runs, agent actions, agent proofs, saved
-  examples, and reviews; client helper in
-  `src/lib/db/convex/client.ts`.
+  examples, and reviews; client helper in `src/lib/db/convex/client.ts`.
 - Hardhat blockchain workspace in `blockchain/` with
   `contracts/SubscriptionManager.sol` plus `contracts/AgentRunAttestor.sol` for
   Mezo proof hashes. The agent attestor deploy script prints
@@ -450,16 +450,16 @@ Before creating a new helper or service file:
   `public/images/tollora-logo.png`.
 - Authenticated app routes use `src/components/layout/app-sidebar.tsx` for
   dashboard, marketplace, provider, profile, billing, and settings navigation.
-- Tollora marketplace seed data, product schemas, prices, x402 flags, and
+- Tollora marketplace product catalog, product schemas, prices, x402 flags, and
   dashboard metrics live in `src/features/marketplace/products.ts`; reusable
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
 - Autonomous Launch Pack Agent models, run storage, paid action execution, proof
   hashing, status labels, and UI clients live in `src/features/agents`.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
   failed work; `/agents/new` configures objective, source context, owner wallet,
-  budget cap, max paid actions, allowed paid tools, and demo/production signer
-  mode; `/agents/[runId]` executes paid actions, shows receipts and deliverables,
-  and writes Mezo proof attestations.
+  budget cap, max paid actions, allowed paid tools, and local/production signer
+  mode; `/agents/[runId]` executes paid actions, shows receipts and
+  deliverables, and writes Mezo proof attestations.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, total MUSD spend, attestation transaction,
   and Mezo explorer link.
@@ -472,13 +472,13 @@ Before creating a new helper or service file:
   price badges, provider names, x402 protection badges, agent-ready badges, and
   entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
-  schema, example payload, endpoint path, agent call example, and entry point
+  schema, reference payload, endpoint path, agent call example, and entry point
   for running the paid request.
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, request body, and x402 documentation link before a paid API call.
 - `/provider` shows provider revenue, API call volume, success rate, top
-  product, recent request activity, product listing health, demo narrative, and
-  the 95% provider / 5% platform fee split.
+  product, recent request activity, product listing health, production
+  narrative, and the 95% provider / 5% platform fee split.
 - `/provider/products` lists provider API products with status, price, gateway
   path, listing links, and management actions.
 - `/provider/products/new` uses
@@ -524,7 +524,7 @@ Before creating a new helper or service file:
   `exact` scheme, uses `X402_FACILITATOR_URL`, protects product call routes, and
   relies on the x402 stablecoin registry to resolve dollar-denominated prices to
   MUSD on Mezo.
-- Demo and deployment documentation lives in `docs/demo-script.md` and
+- Walkthrough and deployment documentation lives in `docs/demo-script.md` and
   `docs/deployment-checklist.md`.
 - The admin subscriptions page reads SubscriptionManager balance, plan prices,
   paginated subscriber rows, treasury withdrawal support, and explorer links
@@ -547,9 +547,9 @@ Before creating a new helper or service file:
 - App route protection uses `src/middleware.ts`,
   `src/lib/auth/wallet-session.ts`, and
   `src/components/layout/protected-app-guard.tsx` to require an active wallet
-  connection for `/dashboard`, `/agents`, `/marketplace`, `/orders`, `/receipts`,
-  `/provider`, `/profile`, `/billing`, `/settings`, and `/admin`; admin routes
-  also require an allowlisted wallet address.
+  connection for `/dashboard`, `/agents`, `/marketplace`, `/orders`,
+  `/receipts`, `/provider`, `/profile`, `/billing`, `/settings`, and `/admin`;
+  admin routes also require an allowlisted wallet address.
 - Wallet-auth redirects add an auth reason to the home page, which displays a
   dismissible notice through `src/components/feedback/auth-required-toast.tsx`.
 - Browser-local account preferences are managed in

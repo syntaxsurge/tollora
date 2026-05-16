@@ -1,5 +1,5 @@
 import { getPublishedProducts } from '@/features/marketplace/products'
-import { demoReceipts } from '@/features/marketplace/receipts'
+import { settlementReceipts } from '@/features/marketplace/receipts'
 import { x402Network } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
@@ -67,8 +67,8 @@ export function getOperationalReadiness() {
     },
     {
       label: 'Receipt records',
-      value: demoReceipts.length.toString(),
-      state: demoReceipts.length > 0 ? 'ready' : 'attention',
+      value: settlementReceipts.length.toString(),
+      state: settlementReceipts.length > 0 ? 'ready' : 'attention',
       detail:
         'Receipt pages show MUSD amount, fee split, tx hash, and explorer.'
     },
@@ -76,14 +76,16 @@ export function getOperationalReadiness() {
       label: 'Agent spender',
       value: envServer.AGENT_SPENDER_PRIVATE_KEY
         ? 'Configured'
-        : 'Demo fallback',
+        : 'Local execution only',
       state: envServer.AGENT_SPENDER_PRIVATE_KEY ? 'ready' : 'attention',
       detail:
         'Server-side agent runs use this signer for autonomous x402 MUSD payments.'
     },
     {
       label: 'Agent attestor',
-      value: envClient.NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS ?? 'Demo fallback',
+      value:
+        envClient.NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS ??
+        'Contract not configured',
       state: envClient.NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS
         ? 'ready'
         : 'attention',

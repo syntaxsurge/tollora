@@ -76,33 +76,28 @@ export function UserSettingsForm() {
           <LabeledInput
             label='Full name'
             value={settings.fullName}
-            placeholder='Ada Lovelace'
             onChange={value => updateField('fullName', value)}
           />
           <LabeledInput
             label='Username'
             value={settings.username}
-            placeholder='ada'
             onChange={value => updateField('username', value)}
           />
           <LabeledInput
             label='Email'
             type='email'
             value={settings.email}
-            placeholder='ada@example.com'
             onChange={value => updateField('email', value)}
           />
           <LabeledInput
             label='Role'
             value={settings.role}
-            placeholder='Founder'
             onChange={value => updateField('role', value)}
           />
           <LabeledInput
             label='Website'
             type='url'
             value={settings.website}
-            placeholder='https://example.com'
             onChange={value => updateField('website', value)}
           />
           <label className='space-y-2'>
@@ -243,13 +238,11 @@ export function UserSettingsForm() {
 function LabeledInput({
   label,
   value,
-  placeholder,
   type = 'text',
   onChange
 }: {
   label: string
   value: string
-  placeholder: string
   type?: string
   onChange: (value: string) => void
 }) {
@@ -261,7 +254,6 @@ function LabeledInput({
       <Input
         type={type}
         value={value}
-        placeholder={placeholder}
         onChange={event => onChange(event.target.value)}
       />
     </label>

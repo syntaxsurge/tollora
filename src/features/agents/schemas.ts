@@ -14,5 +14,5 @@ export const createAgentRunSchema = z.object({
   budgetCapMusd: z.coerce.number().positive().max(100),
   maxPaidActions: z.coerce.number().int().min(1).max(4),
   allowedTools: z.array(z.enum(agentToolSlugs)).min(1).max(4),
-  mode: z.enum(['demo', 'production']).default('demo')
+  mode: z.enum(['local', 'production']).default('local')
 })

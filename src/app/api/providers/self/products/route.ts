@@ -30,12 +30,12 @@ export async function POST(request: Request) {
     JSON.parse(payload.requestSchemaJson)
     JSON.parse(payload.responseSchemaJson)
 
-    if (payload.demoPayloadJson) {
-      JSON.parse(payload.demoPayloadJson)
+    if (payload.referencePayloadJson) {
+      JSON.parse(payload.referencePayloadJson)
     }
   } catch {
     return NextResponse.json(
-      { error: 'Schema and demo payload fields must contain valid JSON.' },
+      { error: 'Schema and reference payload fields must contain valid JSON.' },
       { status: 400 }
     )
   }

@@ -8,13 +8,8 @@ import type {
   AgentRun,
   AgentToolSlug
 } from '@/features/agents/types'
-import {
-  buildExplorerUrl,
-  buildReceiptAmounts,
-  type MarketplaceReceipt
-} from '@/features/marketplace/receipts'
+import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import { getProductBySlug } from '@/features/marketplace/products'
-import { x402Network } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
@@ -63,13 +58,18 @@ export async function executeAgentRunActions(run: AgentRun) {
   }
 
   const deliverables = buildDeliverables(run, completedActions)
-  const completed = completedActions.every(action => action.status === 'completed')
+  const completed = completedActions.every(
+    action => action.status === 'completed'
+  )
+  const receiptCount = completedActions.filter(action => action.receipt).length
 
   return {
     actions: completedActions,
     deliverables,
     summary: completed
-      ? `The launch-pack agent completed ${completedActions.length} paid actions and prepared an auditable Mezo proof package.`
+      ? receiptCount > 0
+        ? `The launch-pack agent completed ${completedActions.length} actions, captured ${receiptCount} MUSD receipt records, and prepared an auditable Mezo proof package.`
+        : `The launch-pack agent completed ${completedActions.length} local tool actions and prepared an auditable Mezo proof package.`
       : 'The launch-pack agent stopped before completing every selected paid action.',
     status: completed ? 'completed' : 'failed'
   } as const
@@ -113,11 +113,7 @@ async function executeAgentAction(run: AgentRun, action: AgentAction) {
         responsePayload:
           run.mode === 'production'
             ? undefined
-            : buildDemoResponse(started, run.objective),
-        receipt:
-          run.mode === 'production'
-            ? undefined
-            : buildDemoReceipt(started, run.ownerWallet, run.id),
+            : buildLocalResponse(started, run.objective),
         errorMessage:
           caughtError instanceof Error
             ? caughtError.message
@@ -130,10 +126,7 @@ async function executeAgentAction(run: AgentRun, action: AgentAction) {
   return {
     ...started,
     status: 'completed',
-    responsePayload: buildDemoResponse(started, run.objective),
-    receipt: buildDemoReceipt(started, run.ownerWallet, run.id),
-    orderId: `ord_agent_${started.id.slice(-8)}`,
-    requestId: `req_agent_${started.id.slice(-8)}`,
+    responsePayload: buildLocalResponse(started, run.objective),
     completedAt: new Date().toISOString()
   } satisfies AgentAction
 }
@@ -173,7 +166,8 @@ function getActionObjective(tool: AgentToolSlug, objective: string) {
     'prompt-enhancer-api': 'Create polished launch copy for the user goal.',
     'document-summary-api': 'Extract a launch brief and concrete action items.',
     'market-snapshot-api': 'Collect a Mezo market signal for positioning.',
-    'cliplore-ai-video-generator': 'Generate a short product-launch video asset.'
+    'cliplore-ai-video-generator':
+      'Generate a short product-launch video asset.'
   }
 
   return `${objectives[tool]} Goal: ${objective}`
@@ -212,7 +206,7 @@ function buildPayloadForTool(tool: AgentToolSlug, run: AgentRun) {
   }
 }
 
-function buildDemoResponse(action: AgentAction, objective: string) {
+function buildLocalResponse(action: AgentAction, objective: string) {
   if (action.productSlug === 'prompt-enhancer-api') {
     return {
       enhancedPrompt: `Launch ${objective} as a MUSD-paid API workflow with clear buyer value, proof-backed settlement, and developer-first onboarding.`,
@@ -249,44 +243,9 @@ function buildDemoResponse(action: AgentAction, objective: string) {
   return {
     status: 'processing',
     externalJobId: `clip_agent_${action.id.slice(-8)}`,
-    resultUrl: 'https://media.cliplore.ai/demo/tollora-agent-launch.mp4',
+    resultUrl: 'https://cliplore.ai',
     requestId: `req_agent_${action.id.slice(-8)}`
   }
-}
-
-function buildDemoReceipt(
-  action: AgentAction,
-  buyerWallet: string,
-  agentRunId: string
-) {
-  const product = getProductBySlug(action.productSlug)
-  const txHash = `0x${action.id
-    .padEnd(66, '0')
-    .replace(/[^a-fA-F0-9x]/g, '0')
-    .slice(0, 66)}`
-
-  return {
-    id: `rcpt_agent_${action.id.slice(-8)}`,
-    orderId: `ord_agent_${action.id.slice(-8)}`,
-    requestId: `req_agent_${action.id.slice(-8)}`,
-    productSlug: action.productSlug,
-    productName: action.productName,
-    providerName: action.providerName,
-    buyerWallet,
-    providerWallet:
-      product?.providerWallet ?? '0x3161100000000000000000000000000000000002',
-    amountMusd: action.amountMusd,
-    ...buildReceiptAmounts(product?.priceUsd ?? 0),
-    network: x402Network as 'eip155:31611',
-    txHash,
-    explorerUrl: buildExplorerUrl(txHash),
-    createdAt: new Date().toISOString(),
-    agentRunId,
-    resultUrl:
-      action.productSlug === 'cliplore-ai-video-generator'
-        ? 'https://media.cliplore.ai/demo/tollora-agent-launch.mp4'
-        : undefined
-  } satisfies MarketplaceReceipt
 }
 
 function buildDeliverables(run: AgentRun, actions: AgentAction[]) {

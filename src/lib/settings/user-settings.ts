@@ -26,7 +26,7 @@ export const defaultUserSettings: UserSettings = {
   fullName: '',
   username: '',
   email: '',
-  role: 'Founder',
+  role: '',
   website: '',
   plan: 'free',
   timezone: 'Asia/Manila',

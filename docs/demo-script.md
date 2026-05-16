@@ -1,10 +1,10 @@
-# Tollora Demo Script
+# Tollora Live Walkthrough Script
 
 ## Positioning
 
-Tollora is a MUSD-native API marketplace where providers list paid endpoints
-and humans, applications, or AI agents pay per request using Bitcoin-backed MUSD
-on Mezo.
+Tollora is a MUSD-native API marketplace where providers list paid endpoints and
+humans, applications, or AI agents pay per request using Bitcoin-backed MUSD on
+Mezo.
 
 ## Walkthrough
 
@@ -28,12 +28,12 @@ on Mezo.
    requirements.
 10. Retry with a signed `X-PAYMENT` payload from the wallet or agent client.
 11. Show the provider response, receipt ID, and Mezo explorer link.
-12. Open `/receipts/[receiptId]` and explain buyer wallet, provider wallet,
-   MUSD amount, fee split, network, and transaction hash.
+12. Open `/receipts/[receiptId]` and explain buyer wallet, provider wallet, MUSD
+    amount, fee split, network, and transaction hash.
 13. Open `/provider` to show provider earnings, request activity, listing
-   health, and the 95% provider share.
-14. Open `/developers/docs` and `/api/reference` to show agent-ready
-    integration docs and OpenAPI coverage.
+    health, and the 95% provider share.
+14. Open `/developers/docs` and `/api/reference` to show agent-ready integration
+    docs and OpenAPI coverage.
 15. Open `/admin/operations` to show gateway readiness for x402, agent signers,
     ClipLore, wallet onboarding, receipts, proof pages, and provider adapters.
 
@@ -45,7 +45,7 @@ on Mezo.
   settlement.
 - Launch Pack Agent proves autonomous task execution by linking paid actions,
   receipts, deliverables, proof hash, and a Mezo attestation transaction.
-- ClipLore proves Tollora can sell premium AI workflows through the same
-  generic provider adapter interface used by lightweight API products.
-- Tollora records the platform fee and provider amount for every successful
-  paid request.
+- ClipLore proves Tollora can sell premium AI workflows through the same generic
+  provider adapter interface used by lightweight API products.
+- Tollora records the platform fee and provider amount for every successful paid
+  request.

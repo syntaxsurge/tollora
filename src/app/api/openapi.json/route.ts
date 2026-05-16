@@ -335,7 +335,7 @@ export function GET() {
                 enum: marketplaceProducts.map(product => product.slug)
               }
             },
-            mode: { type: 'string', enum: ['demo', 'production'] }
+            mode: { type: 'string', enum: ['local', 'production'] }
           }
         },
         AgentRun: {
@@ -376,8 +376,8 @@ export function GET() {
             proofHash: { type: 'string' },
             proofUri: { type: 'string' },
             network: { type: 'string', enum: [x402Network] },
-            txHash: { type: 'string' },
-            explorerUrl: { type: 'string' },
+            txHash: { type: ['string', 'null'] },
+            explorerUrl: { type: ['string', 'null'] },
             receiptIds: { type: 'array', items: { type: 'string' } },
             totalSpendMusd: { type: 'string' }
           }

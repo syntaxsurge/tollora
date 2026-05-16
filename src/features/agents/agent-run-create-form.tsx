@@ -102,7 +102,7 @@ export function AgentRunCreateForm() {
             </span>
             <Input
               name='ownerWallet'
-              defaultValue='0x6d4aaf20a9be71d3c2c8b7f0d15c3c9af91244aa'
+              defaultValue='0x7CE33579392AEAF1791c9B0c8302a502B5867688'
               required
             />
           </label>
@@ -172,7 +172,7 @@ export function AgentRunCreateForm() {
         <fieldset className='flex flex-wrap gap-3'>
           <legend className='sr-only'>Agent execution mode</legend>
           {[
-            ['demo', 'Demo signer'],
+            ['local', 'Local signer'],
             ['production', 'Production signer']
           ].map(([value, label]) => (
             <label
@@ -183,7 +183,7 @@ export function AgentRunCreateForm() {
                 type='radio'
                 name='mode'
                 value={value}
-                defaultChecked={value === 'demo'}
+                defaultChecked={value === 'local'}
               />
               {label}
             </label>
@@ -191,7 +191,10 @@ export function AgentRunCreateForm() {
         </fieldset>
       </Card>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-        <Button type='submit' disabled={isSubmitting || selectedTools.length === 0}>
+        <Button
+          type='submit'
+          disabled={isSubmitting || selectedTools.length === 0}
+        >
           {isSubmitting ? 'Preparing agent' : 'Start launch-pack agent'}
         </Button>
         {error ? (

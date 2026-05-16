@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getAgentMetrics } from '@/features/agents/store'
-import { demoReceipts } from '@/features/marketplace/receipts'
+import { settlementReceipts } from '@/features/marketplace/receipts'
 import { getProjectSnapshot } from '@/lib/config/project'
 
 const checklist = [
@@ -105,9 +105,9 @@ export default async function BillingPage() {
           </p>
           <h2 className='font-display mt-2 text-2xl'>Recent settlements</h2>
         </div>
-        {demoReceipts.length > 0 ? (
+        {settlementReceipts.length > 0 ? (
           <div className='grid gap-3'>
-            {demoReceipts.map(receipt => (
+            {settlementReceipts.map(receipt => (
               <div
                 key={receipt.id}
                 className='border-foreground/10 grid gap-4 rounded-lg border p-4 text-sm lg:grid-cols-[1fr_140px_150px_120px]'

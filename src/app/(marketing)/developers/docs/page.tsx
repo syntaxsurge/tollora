@@ -40,7 +40,7 @@ export default function DeveloperDocsPage() {
         />
         <DocSection
           title='Provider onboarding'
-          body='Providers define product metadata, price, method, endpoint URL, request schema, response schema, sample payload, webhook URL, and receiving wallet address. Published products appear in the marketplace after moderation.'
+          body='Providers define product metadata, price, method, endpoint URL, request schema, response schema, reference payload, webhook URL, and receiving wallet address. Published products appear in the marketplace after moderation.'
         />
         <DocSection
           title='Receipt format'
@@ -74,11 +74,11 @@ Content-Type: application/json
 
 {
   "objective": "Create a launch pack for my paid API product.",
-  "ownerWallet": "0x6d4aaf20a9be71d3c2c8b7f0d15c3c9af91244aa",
+  "ownerWallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
   "budgetCapMusd": 20,
   "maxPaidActions": 3,
   "allowedTools": ["prompt-enhancer-api", "document-summary-api", "market-snapshot-api"],
-  "mode": "demo"
+  "mode": "local"
 }`}
         </pre>
       </Card>
@@ -106,14 +106,13 @@ Content-Type: application/json
         <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
           {`POST /api/provider-webhooks/cliplore
 Content-Type: application/json
-X-ClipLore-Signature: sha256=ad6e7b7d9d61c3bf7f9f7b6b0c0f7a1e53f6a8a426d4c23bb2bb52f8e4a91461
 
 {
   "orderId": "ord_6f8d2a44c9b1",
   "receiptId": "rcpt_24d7c6fae911",
   "externalJobId": "clip_6f8d2a44c9b1",
   "status": "completed",
-  "resultUrl": "https://media.cliplore.ai/jobs/clip_6f8d2a44c9b1/result.mp4"
+  "resultUrl": "https://cliplore.ai"
 }`}
         </pre>
       </Card>

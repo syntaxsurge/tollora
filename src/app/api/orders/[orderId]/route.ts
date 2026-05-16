@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getDemoOrderById } from '@/features/marketplace/orders'
+import { getMarketplaceOrderById } from '@/features/marketplace/orders'
 
 type OrderRouteProps = {
   params: Promise<{
@@ -10,7 +10,7 @@ type OrderRouteProps = {
 
 export async function GET(_request: Request, { params }: OrderRouteProps) {
   const { orderId } = await params
-  const order = getDemoOrderById(orderId)
+  const order = getMarketplaceOrderById(orderId)
 
   if (!order) {
     return NextResponse.json({ error: 'Order was not found.' }, { status: 404 })

@@ -55,13 +55,18 @@ export default async function ProofPage({ params }: ProofPageProps) {
             ['Owner wallet', proof.ownerWallet],
             ['Proof hash', proof.proofHash],
             ['Total spend', `${proof.totalSpendMusd} MUSD`],
-            ['Receipts', proof.receiptIds.join(', ')]
+            [
+              'Receipts',
+              proof.receiptIds.length > 0
+                ? proof.receiptIds.join(', ')
+                : 'No MUSD receipt records attached'
+            ]
           ].map(([label, value]) => (
             <div key={label}>
               <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
                 {label}
               </p>
-              <p className='mt-1 break-words text-sm font-semibold'>{value}</p>
+              <p className='mt-1 text-sm font-semibold break-words'>{value}</p>
             </div>
           ))}
         </Card>
@@ -69,7 +74,9 @@ export default async function ProofPage({ params }: ProofPageProps) {
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             Attestation
           </p>
-          <p className='break-words font-mono text-sm'>{proof.txHash}</p>
+          <p className='font-mono text-sm break-words'>
+            {proof.txHash ?? 'Awaiting on-chain attestation transaction'}
+          </p>
           {proof.explorerUrl ? (
             <a
               href={proof.explorerUrl}

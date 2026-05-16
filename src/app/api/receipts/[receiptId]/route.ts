@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getDemoReceiptById } from '@/features/marketplace/receipts'
+import { getMarketplaceReceiptById } from '@/features/marketplace/receipts'
 
 type ReceiptRouteProps = {
   params: Promise<{
@@ -9,7 +9,7 @@ type ReceiptRouteProps = {
 }
 
 export async function GET(_request: Request, { params }: ReceiptRouteProps) {
-  const receipt = getDemoReceiptById((await params).receiptId)
+  const receipt = getMarketplaceReceiptById((await params).receiptId)
 
   if (!receipt) {
     return NextResponse.json(

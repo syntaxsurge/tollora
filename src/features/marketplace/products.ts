@@ -23,7 +23,7 @@ export type ApiProduct = {
   estimatedLatency: string
   requestSchema: Record<string, string>
   responseSchema: Record<string, string>
-  demoPayload: Record<string, unknown>
+  referencePayload: Record<string, unknown>
   isX402Protected: boolean
   isAgentReady: boolean
   status: ApiProductStatus
@@ -39,7 +39,7 @@ export const marketplaceProducts: ApiProduct[] = [
     name: 'ClipLore AI Video Generator',
     providerName: 'ClipLore',
     providerSlug: 'cliplore',
-    providerWallet: '0x3161100000000000000000000000000000000001',
+    providerWallet: '0x7CE33579392AEAF1791c9B0c8302a502B5867688',
     category: 'media',
     description:
       'Generate short-form AI videos from a prompt, format selection, optional script, and source preferences through a paid API listing.',
@@ -61,7 +61,7 @@ export const marketplaceProducts: ApiProduct[] = [
       externalJobId: 'string',
       resultUrl: 'string | undefined'
     },
-    demoPayload: {
+    referencePayload: {
       prompt: 'Create a product teaser for a MUSD-native paid API gateway.',
       format: 'vertical',
       duration: '30s',
@@ -71,16 +71,16 @@ export const marketplaceProducts: ApiProduct[] = [
     isAgentReady: true,
     status: 'published',
     featured: true,
-    calls: 42,
-    successRate: '97.6%',
-    revenueMusd: '756.00'
+    calls: 0,
+    successRate: 'No calls yet',
+    revenueMusd: '0.00'
   },
   {
     slug: 'prompt-enhancer-api',
     name: 'Prompt Enhancer API',
     providerName: 'Tollora Labs',
     providerSlug: 'tollora-labs',
-    providerWallet: '0x3161100000000000000000000000000000000002',
+    providerWallet: '0x7CE33579392AEAF1791c9B0c8302a502B5867688',
     category: 'ai',
     description:
       'Transform rough prompts into structured, model-ready instructions with tone, constraints, and output formatting.',
@@ -99,24 +99,25 @@ export const marketplaceProducts: ApiProduct[] = [
       rationale: 'string',
       requestId: 'string'
     },
-    demoPayload: {
-      prompt: 'Write a launch post for my API product.',
+    referencePayload: {
+      prompt:
+        'Write a launch post for Tollora, a Mezo-native marketplace where agents buy paid APIs.',
       audience: 'developers',
       outputStyle: 'concise'
     },
     isX402Protected: true,
     isAgentReady: true,
     status: 'published',
-    calls: 1280,
-    successRate: '99.2%',
-    revenueMusd: '102.40'
+    calls: 0,
+    successRate: 'No calls yet',
+    revenueMusd: '0.00'
   },
   {
     slug: 'document-summary-api',
     name: 'Document Summary API',
     providerName: 'Tollora Labs',
     providerSlug: 'tollora-labs',
-    providerWallet: '0x3161100000000000000000000000000000000002',
+    providerWallet: '0x7CE33579392AEAF1791c9B0c8302a502B5867688',
     category: 'developer',
     description:
       'Summarize long documents into executive notes, action items, and structured metadata for workflow automation.',
@@ -134,23 +135,24 @@ export const marketplaceProducts: ApiProduct[] = [
       actionItems: 'string[]',
       requestId: 'string'
     },
-    demoPayload: {
-      documentText: 'Paste the document content to summarize.',
+    referencePayload: {
+      documentText:
+        'Tollora lets providers publish paid API products, lets autonomous agents buy them with MUSD through x402, and publishes Mezo attestations for auditability.',
       summaryDepth: 'standard'
     },
     isX402Protected: true,
     isAgentReady: true,
     status: 'published',
-    calls: 864,
-    successRate: '98.8%',
-    revenueMusd: '207.36'
+    calls: 0,
+    successRate: 'No calls yet',
+    revenueMusd: '0.00'
   },
   {
     slug: 'market-snapshot-api',
     name: 'Market Snapshot API',
     providerName: 'Signal Foundry',
     providerSlug: 'signal-foundry',
-    providerWallet: '0x3161100000000000000000000000000000000003',
+    providerWallet: '0xee7dAF11DB3Ef772fA3eb721A7dC97d9e321e5d4',
     category: 'data',
     description:
       'Fetch a compact market snapshot with price, liquidity, volatility, and timestamp fields for trading and treasury dashboards.',
@@ -169,16 +171,16 @@ export const marketplaceProducts: ApiProduct[] = [
       liquidityUsd: 'number',
       observedAt: 'string'
     },
-    demoPayload: {
+    referencePayload: {
       symbol: 'MUSD',
       venue: 'Mezo'
     },
     isX402Protected: true,
     isAgentReady: true,
     status: 'published',
-    calls: 512,
-    successRate: '99.6%',
-    revenueMusd: '61.44'
+    calls: 0,
+    successRate: 'No calls yet',
+    revenueMusd: '0.00'
   }
 ]
 

@@ -68,7 +68,7 @@ export function OrderCreateForm({ product }: OrderCreateFormProps) {
           </span>
           <Input
             name='buyerWallet'
-            defaultValue='0x0000000000000000000000000000000000000000'
+            defaultValue='0x7CE33579392AEAF1791c9B0c8302a502B5867688'
             required
           />
         </label>
@@ -78,7 +78,7 @@ export function OrderCreateForm({ product }: OrderCreateFormProps) {
           </span>
           <textarea
             name='requestPayloadJson'
-            defaultValue={JSON.stringify(product.demoPayload, null, 2)}
+            defaultValue={JSON.stringify(product.referencePayload, null, 2)}
             className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 min-h-72 w-full rounded-2xl border px-4 py-3 font-mono text-xs leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
             required
           />

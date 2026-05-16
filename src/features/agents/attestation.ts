@@ -10,8 +10,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts'
 
 import type { AgentProof, AgentRun } from '@/features/agents/types'
-import { getExplorerTransactionUrl } from '@/lib/config/chains'
-import { appChains } from '@/lib/config/chains'
+import { appChains, getExplorerTransactionUrl } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
@@ -29,11 +28,9 @@ export async function attestAgentRunOnMezo(
   const privateKey = envServer.AGENT_ATTESTER_PRIVATE_KEY
 
   if (!contractAddress || !privateKey) {
-    const demoTxHash = `0x${proof.proofHash.slice(2, 66)}`
-
     return {
-      txHash: demoTxHash,
-      explorerUrl: getExplorerTransactionUrl(demoTxHash, appChains.mezoTestnet.id)
+      txHash: null,
+      explorerUrl: null
     }
   }
 

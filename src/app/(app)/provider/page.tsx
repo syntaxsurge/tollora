@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getAgentMetrics } from '@/features/agents/store'
-import { demoOrders } from '@/features/marketplace/orders'
+import { marketplaceOrders } from '@/features/marketplace/orders'
 import {
   getMarketplaceMetrics,
   getPublishedProducts
@@ -155,20 +155,30 @@ export default function ProviderPage() {
             </h2>
           </div>
           <div className='grid gap-3'>
-            {demoOrders.slice(0, 3).map(order => (
-              <Link
-                key={order.id}
-                href={`/orders/${order.id}`}
-                className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
-              >
-                <p className='font-semibold'>{order.productName}</p>
-                <div className='text-foreground/60 mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs'>
-                  <span>{order.amountMusd}</span>
-                  <span>{order.status.replace(/_/g, ' ')}</span>
-                  <span>{order.requestId}</span>
-                </div>
-              </Link>
-            ))}
+            {marketplaceOrders.length > 0 ? (
+              marketplaceOrders.slice(0, 3).map(order => (
+                <Link
+                  key={order.id}
+                  href={`/orders/${order.id}`}
+                  className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
+                >
+                  <p className='font-semibold'>{order.productName}</p>
+                  <div className='text-foreground/60 mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs'>
+                    <span>{order.amountMusd}</span>
+                    <span>{order.status.replace(/_/g, ' ')}</span>
+                    <span>{order.requestId}</span>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className='bg-muted rounded-lg p-4'>
+                <p className='font-semibold'>No paid requests yet</p>
+                <p className='text-foreground/65 mt-2 text-sm leading-6'>
+                  Settled x402 orders will appear here after buyers or agents
+                  call provider listings.
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -177,7 +187,7 @@ export default function ProviderPage() {
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Gateway readiness
             </p>
-            <h2 className='font-display mt-2 text-2xl'>Demo narrative</h2>
+            <h2 className='font-display mt-2 text-2xl'>Production narrative</h2>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
               Providers can show how a listing becomes a paid x402 endpoint, how
               Tollora records the MUSD receipt, and how the dashboard separates

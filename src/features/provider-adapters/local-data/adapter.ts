@@ -6,8 +6,8 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
-export const demoDataAdapter: ProviderAdapter = {
-  id: 'demo-data',
+export const localDataAdapter: ProviderAdapter = {
+  id: 'local-data',
   async call(input) {
     const payload = asRecord(input.requestPayload)
 

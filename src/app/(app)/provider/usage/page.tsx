@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { getAgentMetrics } from '@/features/agents/store'
-import { demoOrders } from '@/features/marketplace/orders'
+import { marketplaceOrders } from '@/features/marketplace/orders'
 import { getPublishedProducts } from '@/features/marketplace/products'
 import { orderStatusLabels } from '@/features/marketplace/status'
 
@@ -58,17 +58,25 @@ export default function ProviderUsagePage() {
               </tr>
             </thead>
             <tbody>
-              {demoOrders.map(order => (
-                <tr key={order.id} className='border-foreground/10 border-t'>
-                  <td className='px-5 py-4 font-mono'>{order.requestId}</td>
-                  <td className='px-5 py-4'>{order.productName}</td>
-                  <td className='px-5 py-4 font-mono'>{order.buyerWallet}</td>
-                  <td className='px-5 py-4'>{order.amountMusd}</td>
-                  <td className='px-5 py-4'>
-                    {orderStatusLabels[order.status]}
+              {marketplaceOrders.length > 0 ? (
+                marketplaceOrders.map(order => (
+                  <tr key={order.id} className='border-foreground/10 border-t'>
+                    <td className='px-5 py-4 font-mono'>{order.requestId}</td>
+                    <td className='px-5 py-4'>{order.productName}</td>
+                    <td className='px-5 py-4 font-mono'>{order.buyerWallet}</td>
+                    <td className='px-5 py-4'>{order.amountMusd}</td>
+                    <td className='px-5 py-4'>
+                      {orderStatusLabels[order.status]}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr className='border-foreground/10 border-t'>
+                  <td className='text-foreground/65 px-5 py-5' colSpan={5}>
+                    No provider API calls have settled yet.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

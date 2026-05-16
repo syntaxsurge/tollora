@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { OrderStatusClient } from '@/features/marketplace/order-status-client'
-import { getDemoOrderById } from '@/features/marketplace/orders'
+import { getMarketplaceOrderById } from '@/features/marketplace/orders'
 
 type OrderDetailPageProps = {
   params: Promise<{
@@ -16,7 +16,7 @@ export default async function OrderDetailPage({
   params
 }: OrderDetailPageProps) {
   const { orderId } = await params
-  const order = getDemoOrderById(orderId) ?? null
+  const order = getMarketplaceOrderById(orderId) ?? null
 
   return (
     <div className='space-y-8'>

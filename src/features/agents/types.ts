@@ -16,7 +16,7 @@ export type AgentActionStatus =
   | 'skipped'
   | 'failed'
 
-export type AgentRunMode = 'demo' | 'production'
+export type AgentRunMode = 'local' | 'production'
 
 export type AgentToolSlug =
   | 'prompt-enhancer-api'
@@ -50,7 +50,7 @@ export type AgentProof = {
   proofHash: `0x${string}`
   proofUri: string
   network: 'eip155:31611'
-  txHash: string
+  txHash: string | null
   explorerUrl: string | null
   receiptIds: string[]
   totalSpendMusd: string

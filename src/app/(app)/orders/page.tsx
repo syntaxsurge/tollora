@@ -3,7 +3,10 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { demoOrders, getOrderMetrics } from '@/features/marketplace/orders'
+import {
+  marketplaceOrders,
+  getOrderMetrics
+} from '@/features/marketplace/orders'
 import { orderStatusLabels } from '@/features/marketplace/status'
 
 export default function OrdersPage() {
@@ -18,9 +21,9 @@ export default function OrdersPage() {
             <h1 className='font-display text-4xl'>Buyer order lifecycle</h1>
             <p className='text-foreground/70 text-sm leading-6'>
               Track paid API requests from payment requirement through provider
-              processing, completion, failure, or expiration.
-              Autonomous agent orders link the same lifecycle to launch-pack
-              runs and proof pages.
+              processing, completion, failure, or expiration. Autonomous agent
+              orders link the same lifecycle to launch-pack runs and proof
+              pages.
             </p>
           </div>
           <Link
@@ -49,32 +52,44 @@ export default function OrdersPage() {
       </section>
 
       <section className='grid gap-4'>
-        {demoOrders.map(order => (
-          <Card
-            key={order.id}
-            className='grid gap-4 lg:grid-cols-[1fr_160px_180px_130px]'
-          >
-            <div>
-              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                {order.providerName}
-              </p>
-              <h2 className='mt-2 text-lg font-semibold'>
-                {order.productName}
-              </h2>
-              <p className='text-foreground/65 mt-2 font-mono text-xs'>
-                {order.requestId}
-              </p>
-            </div>
-            <Metric label='Amount' value={order.amountMusd} />
-            <Metric label='Status' value={orderStatusLabels[order.status]} />
-            <Link
-              href={`/orders/${order.id}`}
-              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+        {marketplaceOrders.length > 0 ? (
+          marketplaceOrders.map(order => (
+            <Card
+              key={order.id}
+              className='grid gap-4 lg:grid-cols-[1fr_160px_180px_130px]'
             >
-              Open order
-            </Link>
+              <div>
+                <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  {order.providerName}
+                </p>
+                <h2 className='mt-2 text-lg font-semibold'>
+                  {order.productName}
+                </h2>
+                <p className='text-foreground/65 mt-2 font-mono text-xs'>
+                  {order.requestId}
+                </p>
+              </div>
+              <Metric label='Amount' value={order.amountMusd} />
+              <Metric label='Status' value={orderStatusLabels[order.status]} />
+              <Link
+                href={`/orders/${order.id}`}
+                className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              >
+                Open order
+              </Link>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <p className='font-semibold'>
+              No paid API orders have been created.
+            </p>
+            <p className='text-foreground/65 mt-2 text-sm leading-6'>
+              Create an order from the marketplace or execute an agent run to
+              populate this lifecycle view with real request records.
+            </p>
           </Card>
-        ))}
+        )}
       </section>
     </div>
   )

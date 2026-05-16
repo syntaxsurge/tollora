@@ -6,8 +6,8 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
-export const demoPromptAdapter: ProviderAdapter = {
-  id: 'demo-prompt',
+export const localPromptAdapter: ProviderAdapter = {
+  id: 'local-prompt',
   async call(input) {
     const payload = asRecord(input.requestPayload)
     const prompt = String(payload.prompt ?? '')

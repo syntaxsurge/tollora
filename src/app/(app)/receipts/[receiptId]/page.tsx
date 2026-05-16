@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ReceiptDetailClient } from '@/features/marketplace/receipt-detail-client'
-import { getDemoReceiptById } from '@/features/marketplace/receipts'
+import { getMarketplaceReceiptById } from '@/features/marketplace/receipts'
 
 type ReceiptDetailPageProps = {
   params: Promise<{
@@ -16,7 +16,7 @@ export default async function ReceiptDetailPage({
   params
 }: ReceiptDetailPageProps) {
   const { receiptId } = await params
-  const receipt = getDemoReceiptById(receiptId) ?? null
+  const receipt = getMarketplaceReceiptById(receiptId) ?? null
 
   return (
     <div className='space-y-8'>

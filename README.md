@@ -25,15 +25,15 @@ provider dashboards.
   signed payment retry, MUSD settlement, and receipt links.
 - x402-protected product call route for Mezo Testnet settlement through the
   configured facilitator.
-- Public proof pages for autonomous runs with receipt rollups, proof hashes,
-  and Mezo explorer links.
+- Public proof pages for autonomous runs with receipt rollups, proof hashes, and
+  Mezo explorer links.
 - Provider adapter registry with ClipLore video jobs, prompt enhancement, and
   data responses behind the same paid gateway contract.
 - ClipLore webhook intake with optional HMAC verification.
 - OpenAPI JSON and Scalar API reference for gateway, receipt, provider, and
   webhook routes.
-- Receipt pages with MUSD amount, fee split, payer, provider wallet,
-  transaction hash, and explorer links.
+- Receipt pages with MUSD amount, fee split, payer, provider wallet, transaction
+  hash, and explorer links.
 - Admin moderation pages for API products and buyer request operations.
 - Convex schema for providers, API products, versions, orders, receipts,
   requests, usage events, webhooks, payouts, examples, and reviews.
@@ -65,10 +65,11 @@ Tollora targets Mezo Testnet for MUSD-paid API commerce:
 - Native gas currency: `BTC`
 - x402 facilitator: `https://facilitator.vativ.io/`
 
-## Demo And Deployment
+## Walkthrough And Deployment
 
-- Deployment checklist: [docs/deployment-checklist.md](docs/deployment-checklist.md)
-- Demo script: [docs/demo-script.md](docs/demo-script.md)
+- Deployment checklist:
+  [docs/deployment-checklist.md](docs/deployment-checklist.md)
+- Walkthrough script: [docs/demo-script.md](docs/demo-script.md)
 - API reference: `/api/reference`
 - OpenAPI JSON: `/api/openapi.json`
 - Operations health: `/api/health`
@@ -93,7 +94,7 @@ Key values:
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
 
-## Autonomous Agent Demo
+## Autonomous Agent Walkthrough
 
 1. Open `/agents/new`.
 2. Enter a launch-pack goal, budget cap, owner wallet, and allowed tools.

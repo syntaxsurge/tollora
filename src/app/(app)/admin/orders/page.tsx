@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { demoOrders } from '@/features/marketplace/orders'
+import { marketplaceOrders } from '@/features/marketplace/orders'
 import { orderStatusLabels } from '@/features/marketplace/status'
 
 export default function AdminOrdersPage() {
@@ -40,28 +40,36 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {demoOrders.map(order => (
-                <tr key={order.id} className='border-foreground/10 border-t'>
-                  <td className='px-5 py-4 font-mono'>{order.id}</td>
-                  <td className='px-5 py-4'>{order.productName}</td>
-                  <td className='px-5 py-4 font-mono'>{order.buyerWallet}</td>
-                  <td className='px-5 py-4'>{order.amountMusd}</td>
-                  <td className='px-5 py-4'>
-                    {orderStatusLabels[order.status]}
-                  </td>
-                  <td className='px-5 py-4'>
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className={buttonClasses({
-                        variant: 'outline',
-                        size: 'sm'
-                      })}
-                    >
-                      Inspect
-                    </Link>
+              {marketplaceOrders.length > 0 ? (
+                marketplaceOrders.map(order => (
+                  <tr key={order.id} className='border-foreground/10 border-t'>
+                    <td className='px-5 py-4 font-mono'>{order.id}</td>
+                    <td className='px-5 py-4'>{order.productName}</td>
+                    <td className='px-5 py-4 font-mono'>{order.buyerWallet}</td>
+                    <td className='px-5 py-4'>{order.amountMusd}</td>
+                    <td className='px-5 py-4'>
+                      {orderStatusLabels[order.status]}
+                    </td>
+                    <td className='px-5 py-4'>
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className={buttonClasses({
+                          variant: 'outline',
+                          size: 'sm'
+                        })}
+                      >
+                        Inspect
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr className='border-foreground/10 border-t'>
+                  <td className='text-foreground/65 px-5 py-5' colSpan={6}>
+                    No Tollora gateway orders have been created yet.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

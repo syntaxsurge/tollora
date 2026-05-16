@@ -10,8 +10,8 @@ import { apiProductCategories } from '@/features/marketplace/schemas'
 
 const defaultRequestSchema = JSON.stringify(
   {
-    input: 'string',
-    options: 'object | undefined'
+    owner: 'string',
+    repo: 'string'
   },
   null,
   2
@@ -19,17 +19,19 @@ const defaultRequestSchema = JSON.stringify(
 
 const defaultResponseSchema = JSON.stringify(
   {
-    requestId: 'string',
-    status: 'string',
-    result: 'unknown'
+    fullName: 'string',
+    stars: 'number',
+    openIssues: 'number',
+    defaultBranch: 'string'
   },
   null,
   2
 )
 
-const defaultDemoPayload = JSON.stringify(
+const defaultReferencePayload = JSON.stringify(
   {
-    input: 'Describe the paid API request.'
+    owner: 'mezo-org',
+    repo: 'mezod'
   },
   null,
   2
@@ -42,7 +44,7 @@ export function ProviderProductForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const defaultWallet = useMemo(
-    () => '0x0000000000000000000000000000000000000000',
+    () => '0x7CE33579392AEAF1791c9B0c8302a502B5867688',
     []
   )
 
@@ -102,12 +104,12 @@ export function ProviderProductForm() {
           <Field
             label='Product name'
             name='name'
-            defaultValue='Creator Audio Transcript API'
+            defaultValue='Mezo Repository Metadata API'
           />
           <Field
             label='Slug'
             name='slug'
-            defaultValue='creator-audio-transcript-api'
+            defaultValue='mezo-repository-metadata-api'
           />
           <label className='space-y-2'>
             <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -115,7 +117,7 @@ export function ProviderProductForm() {
             </span>
             <select
               name='category'
-              defaultValue='ai'
+              defaultValue='developer'
               className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 h-11 w-full rounded-2xl border px-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
             >
               {apiProductCategories.map(category => (
@@ -130,13 +132,13 @@ export function ProviderProductForm() {
             name='priceUsd'
             type='number'
             step='0.01'
-            defaultValue='0.35'
+            defaultValue='0.12'
           />
           <Field
             label='Provider endpoint URL'
             name='endpointUrl'
             type='url'
-            defaultValue='https://api.example.com/v1/transcripts'
+            defaultValue='https://api.github.com/repos/mezo-org/mezod'
           />
           <label className='space-y-2'>
             <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -144,7 +146,7 @@ export function ProviderProductForm() {
             </span>
             <select
               name='method'
-              defaultValue='POST'
+              defaultValue='GET'
               className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 h-11 w-full rounded-2xl border px-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
             >
               <option value='POST'>POST</option>
@@ -164,7 +166,7 @@ export function ProviderProductForm() {
           <Field
             label='Provider display name'
             name='providerDisplayName'
-            defaultValue='Creator Tools Studio'
+            defaultValue='Tollora Labs'
           />
           <label className='space-y-2'>
             <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -187,7 +189,7 @@ export function ProviderProductForm() {
           </span>
           <textarea
             name='description'
-            defaultValue='Convert long-form creator audio into a searchable transcript, chapter outline, and action-item summary through a MUSD-paid API call.'
+            defaultValue='Fetch public Mezo repository metadata, normalize it for agent workflows, and sell the response through a MUSD-paid API call.'
             className='border-foreground/15 bg-background text-foreground placeholder:text-foreground/50 focus-visible:ring-foreground/30 min-h-28 w-full rounded-2xl border px-4 py-3 text-sm leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
           />
         </label>
@@ -205,9 +207,9 @@ export function ProviderProductForm() {
           defaultValue={defaultResponseSchema}
         />
         <JsonField
-          label='Demo payload'
-          name='demoPayloadJson'
-          defaultValue={defaultDemoPayload}
+          label='Reference payload'
+          name='referencePayloadJson'
+          defaultValue={defaultReferencePayload}
         />
       </Card>
 
@@ -215,7 +217,7 @@ export function ProviderProductForm() {
         label='Webhook URL'
         name='webhookUrl'
         type='url'
-        defaultValue='https://api.example.com/webhooks/tollora'
+        defaultValue='https://tollora.vercel.app/api/provider-webhooks/cliplore'
       />
 
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
