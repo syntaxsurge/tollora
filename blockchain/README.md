@@ -9,8 +9,7 @@ runtime while providing Tollora deployment shortcuts.
   contract supported by Tollora.
 - `blockchain/contracts/AgentRunAttestor.sol` - the Mezo proof hash attestor
   for autonomous agent runs.
-- `blockchain/hardhat.config.ts` - Hardhat configuration for Base Sepolia and
-  Mezo Testnet.
+- `blockchain/hardhat.config.ts` - Hardhat configuration for Mezo Testnet.
 - `blockchain/scripts/deploySubscriptionManager.ts` - deployment script that
   writes the deployed address to `blockchain/deployment.log`.
 - `blockchain/scripts/deployAgentRunAttestor.ts` - deployment script that

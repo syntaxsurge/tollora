@@ -1,9 +1,9 @@
 /**
- * HireStamp deployment configuration
+ * Tollora deployment configuration
  *
  * In CI and production you **must** supply all three addresses via the
- * environment; however, during local development we fall back to deterministic
- * dummy accounts so that scripts never crash when the variables are missing.
+ * environment. Local scripts leave optional role addresses unset when the
+ * corresponding variables are missing.
  *
  * ── ENV VARS ────────────────────────────────────────────────────────────────
  *   ADMIN_ADDRESS       → receives DEFAULT_ADMIN_ROLE and ADMIN_ROLE

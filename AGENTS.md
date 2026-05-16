@@ -102,8 +102,8 @@ explicitly told otherwise:
   - `blockchain/.env` for Hardhat deployment secrets, with
     `blockchain/.env.example` as a template.
 - Use **Convex** as the off-chain backend stack.
-- Support a **Hardhat blockchain workspace** under `blockchain/` with a Base
-  Sepolia `SubscriptionManager.sol` as the canonical Solidity contract and
+- Support a **Hardhat blockchain workspace** under `blockchain/` with a Mezo
+  Testnet `SubscriptionManager.sol` as the canonical Solidity contract and
   frontend subscription helpers in `src/lib/contracts/`.
 - Keep **caching explicit** in Next.js 15:
   - `GET` Route Handlers are **not cached by default**.

@@ -3,7 +3,7 @@
   "license": "MIT",
   "scripts": {
     "compile": "hardhat compile",
-    "deploy:subscription": "hardhat run scripts/deploySubscriptionManager.ts --network baseSepolia",
+    "deploy:subscription": "hardhat run scripts/deploySubscriptionManager.ts --network mezoTestnet",
     "deploy:agent-attestor": "hardhat run scripts/deployAgentRunAttestor.ts --network mezoTestnet",
     "lint:fix": "pnpm lint:fix-typescript && pnpm lint:fix-solidity",
     "lint:check": "pnpm lint:check-typescript && pnpm lint:check-solidity",

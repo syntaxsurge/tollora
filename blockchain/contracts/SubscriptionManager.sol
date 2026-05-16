@@ -5,7 +5,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title SubscriptionManager
-/// @notice Accepts Base Sepolia ETH payments to activate, renew, or cancel a team's subscription.
+/// @notice Accepts Mezo Testnet native-token payments to activate, renew, or cancel a team's subscription.
 contract SubscriptionManager is AccessControl {
   /* -------------------------------------------------------------------------- */
   /*                                  TYPES                                     */
@@ -106,7 +106,7 @@ contract SubscriptionManager is AccessControl {
    *      If the team is already active, the new period is appended to the current
    *      expiry; otherwise it starts from `block.timestamp`.
    *
-   * @param team     Wallet that owns the HireStamp Team/DID (can differ from `msg.sender`).
+   * @param team     Wallet that owns the Tollora workspace (can differ from `msg.sender`).
    * @param planKey  Pricing tier identifier (1 = Base, 2 = Plus).
    */
   function paySubscription(address team, uint8 planKey) external payable {

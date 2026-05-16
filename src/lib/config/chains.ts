@@ -1,10 +1,9 @@
 import type { Chain } from 'viem'
 import { defineChain } from 'viem'
-import { baseSepolia } from 'viem/chains'
 
 import { envClient } from '@/lib/env/env.client'
 
-export type SupportedChainKey = 'mezoTestnet' | 'baseSepolia'
+export type SupportedChainKey = 'mezoTestnet'
 
 export type AppChain = {
   key: SupportedChainKey
@@ -63,26 +62,11 @@ export const appChains = {
         envClient.NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL ??
         'https://explorer.test.mezo.org'
     }
-  },
-  baseSepolia: {
-    key: 'baseSepolia',
-    id: baseSepolia.id,
-    name: baseSepolia.name,
-    shortName: 'Base Sepolia',
-    nativeCurrency: baseSepolia.nativeCurrency,
-    viemChain: baseSepolia,
-    explorer: {
-      name: 'BaseScan',
-      baseUrl: 'https://sepolia.basescan.org'
-    }
   }
 } as const satisfies Record<SupportedChainKey, AppChain>
 
 export const supportedAppChains = Object.values(appChains)
-export const supportedViemChains = [
-  appChains.mezoTestnet.viemChain,
-  appChains.baseSepolia.viemChain
-] as const
+export const supportedViemChains = [appChains.mezoTestnet.viemChain] as const
 export const defaultAppChain = appChains.mezoTestnet
 export const x402Network = envClient.NEXT_PUBLIC_X402_NETWORK ?? 'eip155:31611'
 
