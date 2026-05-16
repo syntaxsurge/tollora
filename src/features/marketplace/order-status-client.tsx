@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
+import type { x402PaymentResult } from '@x402/fetch'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
 import { useActiveAccount } from 'thirdweb/react'
 import { useWalletClient } from 'wagmi'
@@ -247,8 +248,14 @@ function OrderStatusContent({
           body: order.requestPayloadJson ?? '{}'
         }
       )
+      const paymentResult = await httpClient
+        .processResponse(response.clone())
+        .catch(() => null)
       const body = (await readResponseBody(response)) as {
         error?: string
+        message?: string
+        reason?: string
+        details?: unknown
         data?: unknown
         order?: Partial<MarketplaceOrder>
         receipt?: MarketplaceReceipt
@@ -268,12 +275,13 @@ function OrderStatusContent({
       }
 
       if (!response.ok) {
-        throw new Error(body.error ?? 'Unable to run the paid API request.')
+        throw new Error(buildPaidRequestError(response, body, paymentResult))
       }
 
-      const settlement = httpClient.getPaymentSettleResponse(name =>
-        response.headers.get(name)
-      )
+      const settlement =
+        paymentResult?.kind === 'success'
+          ? paymentResult.settleResponse
+          : getSettleResponseOrNull(httpClient, response)
       const receipt = body.receipt
         ? {
             ...body.receipt,
@@ -308,7 +316,7 @@ function OrderStatusContent({
 
       setOrder(nextOrder)
       setStatus(
-        settlement.transaction
+        settlement?.transaction
           ? `MUSD payment settled on Mezo. Transaction: ${settlement.transaction}`
           : 'MUSD payment settled and provider response returned.'
       )
@@ -475,6 +483,60 @@ function OrderStatusContent({
       </div>
     </div>
   )
+}
+
+function getSettleResponseOrNull(
+  httpClient: x402HTTPClient,
+  response: Response
+) {
+  try {
+    return httpClient.getPaymentSettleResponse(name =>
+      response.headers.get(name)
+    )
+  } catch {
+    return null
+  }
+}
+
+function buildPaidRequestError(
+  response: Response,
+  body: {
+    error?: string
+    message?: string
+    reason?: string
+    details?: unknown
+  },
+  paymentResult: x402PaymentResult | null
+) {
+  if (paymentResult?.kind === 'settle_failed') {
+    return (
+      [
+        paymentResult.settleResponse.errorMessage,
+        paymentResult.settleResponse.errorReason
+      ]
+        .filter(Boolean)
+        .join(' ') || 'MUSD settlement failed.'
+    )
+  }
+
+  if (paymentResult?.kind === 'payment_required') {
+    return (
+      paymentResult.paymentRequired.error ??
+      'Payment was not accepted by the x402 facilitator.'
+    )
+  }
+
+  const details =
+    typeof body.details === 'string'
+      ? body.details
+      : body.details
+        ? JSON.stringify(body.details)
+        : ''
+  const message = body.error ?? body.message ?? body.reason ?? details
+
+  return message
+    ? `${message} (${response.status} ${response.statusText})`
+    : `Paid API request failed (${response.status} ${response.statusText}).`
 }
 
 async function readResponseBody(response: Response) {

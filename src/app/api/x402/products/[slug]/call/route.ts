@@ -156,27 +156,55 @@ async function handlePaidProductCall(
     adapterResult
   })
   const responseBody = Buffer.from(JSON.stringify(paidResponse))
-  const settlement = await server.processSettlement(
-    processResult.paymentPayload,
-    processResult.paymentRequirements,
-    processResult.declaredExtensions,
-    {
-      request: context,
-      responseBody,
-      responseHeaders: {
-        'content-type': 'application/json'
+  let settlementErrorMessage = ''
+  const settlement = await server
+    .processSettlement(
+      processResult.paymentPayload,
+      processResult.paymentRequirements,
+      processResult.declaredExtensions,
+      {
+        request: context,
+        responseBody,
+        responseHeaders: {
+          'content-type': 'application/json'
+        }
       }
-    }
-  )
+    )
+    .catch(error => {
+      settlementErrorMessage =
+        error instanceof Error ? error.message : 'Unknown settlement error'
+
+      return null
+    })
+
+  if (!settlement) {
+    return NextResponse.json(
+      {
+        error: 'MUSD settlement failed.',
+        message:
+          settlementErrorMessage ||
+          'The x402 facilitator did not return a valid settlement response. Confirm the buyer wallet has MUSD on Mezo Testnet and try again.'
+      },
+      { status: 402 }
+    )
+  }
 
   if (!settlement.success) {
-    return new NextResponse(JSON.stringify(settlement.response.body ?? {}), {
-      status: settlement.response.status,
-      headers: {
-        ...settlement.response.headers,
-        'Content-Type': 'application/json'
+    return NextResponse.json(
+      {
+        error: 'MUSD settlement failed.',
+        reason: settlement.errorReason,
+        message: settlement.errorMessage,
+        details: settlement.response.body ?? null
+      },
+      {
+        status: settlement.response.status,
+        headers: {
+          ...settlement.response.headers,
+          'Content-Type': 'application/json'
+        }
       }
-    })
+    )
   }
 
   const receipt = {
