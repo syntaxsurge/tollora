@@ -26,9 +26,9 @@ export default function MarketplacePage() {
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
               Browse x402-protected API products for AI workflows, data access,
-              media generation, commerce automation, and agent tools. Every
-              listing exposes a stable Tollora endpoint and records MUSD
-              receipts for buyers and providers.
+              media generation, commerce automation, and autonomous agent
+              runs. Every listing exposes a stable Tollora endpoint and records
+              MUSD receipts for buyers, providers, and proof-backed agent work.
             </p>
           </div>
           <div className='grid gap-3 sm:grid-cols-3 lg:grid-cols-1'>
@@ -82,8 +82,9 @@ export default function MarketplacePage() {
           },
           {
             label: 'Agent access',
-            value: 'HTTP 402',
-            detail: 'Programmatic clients can pay, retry, and receive content.'
+            value: 'Launch Pack',
+            detail:
+              'Autonomous agents can select tools, pay, retry, and publish proofs.'
           }
         ].map(item => (
           <div key={item.label}>

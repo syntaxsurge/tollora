@@ -25,24 +25,24 @@ export default async function MarketingPage({
   const metrics = getMarketplaceMetrics()
   const flow = [
     {
-      title: 'Discover',
+      title: 'Plan',
       detail:
-        'Browse paid APIs by category, provider, price, x402 support, and agent readiness.'
+        'Give the agent a goal, budget, tool allowance, and signer mode.'
     },
     {
-      title: 'Pay',
+      title: 'Spend',
       detail:
-        'Authorize MUSD payment on Mezo Testnet through a wallet-native x402 flow.'
+        'The agent buys x402-protected APIs with MUSD on Mezo without per-action approvals.'
     },
     {
-      title: 'Call',
+      title: 'Deliver',
       detail:
-        'Tollora verifies payment, forwards the request, and records usage for the buyer and provider.'
+        'Tollora forwards paid requests, records receipts, and returns launch-pack outputs.'
     },
     {
-      title: 'Receive',
+      title: 'Prove',
       detail:
-        'The buyer receives the paid response, receipt metadata, and explorer-linked settlement details.'
+        'The run publishes a public proof page with a Mezo attestation transaction.'
     }
   ]
 
@@ -63,20 +63,21 @@ export default async function MarketingPage({
           <Badge>MUSD API marketplace</Badge>
           <div className='space-y-5'>
             <h1 className='font-display max-w-3xl text-4xl leading-tight font-semibold text-balance sm:text-5xl lg:text-6xl'>
-              MUSD-native API commerce for humans and AI agents.
+              Autonomous AI agents that spend MUSD and prove work on Mezo.
             </h1>
             <p className='text-lead'>
               {siteConfig.description} Providers list paid endpoints, buyers and
-              agents pay per request, and Tollora handles discovery, payment
-              verification, request forwarding, receipts, and usage logs.
+              agents pay per request, and Tollora handles autonomous execution,
+              payment verification, request forwarding, receipts, and Mezo
+              proofs.
             </p>
           </div>
           <div className='flex flex-wrap gap-3'>
-            <Link href='/marketplace' className={buttonClasses({ size: 'lg' })}>
-              Explore marketplace
+            <Link href='/agents' className={buttonClasses({ size: 'lg' })}>
+              Run launch agent
             </Link>
             <Link
-              href='/provider'
+              href='/marketplace'
               className={buttonClasses({
                 variant: 'outline',
                 size: 'lg',
@@ -84,14 +85,14 @@ export default async function MarketingPage({
                   'hover:border-brand-orange/80 hover:bg-brand-orange/10 hover:shadow-brand-orange/25 focus-visible:ring-brand-orange/60 hover:shadow-md'
               })}
             >
-              List an API
+              Explore marketplace
             </Link>
           </div>
           <div className='grid gap-3 sm:grid-cols-3'>
             {[
-              { label: 'Published APIs', value: metrics.productCount },
+              { label: 'Agent-ready APIs', value: metrics.productCount },
               { label: 'API calls', value: metrics.totalCalls },
-              { label: 'Provider share', value: '95%' }
+              { label: 'Auditable proofs', value: 'Mezo' }
             ].map(item => (
               <div
                 key={item.label}
@@ -159,13 +160,12 @@ export default async function MarketingPage({
           <div className='space-y-3'>
             <Badge>Payment flow</Badge>
             <h2 className='font-display text-3xl font-semibold'>
-              Discover, pay, call, and receive through one gateway.
+              Plan, spend, deliver, and prove through one gateway.
             </h2>
           </div>
           <p className='text-muted-foreground max-w-md text-sm leading-6'>
-            Tollora makes Bitcoin-backed MUSD usable for metered APIs, expensive
-            AI workflows, and programmatic agent calls without account-specific
-            API key setup.
+            Tollora makes Bitcoin-backed MUSD usable for agent workflows that
+            buy paid tools, return useful work, and publish an audit trail.
           </p>
         </div>
         <div className='grid gap-4 md:grid-cols-4'>

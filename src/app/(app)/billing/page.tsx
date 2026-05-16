@@ -4,6 +4,7 @@ import { BillingOverview } from '@/components/billing/billing-overview'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { getAgentMetrics } from '@/features/agents/store'
 import { demoReceipts } from '@/features/marketplace/receipts'
 import { getProjectSnapshot } from '@/lib/config/project'
 
@@ -15,6 +16,7 @@ const checklist = [
 
 export default async function BillingPage() {
   const snapshot = await getProjectSnapshot()
+  const agentMetrics = getAgentMetrics()
 
   return (
     <div className='space-y-8'>
@@ -44,6 +46,38 @@ export default async function BillingPage() {
       <BillingOverview
         subscriptionConfigured={Boolean(snapshot.subscriptionManagerAddress)}
       />
+
+      <Card className='space-y-4'>
+        <div className='flex flex-col justify-between gap-3 sm:flex-row sm:items-center'>
+          <div>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Agent spend
+            </p>
+            <h2 className='font-display mt-2 text-2xl'>
+              Autonomous workflow usage
+            </h2>
+          </div>
+          <Link
+            href='/agents'
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+          >
+            Open agents
+          </Link>
+        </div>
+        <div className='grid gap-3 md:grid-cols-4'>
+          {[
+            ['Runs', agentMetrics.totalRuns.toString()],
+            ['Completed', agentMetrics.completedRuns.toString()],
+            ['Proofs', agentMetrics.proofCount.toString()],
+            ['Spend', `${agentMetrics.totalSpendMusd} MUSD`]
+          ].map(([label, value]) => (
+            <div key={label} className='bg-muted rounded-lg p-4'>
+              <p className='text-foreground/60 text-xs uppercase'>{label}</p>
+              <p className='mt-1 font-semibold'>{value}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card className='space-y-4'>
         <div>

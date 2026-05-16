@@ -14,8 +14,8 @@ export default function AdminOrdersPage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>API request supervision</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Inspect buyer requests, provider routing, status, request IDs, and
-            MUSD amounts across the Tollora gateway.
+            Inspect buyer and agent-created requests, provider routing, status,
+            request IDs, and MUSD amounts across the Tollora gateway.
           </p>
         </div>
       </section>

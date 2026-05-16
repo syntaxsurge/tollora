@@ -51,10 +51,37 @@ export default function DeveloperDocsPage() {
           body='The ClipLore adapter validates prompt, format, duration, optional script, and source preferences, starts video jobs through the configured ClipLore API, sends Tollora order and receipt metadata as the external reference, and accepts signed webhook status updates.'
         />
         <DocSection
+          title='Autonomous agent runs'
+          body='Agent runs accept an objective, source context, budget cap, max paid actions, owner wallet, allowed tools, and signer mode. The runner plans a launch-pack workflow, spends only through selected x402 product endpoints, and returns deliverables plus receipt metadata.'
+        />
+        <DocSection
+          title='Mezo proof attestation'
+          body='Completed agent runs hash the objective, selected tools, paid action log, response hashes, receipt IDs, and final deliverables. Tollora writes that proof hash to AgentRunAttestor on Mezo so the public proof page can be audited without publishing private content on-chain.'
+        />
+        <DocSection
           title='Webhook events'
           body='Provider webhooks post status changes with order ID, external job ID, status, optional receipt ID, result URL, and error message. ClipLore signatures are verified when the webhook secret is configured.'
         />
       </section>
+
+      <Card>
+        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          Agent run
+        </p>
+        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
+          {`POST /api/agents/runs
+Content-Type: application/json
+
+{
+  "objective": "Create a launch pack for my paid API product.",
+  "ownerWallet": "0x6d4aaf20a9be71d3c2c8b7f0d15c3c9af91244aa",
+  "budgetCapMusd": 20,
+  "maxPaidActions": 3,
+  "allowedTools": ["prompt-enhancer-api", "document-summary-api", "market-snapshot-api"],
+  "mode": "demo"
+}`}
+        </pre>
+      </Card>
 
       <Card>
         <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>

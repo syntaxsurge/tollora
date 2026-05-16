@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { getAgentMetrics } from '@/features/agents/store'
 import { demoOrders } from '@/features/marketplace/orders'
 import {
   getMarketplaceMetrics,
@@ -12,6 +13,7 @@ import {
 export default function ProviderPage() {
   const products = getPublishedProducts()
   const metrics = getMarketplaceMetrics()
+  const agentMetrics = getAgentMetrics()
   const topProduct = products
     .slice()
     .sort((a, b) => Number(b.revenueMusd) - Number(a.revenueMusd))[0]
@@ -26,10 +28,10 @@ export default function ProviderPage() {
               Sell paid APIs with MUSD settlement.
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Track API products, call volume, success rate, MUSD earnings, and
-              gateway health from one provider workspace. Tollora records a 5%
-              platform fee and shows the 95% provider share for each successful
-              paid request.
+              Track API products, call volume, autonomous agent demand, MUSD
+              earnings, and gateway health from one provider workspace. Tollora
+              records a 5% platform fee and shows the 95% provider share for
+              each successful paid request.
             </p>
             <div className='flex flex-col gap-3 pt-2 sm:flex-row'>
               <Link
@@ -63,7 +65,7 @@ export default function ProviderPage() {
         {[
           ['Total MUSD earned', metrics.totalRevenueMusd],
           ['Total API calls', metrics.totalCalls.toLocaleString()],
-          ['Successful calls', '99.0%'],
+          ['Agent runs', agentMetrics.totalRuns.toString()],
           ['Provider share', '95%']
         ].map(([label, value]) => (
           <Card key={label} className='relative overflow-hidden'>

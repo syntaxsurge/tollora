@@ -24,6 +24,8 @@ export function GET() {
       { name: 'Marketplace' },
       { name: 'x402' },
       { name: 'Receipts' },
+      { name: 'Agents' },
+      { name: 'Proofs' },
       { name: 'Providers' },
       { name: 'Operations' }
     ],
@@ -110,6 +112,125 @@ export function GET() {
           }
         }
       },
+      '/api/agents/runs': {
+        get: {
+          tags: ['Agents'],
+          summary: 'List autonomous agent runs',
+          responses: {
+            '200': {
+              description: 'Agent run list',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      runs: {
+                        type: 'array',
+                        items: { $ref: '#/components/schemas/AgentRun' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        post: {
+          tags: ['Agents'],
+          summary: 'Create an autonomous agent run',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CreateAgentRunRequest' }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Planned agent run',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentRun' }
+                }
+              }
+            },
+            '400': { description: 'Invalid agent run payload' }
+          }
+        }
+      },
+      '/api/agents/runs/{runId}': {
+        get: {
+          tags: ['Agents'],
+          summary: 'Get autonomous agent run status',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': {
+              description: 'Agent run',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentRun' }
+                }
+              }
+            },
+            '404': { description: 'Agent run not found' }
+          }
+        }
+      },
+      '/api/agents/runs/{runId}/execute': {
+        post: {
+          tags: ['Agents'],
+          summary: 'Execute paid actions for an autonomous agent run',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': {
+              description: 'Executed agent run',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentRun' }
+                }
+              }
+            },
+            '404': { description: 'Agent run not found' }
+          }
+        }
+      },
+      '/api/agents/runs/{runId}/attest': {
+        post: {
+          tags: ['Agents'],
+          summary: 'Attest an agent run proof hash on Mezo',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': {
+              description: 'Attested agent run',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentRun' }
+                }
+              }
+            },
+            '404': { description: 'Agent run not found' }
+          }
+        }
+      },
+      '/api/proofs/{proofId}': {
+        get: {
+          tags: ['Proofs'],
+          summary: 'Get a public agent run proof',
+          parameters: [pathStringParameter('proofId')],
+          responses: {
+            '200': {
+              description: 'Public agent proof',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentProofResponse' }
+                }
+              }
+            },
+            '404': { description: 'Proof not found' }
+          }
+        }
+      },
       '/api/provider-webhooks/cliplore': {
         post: {
           tags: ['Providers'],
@@ -192,6 +313,82 @@ export function GET() {
             explorerUrl: { type: 'string' }
           }
         },
+        CreateAgentRunRequest: {
+          type: 'object',
+          required: [
+            'objective',
+            'ownerWallet',
+            'budgetCapMusd',
+            'maxPaidActions',
+            'allowedTools'
+          ],
+          properties: {
+            objective: { type: 'string' },
+            sourceText: { type: 'string' },
+            ownerWallet: { type: 'string' },
+            budgetCapMusd: { type: 'number' },
+            maxPaidActions: { type: 'number' },
+            allowedTools: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: marketplaceProducts.map(product => product.slug)
+              }
+            },
+            mode: { type: 'string', enum: ['demo', 'production'] }
+          }
+        },
+        AgentRun: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            objective: { type: 'string' },
+            ownerWallet: { type: 'string' },
+            budgetCapMusd: { type: 'number' },
+            maxPaidActions: { type: 'number' },
+            status: { type: 'string' },
+            summary: { type: 'string' },
+            actions: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/AgentAction' }
+            },
+            proof: { $ref: '#/components/schemas/AgentProof' }
+          }
+        },
+        AgentAction: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            productSlug: { type: 'string' },
+            status: { type: 'string' },
+            amountMusd: { type: 'string' },
+            orderId: { type: 'string' },
+            requestId: { type: 'string' },
+            receipt: { $ref: '#/components/schemas/Receipt' }
+          }
+        },
+        AgentProof: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            runId: { type: 'string' },
+            ownerWallet: { type: 'string' },
+            proofHash: { type: 'string' },
+            proofUri: { type: 'string' },
+            network: { type: 'string', enum: [x402Network] },
+            txHash: { type: 'string' },
+            explorerUrl: { type: 'string' },
+            receiptIds: { type: 'array', items: { type: 'string' } },
+            totalSpendMusd: { type: 'string' }
+          }
+        },
+        AgentProofResponse: {
+          type: 'object',
+          properties: {
+            proof: { $ref: '#/components/schemas/AgentProof' },
+            run: { type: 'object', additionalProperties: true }
+          }
+        },
         ClipLoreWebhook: {
           type: 'object',
           required: ['orderId', 'externalJobId', 'status'],
@@ -219,6 +416,15 @@ export function GET() {
       }
     }
   })
+}
+
+function pathStringParameter(name: string) {
+  return {
+    name,
+    in: 'path',
+    required: true,
+    schema: { type: 'string' }
+  }
 }
 
 function paidCallOperation(method: 'GET' | 'POST') {

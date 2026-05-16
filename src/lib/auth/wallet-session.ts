@@ -5,6 +5,7 @@ export const WALLET_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const protectedAppPaths = [
   '/admin',
+  '/agents',
   '/dashboard',
   '/marketplace',
   '/orders',

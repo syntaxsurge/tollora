@@ -85,6 +85,22 @@ export function ReceiptDetailClient({
         >
           Open order
         </Link>
+        {receipt.agentRunId ? (
+          <Link
+            href={`/agents/${receipt.agentRunId}`}
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+          >
+            Open agent run
+          </Link>
+        ) : null}
+        {receipt.proofId ? (
+          <Link
+            href={`/proofs/${receipt.proofId}`}
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+          >
+            Open proof
+          </Link>
+        ) : null}
         {receipt.explorerUrl ? (
           <a
             href={receipt.explorerUrl}

@@ -71,6 +71,31 @@ export function getOperationalReadiness() {
       state: demoReceipts.length > 0 ? 'ready' : 'attention',
       detail:
         'Receipt pages show MUSD amount, fee split, tx hash, and explorer.'
+    },
+    {
+      label: 'Agent spender',
+      value: envServer.AGENT_SPENDER_PRIVATE_KEY
+        ? 'Configured'
+        : 'Demo fallback',
+      state: envServer.AGENT_SPENDER_PRIVATE_KEY ? 'ready' : 'attention',
+      detail:
+        'Server-side agent runs use this signer for autonomous x402 MUSD payments.'
+    },
+    {
+      label: 'Agent attestor',
+      value: envClient.NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS ?? 'Demo fallback',
+      state: envClient.NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS
+        ? 'ready'
+        : 'attention',
+      detail:
+        'Completed agent runs write proof hashes to the Mezo attestor contract.'
+    },
+    {
+      label: 'Agent proof pages',
+      value: '/proofs/[proofId]',
+      state: 'ready',
+      detail:
+        'Public audit pages expose non-sensitive run summaries, receipts, and attestation links.'
     }
   ]
 

@@ -17,7 +17,8 @@ export default function AdminProductsPage() {
           <h1 className='font-display text-4xl'>API listing review</h1>
           <p className='text-foreground/70 text-sm leading-6'>
             Review published products, provider identity, MUSD price, x402
-            status, and listing health before promoting provider APIs.
+            status, agent readiness, and listing health before promoting
+            provider APIs.
           </p>
         </div>
       </section>
@@ -32,6 +33,7 @@ export default function AdminProductsPage() {
                   'Provider',
                   'Category',
                   'Price',
+                  'Agent',
                   'Status',
                   'Actions'
                 ].map(header => (
@@ -51,6 +53,9 @@ export default function AdminProductsPage() {
                   <td className='px-5 py-4'>{product.providerName}</td>
                   <td className='px-5 py-4'>{product.category}</td>
                   <td className='px-5 py-4'>{product.priceLabel}</td>
+                  <td className='px-5 py-4'>
+                    {product.isAgentReady ? 'Ready' : 'Manual'}
+                  </td>
                   <td className='px-5 py-4'>
                     {productStatusLabels[product.status]}
                   </td>

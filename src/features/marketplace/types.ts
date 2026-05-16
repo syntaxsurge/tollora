@@ -19,4 +19,5 @@ export type MarketplaceOrder = {
   createdAt: string
   updatedAt: string
   resultUrl?: string
+  agentRunId?: string
 }

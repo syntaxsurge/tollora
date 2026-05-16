@@ -55,6 +55,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 Pay and run
               </Link>
               <Link
+                href={`/agents/new?tool=${product.slug}`}
+                className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              >
+                Use in agent run
+              </Link>
+              <Link
                 href='/developers/docs'
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
@@ -104,7 +110,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
             A programmatic client calls the Tollora endpoint, receives HTTP 402
             payment requirements, signs an MUSD payment for Mezo Testnet,
             retries with the payment payload, and receives the provider response
-            plus receipt metadata.
+            plus receipt metadata. Launch Pack Agent can call this tool as one
+            paid action and include the receipt in its public Mezo proof.
           </p>
           <pre className='bg-muted overflow-auto rounded-lg p-4 text-xs leading-6'>
             {`curl -X ${product.method} ${product.endpointPath} \\

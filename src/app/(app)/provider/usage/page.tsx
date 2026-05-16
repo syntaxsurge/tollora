@@ -1,11 +1,13 @@
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { getAgentMetrics } from '@/features/agents/store'
 import { demoOrders } from '@/features/marketplace/orders'
 import { getPublishedProducts } from '@/features/marketplace/products'
 import { orderStatusLabels } from '@/features/marketplace/status'
 
 export default function ProviderUsagePage() {
   const products = getPublishedProducts()
+  const agentMetrics = getAgentMetrics()
 
   return (
     <div className='space-y-8'>
@@ -14,8 +16,8 @@ export default function ProviderUsagePage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>API calls and revenue</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Monitor call volume, revenue, failed calls, buyer wallets, latency,
-            and request IDs across provider listings.
+            Monitor call volume, revenue, autonomous agent calls, buyer wallets,
+            latency, and request IDs across provider listings.
           </p>
         </div>
       </section>
@@ -70,6 +72,21 @@ export default function ProviderUsagePage() {
             </tbody>
           </table>
         </div>
+      </Card>
+      <Card className='grid gap-4 md:grid-cols-4'>
+        {[
+          ['Agent runs', agentMetrics.totalRuns.toString()],
+          ['Completed runs', agentMetrics.completedRuns.toString()],
+          ['Proofs', agentMetrics.proofCount.toString()],
+          ['Agent spend', `${agentMetrics.totalSpendMusd} MUSD`]
+        ].map(([label, value]) => (
+          <div key={label}>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              {label}
+            </p>
+            <p className='mt-2 text-xl font-semibold'>{value}</p>
+          </div>
+        ))}
       </Card>
     </div>
   )

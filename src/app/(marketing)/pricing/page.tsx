@@ -31,6 +31,18 @@ const pricingCards = [
     featured: true
   },
   {
+    name: 'Agents',
+    price: 'Per action',
+    description:
+      'Autonomous runs spend only on selected tools, stay inside a budget cap, and publish a Mezo proof.',
+    features: [
+      'Budget-capped paid actions',
+      'Launch-pack deliverables',
+      'Receipt rollups',
+      'Public proof pages'
+    ]
+  },
+  {
     name: 'Platform',
     price: '5% fee',
     description:
@@ -48,7 +60,7 @@ const faqs = [
   {
     question: 'What asset is used for payments?',
     answer:
-      'Tollora prices paid API calls in MUSD and targets Mezo Testnet settlement for gateway receipts.'
+      'Tollora prices paid API calls and agent actions in MUSD and targets Mezo Testnet settlement for gateway receipts.'
   },
   {
     question: 'When does Tollora collect a fee?',
@@ -78,7 +90,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className='grid gap-5 lg:grid-cols-3'>
+        <div className='grid gap-5 lg:grid-cols-4'>
           {pricingCards.map(card => (
             <Card
               key={card.name}
@@ -104,13 +116,23 @@ export default function PricingPage() {
                   <span className='font-display text-5xl'>{card.price}</span>
                 </div>
                 <Link
-                  href={card.name === 'Buyers' ? '/marketplace' : '/provider'}
+                  href={
+                    card.name === 'Buyers'
+                      ? '/marketplace'
+                      : card.name === 'Agents'
+                        ? '/agents'
+                        : '/provider'
+                  }
                   className={buttonClasses({
                     variant: card.featured ? 'primary' : 'outline',
                     size: 'sm'
                   })}
                 >
-                  {card.name === 'Buyers' ? 'Explore APIs' : 'Open provider'}
+                  {card.name === 'Buyers'
+                    ? 'Explore APIs'
+                    : card.name === 'Agents'
+                      ? 'Open agents'
+                      : 'Open provider'}
                 </Link>
               </div>
               <ul className='mt-6 space-y-3 text-sm'>

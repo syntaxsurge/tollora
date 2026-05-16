@@ -9,6 +9,7 @@ require("dotenv").config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY ?? "";
 const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL ?? "https://sepolia.base.org";
+const MEZO_TESTNET_RPC_URL = process.env.MEZO_TESTNET_RPC_URL ?? "https://rpc.test.mezo.org";
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY ?? "";
 const accounts = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
@@ -28,6 +29,11 @@ const config: HardhatUserConfig = {
     baseSepolia: {
       url: BASE_SEPOLIA_RPC_URL,
       chainId: 84532,
+      accounts,
+    },
+    mezoTestnet: {
+      url: MEZO_TESTNET_RPC_URL,
+      chainId: 31611,
       accounts,
     },
   },

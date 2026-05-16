@@ -20,6 +20,10 @@ const serverSchema = z.object({
   CLIPLORE_API_URL: optionalUrl,
   CLIPLORE_API_KEY: optionalString,
   CLIPLORE_WEBHOOK_SECRET: optionalString,
+  AGENT_SPENDER_PRIVATE_KEY: optionalString,
+  AGENT_ATTESTER_PRIVATE_KEY: optionalString,
+  AGENT_LLM_API_KEY: optionalString,
+  AGENT_LLM_MODEL: optionalString,
   NODE_ENV: z.enum(['development', 'test', 'production']).optional()
 })
 
@@ -30,5 +34,9 @@ export const envServer = serverSchema.parse({
   CLIPLORE_API_URL: process.env.CLIPLORE_API_URL,
   CLIPLORE_API_KEY: process.env.CLIPLORE_API_KEY,
   CLIPLORE_WEBHOOK_SECRET: process.env.CLIPLORE_WEBHOOK_SECRET,
+  AGENT_SPENDER_PRIVATE_KEY: process.env.AGENT_SPENDER_PRIVATE_KEY,
+  AGENT_ATTESTER_PRIVATE_KEY: process.env.AGENT_ATTESTER_PRIVATE_KEY,
+  AGENT_LLM_API_KEY: process.env.AGENT_LLM_API_KEY,
+  AGENT_LLM_MODEL: process.env.AGENT_LLM_MODEL,
   NODE_ENV: process.env.NODE_ENV
 })

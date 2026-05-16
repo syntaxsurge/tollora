@@ -1,4 +1,5 @@
 export const primaryNav = [
+  { label: 'Agents', href: '/agents' },
   { label: 'Marketplace', href: '/marketplace' },
   { label: 'Developers', href: '/developers' },
   { label: 'Pricing', href: '/pricing' },
@@ -10,6 +11,11 @@ export const appNav = [
     label: 'Dashboard',
     href: '/dashboard',
     description: 'Buyer activity, receipts, and marketplace shortcuts'
+  },
+  {
+    label: 'Agents',
+    href: '/agents',
+    description: 'Run autonomous paid workflows and Mezo proofs'
   },
   {
     label: 'Marketplace',

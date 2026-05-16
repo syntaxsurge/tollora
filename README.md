@@ -14,6 +14,8 @@ provider dashboards.
 - Mezo Passport integration for RainbowKit-compatible wallet onboarding.
 - Marketplace catalog with MUSD prices, provider badges, x402 flags, and
   agent-ready API details.
+- Autonomous Launch Pack Agent runs that plan a task, buy selected paid APIs,
+  return deliverables, and publish Mezo proof pages.
 - Provider dashboard with API call, revenue, success-rate, and fee-split
   metrics.
 - Provider product management for listing APIs, validating schemas, reviewing
@@ -23,6 +25,8 @@ provider dashboards.
   signed payment retry, MUSD settlement, and receipt links.
 - x402-protected product call route for Mezo Testnet settlement through the
   configured facilitator.
+- Public proof pages for autonomous runs with receipt rollups, proof hashes,
+  and Mezo explorer links.
 - Provider adapter registry with ClipLore video jobs, prompt enhancement, and
   data responses behind the same paid gateway contract.
 - ClipLore webhook intake with optional HMAC verification.
@@ -85,6 +89,18 @@ Key values:
 - `CLIPLORE_API_URL`
 - `CLIPLORE_API_KEY`
 - `CLIPLORE_WEBHOOK_SECRET`
+- `AGENT_SPENDER_PRIVATE_KEY`
+- `AGENT_ATTESTER_PRIVATE_KEY`
+- `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
+
+## Autonomous Agent Demo
+
+1. Open `/agents/new`.
+2. Enter a launch-pack goal, budget cap, owner wallet, and allowed tools.
+3. Start the run, open `/agents/[runId]`, and execute paid actions.
+4. Attest the completed run and open `/proofs/[proofId]`.
+5. For production settlement, fund `AGENT_SPENDER_PRIVATE_KEY` with MUSD and set
+   `NEXT_PUBLIC_APP_URL` to the deployed app URL.
 
 ## Core Commands
 

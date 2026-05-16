@@ -23,6 +23,11 @@ export default function DevelopersPage() {
         'After verification, Tollora forwards the request, stores usage, and returns the provider response to the buyer or agent.'
     },
     {
+      title: 'Serve agents',
+      detail:
+        'Agent-ready listings can be selected by Launch Pack Agent, paid with x402, and included in a public Mezo proof.'
+    },
+    {
       title: 'Record the receipt',
       detail:
         'Receipts store buyer wallet, provider wallet, amount, network, transaction hash, request ID, and explorer URL.'
@@ -35,16 +40,23 @@ export default function DevelopersPage() {
         <div className='space-y-6'>
           <Badge>Developers</Badge>
           <h1 className='font-display max-w-3xl text-4xl leading-tight sm:text-5xl'>
-            Build and sell paid APIs with x402 and MUSD.
+            Build paid tools for humans and autonomous agents.
           </h1>
           <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
             Tollora gives providers a marketplace listing, stable gateway
             endpoint, MUSD payment verification, request forwarding, receipts,
-            usage logs, and agent-ready HTTP semantics on Mezo.
+            usage logs, agent-ready HTTP semantics, and proof-backed run
+            records on Mezo.
           </p>
           <div className='flex flex-col gap-3 sm:flex-row'>
             <Link href='/marketplace' className={buttonClasses({ size: 'sm' })}>
               Explore APIs
+            </Link>
+            <Link
+              href='/agents'
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+            >
+              Open agents
             </Link>
             <Link
               href='/developers/docs'

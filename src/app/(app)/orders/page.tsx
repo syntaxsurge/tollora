@@ -19,13 +19,15 @@ export default function OrdersPage() {
             <p className='text-foreground/70 text-sm leading-6'>
               Track paid API requests from payment requirement through provider
               processing, completion, failure, or expiration.
+              Autonomous agent orders link the same lifecycle to launch-pack
+              runs and proof pages.
             </p>
           </div>
           <Link
-            href='/marketplace'
+            href='/agents'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Browse APIs
+            Open agents
           </Link>
         </div>
       </section>

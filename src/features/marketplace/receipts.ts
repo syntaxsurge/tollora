@@ -18,6 +18,8 @@ export type MarketplaceReceipt = {
   explorerUrl: string | null
   createdAt: string
   resultUrl?: string
+  agentRunId?: string
+  proofId?: string
 }
 
 export const demoReceipts: MarketplaceReceipt[] = [

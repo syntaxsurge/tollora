@@ -33,12 +33,20 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className='text-foreground/60 text-xs uppercase'>Price</p>
           <p className='text-lg font-semibold'>{product.priceLabel}</p>
         </div>
-        <Link
-          href={`/marketplace/${product.slug}`}
-          className={buttonClasses({ variant: 'outline', size: 'sm' })}
-        >
-          View API
-        </Link>
+        <div className='flex flex-wrap gap-2'>
+          <Link
+            href={`/agents/new?tool=${product.slug}`}
+            className={buttonClasses({ variant: 'primary', size: 'sm' })}
+          >
+            Use in agent
+          </Link>
+          <Link
+            href={`/marketplace/${product.slug}`}
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+          >
+            View API
+          </Link>
+        </div>
       </div>
     </Card>
   )

@@ -19,6 +19,9 @@ Use this checklist before submitting or presenting the app.
 - `CLIPLORE_API_URL`
 - `CLIPLORE_API_KEY`
 - `CLIPLORE_WEBHOOK_SECRET`
+- `AGENT_SPENDER_PRIVATE_KEY`
+- `AGENT_ATTESTER_PRIVATE_KEY`
+- `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
 
 ## Verification Commands
 
@@ -33,11 +36,19 @@ pnpm build
 - `GET /api/health` returns readiness checks.
 - `GET /api/openapi.json` returns the OpenAPI document.
 - `GET /api/reference` renders the Scalar reference.
+- `POST /api/agents/runs` creates a Launch Pack Agent run.
+- `POST /api/agents/runs/[runId]/execute` completes paid actions or the
+  deterministic demo path.
+- `POST /api/agents/runs/[runId]/attest` returns a proof with a Mezo explorer
+  link.
+- `GET /api/proofs/[proofId]` returns the public proof package.
 - `POST /api/x402/products/prompt-enhancer-api/call` without `X-PAYMENT`
   returns HTTP 402 and a `payment-required` header.
 - `POST /api/provider-webhooks/cliplore` accepts a valid ClipLore job status
   payload.
 - `/marketplace` shows published API products.
+- `/agents` and `/agents/new` show the autonomous agent lifecycle.
+- `/proofs/[proofId]` renders without wallet auth.
 - `/provider` shows MUSD revenue, recent request activity, and fee split.
 - `/billing` shows MUSD receipts.
 - `/admin/operations` shows payment, adapter, wallet, and receipt readiness.

@@ -10,10 +10,11 @@ import { getOperationalReadiness } from '@/lib/operations/readiness'
 const deploymentSteps = [
   'Set NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_CONVEX_URL, and wallet provider values in the root environment.',
   'Set NEXT_PUBLIC_X402_NETWORK, X402_FACILITATOR_URL, and TOLLORA_PLATFORM_FEE_BPS for MUSD-paid API calls.',
+  'Set AGENT_SPENDER_PRIVATE_KEY, AGENT_ATTESTER_PRIVATE_KEY, and NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS for production agent runs.',
   'Set CLIPLORE_API_URL, CLIPLORE_API_KEY, and CLIPLORE_WEBHOOK_SECRET for the premium video provider.',
   'Run pnpm typecheck and pnpm build before deployment.',
   'Deploy the Next.js app with the same Mezo and x402 values used for the verified local build.',
-  'Confirm /api/health, /api/openapi.json, /api/reference, and an unpaid x402 product call return expected responses.'
+  'Confirm /api/health, /api/openapi.json, /api/reference, /agents, /proofs/[proofId], and an unpaid x402 product call return expected responses.'
 ]
 
 export default async function AdminOperationsPage() {
@@ -28,9 +29,9 @@ export default async function AdminOperationsPage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>Gateway operations</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Monitor deployment readiness, x402 payment health, provider
-            adapters, receipt coverage, and contract configuration from the
-            admin workspace.
+            Monitor deployment readiness, x402 payment health, autonomous
+            agent signers, provider adapters, receipt coverage, and contract
+            configuration from the admin workspace.
           </p>
         </div>
       </section>

@@ -4,6 +4,7 @@ import { AccountSummary } from '@/components/dashboard/account-summary'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { getAgentMetrics, listAgentRuns } from '@/features/agents/store'
 import {
   getFeaturedProduct,
   getMarketplaceMetrics,
@@ -14,6 +15,8 @@ export default function DashboardPage() {
   const products = getPublishedProducts()
   const featuredProduct = getFeaturedProduct()
   const metrics = getMarketplaceMetrics()
+  const agentMetrics = getAgentMetrics()
+  const recentAgentRun = listAgentRuns()[0]
 
   return (
     <div className='space-y-8'>
@@ -32,6 +35,12 @@ export default function DashboardPage() {
                 className={buttonClasses({ variant: 'primary', size: 'sm' })}
               >
                 Explore marketplace
+              </Link>
+              <Link
+                href='/agents/new'
+                className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              >
+                Create agent run
               </Link>
               <Link
                 href='/provider'
@@ -104,6 +113,50 @@ export default function DashboardPage() {
           </div>
         </Card>
         <AccountSummary />
+      </section>
+      <section>
+        <Card className='space-y-4'>
+          <div className='flex flex-col justify-between gap-3 sm:flex-row sm:items-center'>
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Autonomous agent runs
+              </p>
+              <h2 className='font-display mt-2 text-2xl'>
+                Spend, deliver, and prove
+              </h2>
+            </div>
+            <Link
+              href='/agents/new'
+              className={buttonClasses({ variant: 'primary', size: 'sm' })}
+            >
+              Create agent run
+            </Link>
+          </div>
+          <div className='grid gap-3 md:grid-cols-4'>
+            {[
+              ['Runs', agentMetrics.totalRuns.toString()],
+              ['Completed', agentMetrics.completedRuns.toString()],
+              ['Proofs', agentMetrics.proofCount.toString()],
+              ['Spend', `${agentMetrics.totalSpendMusd} MUSD`]
+            ].map(([label, value]) => (
+              <div key={label} className='bg-muted rounded-lg p-4'>
+                <p className='text-foreground/60 text-xs uppercase'>{label}</p>
+                <p className='mt-1 font-semibold'>{value}</p>
+              </div>
+            ))}
+          </div>
+          {recentAgentRun ? (
+            <Link
+              href={`/agents/${recentAgentRun.id}`}
+              className='border-foreground/10 hover:border-foreground/25 block rounded-lg border p-4 transition'
+            >
+              <span className='block font-semibold'>{recentAgentRun.title}</span>
+              <span className='text-foreground/60 mt-1 block text-sm leading-6'>
+                {recentAgentRun.summary}
+              </span>
+            </Link>
+          ) : null}
+        </Card>
       </section>
     </div>
   )

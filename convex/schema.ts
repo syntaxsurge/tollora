@@ -178,6 +178,71 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number()
   }).index('by_provider', ['providerId']),
+  agentRuns: defineTable({
+    ownerWallet: v.string(),
+    template: v.literal('launch-pack'),
+    objective: v.string(),
+    sourceText: v.optional(v.string()),
+    budgetCapMusd: v.number(),
+    maxPaidActions: v.number(),
+    allowedToolsJson: v.string(),
+    mode: v.union(v.literal('demo'), v.literal('production')),
+    status: v.union(
+      v.literal('planned'),
+      v.literal('running'),
+      v.literal('completed'),
+      v.literal('failed'),
+      v.literal('attesting'),
+      v.literal('attested')
+    ),
+    summary: v.string(),
+    deliverablesJson: v.optional(v.string()),
+    proofId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_owner_wallet', ['ownerWallet'])
+    .index('by_status', ['status']),
+  agentActions: defineTable({
+    runId: v.id('agentRuns'),
+    productSlug: v.string(),
+    productName: v.string(),
+    providerName: v.string(),
+    status: v.union(
+      v.literal('planned'),
+      v.literal('quoted'),
+      v.literal('paid'),
+      v.literal('completed'),
+      v.literal('skipped'),
+      v.literal('failed')
+    ),
+    amountMusd: v.string(),
+    requestPayloadJson: v.string(),
+    responsePayloadJson: v.optional(v.string()),
+    receiptId: v.optional(v.string()),
+    orderId: v.optional(v.string()),
+    requestId: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_run', ['runId'])
+    .index('by_status', ['status']),
+  agentProofs: defineTable({
+    runId: v.id('agentRuns'),
+    ownerWallet: v.string(),
+    proofHash: v.string(),
+    proofUri: v.string(),
+    network: v.literal('eip155:31611'),
+    txHash: v.string(),
+    explorerUrl: v.optional(v.string()),
+    receiptIdsJson: v.string(),
+    totalSpendMusd: v.string(),
+    createdAt: v.number()
+  })
+    .index('by_run', ['runId'])
+    .index('by_owner_wallet', ['ownerWallet'])
+    .index('by_proof_hash', ['proofHash']),
   savedExamples: defineTable({
     productId: v.id('apiProducts'),
     title: v.string(),

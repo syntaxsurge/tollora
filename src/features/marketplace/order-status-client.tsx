@@ -234,6 +234,17 @@ export function OrderStatusClient({
           ) : null}
         </div>
       ) : null}
+      {order.agentRunId ? (
+        <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
+          <p className='text-foreground/60 text-xs uppercase'>Agent run</p>
+          <a
+            className='text-foreground mt-1 block font-semibold underline-offset-4 hover:underline'
+            href={`/agents/${order.agentRunId}`}
+          >
+            {order.agentRunId}
+          </a>
+        </div>
+      ) : null}
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
         <Button
           onClick={runOrder}
