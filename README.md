@@ -86,7 +86,8 @@ The command uses `@x402/fetch` to sign the payment, retry the request, and print
 the settled response.
 
 Humans can also open a marketplace product, create a payable request, and click
-`Run with wallet` to sign the x402 payment from the connected browser wallet.
+`Run with wallet` to approve MUSD Permit2 allowance when needed, sign the x402
+payment from the connected browser wallet, and receive the provider response.
 Teams that want API-key ergonomics can use `/billing` to create a managed credit
 account and call `/api/credits/products/{slug}/call` with a Tollora API key.
 

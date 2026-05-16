@@ -3,9 +3,16 @@
 import { useEffect, useState } from 'react'
 
 import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
-import type { x402PaymentResult } from '@x402/fetch'
+import type { PaymentRequired, x402PaymentResult } from '@x402/fetch'
+import { decodePaymentRequiredHeader as decodeX402PaymentRequiredHeader } from '@x402/core/http'
+import {
+  createPermit2ApprovalTx,
+  getPermit2AllowanceReadParams
+} from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
+import { prepareTransaction, sendTransaction } from 'thirdweb'
 import { useActiveAccount } from 'thirdweb/react'
+import { createPublicClient, http } from 'viem'
 import { useWalletClient } from 'wagmi'
 
 import { Button } from '@/components/ui/button'
@@ -16,7 +23,9 @@ import {
   orderStatusLabels
 } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
+import { defaultAppChain } from '@/lib/config/chains'
 import { walletProvider } from '@/lib/config/wallet'
+import { thirdwebActiveChain, thirdwebClient } from '@/lib/wallet/thirdweb'
 
 type OrderStatusClientProps = {
   orderId: string
@@ -48,6 +57,23 @@ type BrowserEvmSigner = {
   }): Promise<`0x${string}`>
 }
 
+type Permit2ApprovalTransaction = {
+  to: `0x${string}`
+  data: `0x${string}`
+}
+
+type BrowserWalletControls = {
+  signer: BrowserEvmSigner
+  sendTransaction: (
+    transaction: Permit2ApprovalTransaction
+  ) => Promise<`0x${string}`>
+}
+
+const mezoPublicClient = createPublicClient({
+  chain: defaultAppChain.viemChain,
+  transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
+})
+
 function RainbowOrderStatusClient(props: OrderStatusClientProps) {
   const { data: walletClient } = useWalletClient()
 
@@ -56,22 +82,32 @@ function RainbowOrderStatusClient(props: OrderStatusClientProps) {
       {...props}
       walletAddress={walletClient?.account?.address ?? null}
       walletLabel='RainbowKit wallet'
-      getSigner={() => {
+      getWalletControls={() => {
         if (!walletClient?.account) {
           return null
         }
 
         return {
-          address: walletClient.account.address,
-          signTypedData: message =>
-            walletClient.signTypedData({
+          signer: {
+            address: walletClient.account.address,
+            signTypedData: message =>
+              walletClient.signTypedData({
+                account: walletClient.account,
+                domain: message.domain,
+                types: message.types,
+                primaryType: message.primaryType,
+                message: message.message
+              } as Parameters<typeof walletClient.signTypedData>[0])
+          },
+          sendTransaction: transaction =>
+            walletClient.sendTransaction({
               account: walletClient.account,
-              domain: message.domain,
-              types: message.types,
-              primaryType: message.primaryType,
-              message: message.message
-            } as Parameters<typeof walletClient.signTypedData>[0])
-        } satisfies BrowserEvmSigner
+              chain: defaultAppChain.viemChain,
+              to: transaction.to,
+              data: transaction.data,
+              value: 0n
+            } as Parameters<typeof walletClient.sendTransaction>[0])
+        } satisfies BrowserWalletControls
       }}
     />
   )
@@ -85,16 +121,39 @@ function ThirdwebOrderStatusClient(props: OrderStatusClientProps) {
       {...props}
       walletAddress={account?.address ?? null}
       walletLabel='Thirdweb wallet'
-      getSigner={() => {
+      getWalletControls={() => {
         if (!account?.address) {
           return null
         }
 
         return {
-          address: account.address as `0x${string}`,
-          signTypedData: message =>
-            account.signTypedData(message as never) as Promise<`0x${string}`>
-        } satisfies BrowserEvmSigner
+          signer: {
+            address: account.address as `0x${string}`,
+            signTypedData: message =>
+              account.signTypedData(message as never) as Promise<`0x${string}`>
+          },
+          sendTransaction: async transaction => {
+            if (!thirdwebClient) {
+              throw new Error(
+                'Thirdweb client is not configured for browser transactions.'
+              )
+            }
+
+            const preparedTransaction = prepareTransaction({
+              chain: thirdwebActiveChain,
+              client: thirdwebClient,
+              to: transaction.to,
+              data: transaction.data,
+              value: 0n
+            })
+            const receipt = await sendTransaction({
+              account,
+              transaction: preparedTransaction
+            })
+
+            return receipt.transactionHash as `0x${string}`
+          }
+        } satisfies BrowserWalletControls
       }}
     />
   )
@@ -105,11 +164,11 @@ function OrderStatusContent({
   initialOrder,
   walletAddress,
   walletLabel,
-  getSigner
+  getWalletControls
 }: OrderStatusClientProps & {
   walletAddress: string | null
   walletLabel: string
-  getSigner: () => BrowserEvmSigner | null
+  getWalletControls: () => BrowserWalletControls | null
 }) {
   const [order, setOrder] = useState<MarketplaceOrder | null>(initialOrder)
   const [status, setStatus] = useState('')
@@ -221,19 +280,39 @@ function OrderStatusContent({
       return
     }
 
-    const signer = getSigner()
+    const walletControls = getWalletControls()
 
-    if (!signer) {
+    if (!walletControls) {
       setStatus(`Connect a ${walletLabel} before running this paid API call.`)
       return
     }
 
     setIsPaying(true)
-    setStatus('Waiting for wallet signature and MUSD settlement.')
+    setStatus('Reading the x402 payment requirement from Tollora.')
     setPaymentRequirements(null)
 
     try {
-      const client = registerExactEvmScheme(new x402Client(), { signer })
+      const initialRequirement = await requestPaymentRequirement(order)
+
+      if (initialRequirement) {
+        setPaymentRequirements({
+          status: initialRequirement.status,
+          statusText: initialRequirement.statusText,
+          paymentRequired: initialRequirement.paymentRequired,
+          response: initialRequirement.body
+        })
+        await ensurePermit2Allowance(
+          initialRequirement.paymentRequired,
+          walletControls,
+          message => setStatus(message)
+        )
+      }
+
+      setStatus('Waiting for wallet signature and MUSD settlement.')
+
+      const client = registerExactEvmScheme(new x402Client(), {
+        signer: walletControls.signer
+      })
       const httpClient = new x402HTTPClient(client)
       const fetchWithPayment = wrapFetchWithPayment(fetch, httpClient)
       const response = await fetchWithPayment(
@@ -292,7 +371,7 @@ function OrderStatusContent({
         ...order,
         ...body.order,
         id: order.id,
-        buyerWallet: receipt?.buyerWallet ?? signer.address,
+        buyerWallet: receipt?.buyerWallet ?? walletControls.signer.address,
         status:
           (body.order?.status as MarketplaceOrder['status']) ?? 'completed',
         receiptId: receipt?.id,
@@ -374,6 +453,11 @@ function OrderStatusContent({
             payment with your connected wallet, retries the API call, and saves
             the returned receipt. Developers and agents can call the same hosted
             endpoint with an x402 buyer client.
+          </p>
+          <p className='text-foreground/65 text-sm leading-6'>
+            Mezo MUSD payments use Permit2. If this wallet has not approved MUSD
+            for x402 settlement yet, the first run asks for a one-time allowance
+            transaction before the payment signature.
           </p>
           <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
             <p className='text-foreground/60 text-xs uppercase'>
@@ -508,6 +592,18 @@ function buildPaidRequestError(
   },
   paymentResult: x402PaymentResult | null
 ) {
+  const paymentRequired = decodePaymentRequiredHeader(response)
+
+  if (
+    response.status === 412 ||
+    paymentRequired?.error === 'permit2_allowance_required'
+  ) {
+    return [
+      'Mezo MUSD settlement still needs Permit2 allowance or sufficient wallet funds.',
+      'Approve the MUSD allowance when prompted, then confirm the wallet has enough MUSD and BTC gas on Mezo Testnet.'
+    ].join(' ')
+  }
+
   if (paymentResult?.kind === 'settle_failed') {
     return (
       [
@@ -539,6 +635,105 @@ function buildPaidRequestError(
     : `Paid API request failed (${response.status} ${response.statusText}).`
 }
 
+async function requestPaymentRequirement(order: MarketplaceOrder) {
+  const response = await fetch(`/api/x402/products/${order.productSlug}/call`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-Tollora-Order-Id': order.id
+    },
+    body: order.requestPayloadJson ?? '{}'
+  })
+
+  if (response.status !== 402) {
+    return null
+  }
+
+  const body = await readResponseBody(response)
+  const paymentRequired = decodePaymentRequiredHeader(response)
+
+  if (!paymentRequired) {
+    throw new Error('Tollora did not return a readable x402 requirement.')
+  }
+
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    paymentRequired,
+    body
+  }
+}
+
+async function ensurePermit2Allowance(
+  paymentRequired: PaymentRequired,
+  walletControls: BrowserWalletControls,
+  onStatus: (message: string) => void
+) {
+  const requirement = getPermit2Requirement(paymentRequired)
+
+  if (!requirement) {
+    return
+  }
+
+  const tokenAddress = requirement.asset
+
+  if (!isHexAddress(tokenAddress)) {
+    throw new Error(
+      'The x402 payment requirement did not include a valid MUSD token address.'
+    )
+  }
+
+  const requiredAmount = BigInt(requirement.amount)
+
+  if (requiredAmount <= 0n) {
+    return
+  }
+
+  onStatus('Checking MUSD Permit2 allowance on Mezo Testnet.')
+
+  const allowance = await mezoPublicClient.readContract(
+    getPermit2AllowanceReadParams({
+      tokenAddress,
+      ownerAddress: walletControls.signer.address
+    })
+  )
+
+  if (allowance >= requiredAmount) {
+    return
+  }
+
+  onStatus(
+    'Approve the one-time MUSD Permit2 allowance in your wallet, then Tollora will continue the paid API run.'
+  )
+
+  const approvalTransaction = createPermit2ApprovalTx(tokenAddress)
+  const transactionHash =
+    await walletControls.sendTransaction(approvalTransaction)
+
+  onStatus(`Waiting for MUSD Permit2 approval to confirm: ${transactionHash}`)
+
+  const receipt = await mezoPublicClient.waitForTransactionReceipt({
+    hash: transactionHash
+  })
+
+  if (receipt.status !== 'success') {
+    throw new Error('MUSD Permit2 approval transaction did not succeed.')
+  }
+}
+
+function getPermit2Requirement(paymentRequired: PaymentRequired) {
+  return paymentRequired.accepts.find(requirement => {
+    const assetTransferMethod = requirement.extra?.assetTransferMethod
+
+    return assetTransferMethod === 'permit2'
+  })
+}
+
+function isHexAddress(value: string): value is `0x${string}` {
+  return /^0x[a-fA-F0-9]{40}$/.test(value)
+}
+
 async function readResponseBody(response: Response) {
   const contentType = response.headers.get('content-type') ?? ''
 
@@ -561,7 +756,9 @@ async function readResponseBody(response: Response) {
   }
 }
 
-function decodePaymentRequiredHeader(response: Response) {
+function decodePaymentRequiredHeader(
+  response: Response
+): PaymentRequired | null {
   const encoded =
     response.headers.get('payment-required') ??
     response.headers.get('PAYMENT-REQUIRED')
@@ -571,20 +768,14 @@ function decodePaymentRequiredHeader(response: Response) {
   }
 
   try {
-    return JSON.parse(encoded) as unknown
+    return decodeX402PaymentRequiredHeader(encoded)
   } catch {
-    // Some x402 implementations send the header as base64/base64url JSON.
+    // Some non-standard implementations may send raw JSON instead of base64.
   }
 
   try {
-    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      '='
-    )
-
-    return JSON.parse(window.atob(padded)) as unknown
+    return JSON.parse(encoded) as PaymentRequired
   } catch {
-    return encoded
+    return null
   }
 }

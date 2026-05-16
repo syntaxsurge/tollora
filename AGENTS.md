@@ -502,10 +502,11 @@ Before creating a new helper or service file:
 - `/orders` and `/orders/[orderId]` show buyer request lifecycle state using
   shared order status labels and descriptions from
   `src/features/marketplace/status.ts`; order detail pages sign x402 MUSD
-  payments with the connected browser wallet, retry the product call, display
-  provider results, keep 402 inspection as a diagnostic action, persist receipt
-  metadata in browser session storage, and link to the settlement receipt and
-  Mezo explorer transaction.
+  payments with the connected browser wallet, check and submit the required Mezo
+  MUSD Permit2 allowance transaction when needed, retry the product call,
+  display provider results, keep 402 inspection as a diagnostic action, persist
+  receipt metadata in browser session storage, and link to the settlement
+  receipt and Mezo explorer transaction.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

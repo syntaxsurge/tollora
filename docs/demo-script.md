@@ -25,8 +25,9 @@ Mezo.
    listing, request schema, response schema, price, and endpoint.
 8. Create a payable request from the product page and open the Run & Pay
    playground.
-9. Click `Run with wallet`, approve the x402 wallet signature, settle MUSD, and
-   show the provider response.
+9. Click `Run with wallet`, approve the one-time MUSD Permit2 allowance if the
+   wallet has not already approved it, approve the x402 wallet signature, settle
+   MUSD, and show the provider response.
 10. Open the receipt link to show receipt ID, buyer wallet, provider wallet,
     amount, fee split, and Mezo explorer link.
 11. Open `/billing`, create a managed credit API key, and explain that credits
