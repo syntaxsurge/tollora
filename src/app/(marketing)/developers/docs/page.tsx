@@ -31,20 +31,24 @@ export default function DeveloperDocsPage() {
 
       <section className='grid gap-5'>
         <DocSection
-          title='Calling a paid API'
-          body='Call the Tollora product endpoint with the provider payload. If the request is unpaid, the gateway responds with payment requirements. After signing the MUSD payment payload, retry the same request and receive the paid API response.'
+          title='Calling a paid Tollora API'
+          body='A buyer integrates against the hosted Tollora product endpoint, not this repository. Their backend, CLI, or autonomous agent uses an x402 buyer client to handle the 402 response, sign the MUSD payment, retry the request, and read the paid response.'
         />
         <DocSection
           title='x402 payments'
           body={`Tollora uses ${x402Network} for Mezo Testnet payment requirements. Prices are expressed as dollar strings and resolve to MUSD through the x402 EVM stablecoin registry.`}
         />
         <DocSection
-          title='Terminal buyers'
-          body='A plain curl request should return HTTP 402 with payment requirements. A paid terminal or agent integration should use @x402/fetch with a funded Mezo MUSD signer so the client signs the payment, retries the request, and receives the paid response.'
+          title='Plain curl vs paid clients'
+          body='A plain curl request is only a diagnostic check; it should return HTTP 402 with payment requirements. Production callers use @x402/fetch, @x402/axios, the x402 Go client, or the x402 Python client with a funded Mezo MUSD signer.'
+        />
+        <DocSection
+          title='Where buyer code runs'
+          body='Keep buyer private keys in a backend, CLI, worker, or autonomous-agent runtime. Browser frontends should call their own backend or use a wallet/paywall flow; they should not embed private keys in React code.'
         />
         <DocSection
           title='Provider onboarding'
-          body='Providers define product metadata, price, method, endpoint URL, request schema, response schema, reference payload, webhook URL, and receiving wallet address. Published products appear in the marketplace after moderation.'
+          body='Providers do not need to rebuild their API around x402. They list their existing HTTPS endpoint, schema, price, receiving wallet, and optional webhook. Tollora handles the 402 payment flow first, then forwards the paid request to the provider adapter or configured endpoint.'
         />
         <DocSection
           title='Receipt format'
@@ -89,10 +93,64 @@ Content-Type: application/json
 
       <Card>
         <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Paid terminal call
+          Buyer integration
         </p>
         <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`pnpm x402:call prompt-enhancer-api --payload '{"prompt":"Write a launch post for Tollora, a Mezo-native marketplace where agents buy paid APIs.","audience":"developers","outputStyle":"concise"}'`}
+          {`npm install @x402/fetch @x402/evm viem
+
+import { x402Client, wrapFetchWithPayment } from "@x402/fetch";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import { privateKeyToAccount } from "viem/accounts";
+
+const privateKey = process.env.EVM_PRIVATE_KEY;
+
+if (!privateKey) {
+  throw new Error("Set EVM_PRIVATE_KEY to a Mezo MUSD-funded wallet.");
+}
+
+const signer = privateKeyToAccount(privateKey);
+const client = new x402Client();
+
+registerExactEvmScheme(client, { signer });
+
+const fetchWithPayment = wrapFetchWithPayment(fetch, client);
+const response = await fetchWithPayment(
+  "https://your-tollora-domain.com/api/x402/products/prompt-enhancer-api/call",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt: "Write a launch post for Tollora.",
+      audience: "developers",
+      outputStyle: "concise"
+    })
+  }
+);
+
+console.log(await response.json());`}
+        </pre>
+      </Card>
+
+      <Card>
+        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          Provider integration
+        </p>
+        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
+          {`POST /api/providers/self/products
+Content-Type: application/json
+
+{
+  "name": "Mezo Repository Metadata API",
+  "slug": "mezo-repository-metadata-api",
+  "category": "developer",
+  "priceUsd": 0.12,
+  "method": "GET",
+  "endpointUrl": "https://api.github.com/repos/mezo-org/mezod",
+  "receivingWallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
+  "requestSchemaJson": "{\\"owner\\":\\"string\\",\\"repo\\":\\"string\\"}",
+  "responseSchemaJson": "{\\"fullName\\":\\"string\\",\\"stars\\":\\"number\\"}",
+  "status": "draft"
+}`}
         </pre>
       </Card>
 

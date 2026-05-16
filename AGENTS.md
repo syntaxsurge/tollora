@@ -473,7 +473,8 @@ Before creating a new helper or service file:
   entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
   schema, copyable reference payload, full endpoint URL, raw 402 inspection
-  curl, paid terminal command, and entry point for running the paid request.
+  curl, standalone x402 buyer integration code, and entry point for running the
+  paid request.
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, request body, and x402 documentation link before a paid API call.
 - `/provider` shows provider revenue, API call volume, success rate, top

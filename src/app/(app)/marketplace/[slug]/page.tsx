@@ -32,10 +32,72 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const endpointUrl = new URL(product.endpointPath, appUrl).toString()
   const requestPayload = JSON.stringify(product.referencePayload, null, 2)
   const compactPayload = JSON.stringify(product.referencePayload)
-  const curlCommand = `curl -i -X ${product.method} ${endpointUrl} \\
+  const queryString = new URLSearchParams(
+    Object.entries(product.referencePayload).map(([key, value]) => [
+      key,
+      String(value)
+    ])
+  ).toString()
+  const callUrl =
+    product.method === 'GET' && queryString
+      ? `${endpointUrl}?${queryString}`
+      : endpointUrl
+  const curlCommand =
+    product.method === 'POST'
+      ? `curl -i -X POST ${endpointUrl} \\
   -H "Content-Type: application/json" \\
   -d '${compactPayload}'`
-  const paidTerminalCommand = `pnpm x402:call ${product.slug} --payload '${compactPayload}'`
+      : `curl -i "${callUrl}"`
+  const installCommand = 'npm install @x402/fetch @x402/evm viem'
+  const paidRequestOptions =
+    product.method === 'POST'
+      ? `{
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  },
+  body: JSON.stringify(${requestPayload})
+}`
+      : `{
+  method: "GET",
+  headers: {
+    Accept: "application/json"
+  }
+}`
+  const buyerIntegrationTarget =
+    product.method === 'GET'
+      ? `\`${endpointUrl}?\${params}\``
+      : `"${endpointUrl}"`
+  const buyerIntegrationSetup =
+    product.method === 'GET'
+      ? `const params = new URLSearchParams(${requestPayload});
+`
+      : ''
+  const buyerIntegrationCode = `import { x402Client, x402HTTPClient, wrapFetchWithPayment } from "@x402/fetch";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import { privateKeyToAccount } from "viem/accounts";
+
+const privateKey = process.env.EVM_PRIVATE_KEY;
+
+if (!privateKey) {
+  throw new Error("Set EVM_PRIVATE_KEY to a Mezo MUSD-funded wallet.");
+}
+
+const signer = privateKeyToAccount(privateKey);
+const client = new x402Client();
+
+registerExactEvmScheme(client, { signer });
+
+const fetchWithPayment = wrapFetchWithPayment(fetch, client);
+${buyerIntegrationSetup}const response = await fetchWithPayment(${buyerIntegrationTarget}, ${paidRequestOptions});
+
+const body = await response.json();
+const payment = new x402HTTPClient(client).getPaymentSettleResponse(name =>
+  response.headers.get(name)
+);
+
+console.log({ body, payment });`
 
   return (
     <div className='space-y-8'>
@@ -119,25 +181,32 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <Card className='min-w-0 space-y-5'>
           <div className='space-y-2'>
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Terminal integration
+              External app integration
             </p>
             <p className='text-foreground/70 text-sm leading-6'>
-              Plain curl is useful for inspecting the HTTP 402 payment
-              requirement. To actually receive the paid response from a terminal
-              or agent, use the x402 buyer client so it signs the MUSD payment
-              and retries automatically.
+              Developers do not clone Tollora to use this API. Their backend,
+              CLI, or agent calls this hosted endpoint with an x402 buyer
+              client; the client reads the 402 payment requirement, signs the
+              MUSD payment, retries, and receives the paid response. Keep the
+              signer on a server or agent runtime, not in client-side browser
+              code.
             </p>
           </div>
 
           <CodeBlock
-            title='Inspect 402 requirement'
-            code={curlCommand}
-            copyLabel='Copy curl'
+            title='Install in your app'
+            code={installCommand}
+            copyLabel='Copy install'
           />
           <CodeBlock
-            title='Run paid x402 request'
-            code={paidTerminalCommand}
-            copyLabel='Copy paid command'
+            title='Call from your backend or agent'
+            code={buyerIntegrationCode}
+            copyLabel='Copy integration'
+          />
+          <CodeBlock
+            title='Inspect payment requirement'
+            code={curlCommand}
+            copyLabel='Copy curl'
           />
         </Card>
       </section>

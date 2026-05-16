@@ -68,9 +68,13 @@ Tollora targets Mezo Testnet for MUSD-paid API commerce:
 ## Paid API Calls
 
 Raw `curl` requests intentionally return `402 Payment Required` because the
-server is advertising the MUSD payment requirements. To execute a paid request
-from a terminal, set `AGENT_SPENDER_PRIVATE_KEY` or `EVM_PRIVATE_KEY` to a
-Mezo-funded MUSD wallet and run:
+server is advertising the MUSD payment requirements. External developers do not
+need to clone this repository to use Tollora APIs; they install the x402 buyer
+SDK in their own backend, CLI, or agent and call the hosted Tollora product
+endpoint.
+
+For local repository smoke tests, set `AGENT_SPENDER_PRIVATE_KEY` or
+`EVM_PRIVATE_KEY` to a Mezo-funded MUSD wallet and run:
 
 ```bash
 pnpm x402:call prompt-enhancer-api
