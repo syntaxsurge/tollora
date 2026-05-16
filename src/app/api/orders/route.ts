@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 
+import { recordMarketplaceOrder } from '@/features/marketplace/orders'
 import { getProductBySlug } from '@/features/marketplace/products'
 import { createOrderSchema } from '@/features/marketplace/schemas'
+import type { MarketplaceOrder } from '@/features/marketplace/types'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
   const orderId = `ord_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
   const createdAt = new Date().toISOString()
 
-  return NextResponse.json({
+  const order: MarketplaceOrder = {
     id: orderId,
     productSlug: product.slug,
     productName: product.name,
@@ -52,5 +54,9 @@ export async function POST(request: Request) {
     requestPayloadJson: parsed.data.requestPayloadJson,
     createdAt,
     updatedAt: createdAt
-  })
+  }
+
+  recordMarketplaceOrder(order)
+
+  return NextResponse.json(order)
 }

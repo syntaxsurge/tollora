@@ -124,19 +124,19 @@ console.log({ body, payment });`
                 href={`/orders/new?product=${product.slug}`}
                 className={buttonClasses({ size: 'sm' })}
               >
-                Create payable request
+                Run with wallet
               </Link>
+              <a
+                href='#use-from-code'
+                className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              >
+                Use from code
+              </a>
               <Link
                 href={`/agents/new?tool=${product.slug}`}
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
                 Use in agent run
-              </Link>
-              <Link
-                href='/developers/docs'
-                className={buttonClasses({ variant: 'outline', size: 'sm' })}
-              >
-                Open developer example
               </Link>
             </div>
           </div>
@@ -178,7 +178,7 @@ console.log({ body, payment });`
             {requestPayload}
           </pre>
         </Card>
-        <Card className='min-w-0 space-y-5'>
+        <Card id='use-from-code' className='min-w-0 scroll-mt-28 space-y-5'>
           <div className='space-y-2'>
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               External app integration

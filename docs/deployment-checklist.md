@@ -45,11 +45,17 @@ pnpm build
 - `GET /api/proofs/[proofId]` returns the public proof package.
 - `POST /api/x402/products/prompt-enhancer-api/call` without `X-PAYMENT` returns
   HTTP 402 and a `payment-required` header.
+- Browser Run & Pay signs a marketplace request from a connected wallet and
+  returns a receipt after settlement.
+- `POST /api/credits/accounts`, `POST /api/credits/top-ups`, and
+  `POST /api/credits/products/prompt-enhancer-api/call` support managed API-key
+  credits.
 - `POST /api/provider-webhooks/cliplore` accepts a valid ClipLore job status
   payload.
 - `/marketplace` shows published API products.
 - `/agents` and `/agents/new` show the autonomous agent lifecycle.
 - `/proofs/[proofId]` renders without wallet auth.
 - `/provider` shows MUSD revenue, recent request activity, and fee split.
-- `/billing` shows MUSD receipts.
+- `/billing` shows MUSD receipts, managed credit balance, API key creation, and
+  top-up/debit history.
 - `/admin/operations` shows payment, adapter, wallet, and receipt readiness.

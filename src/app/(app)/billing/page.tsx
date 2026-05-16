@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { BillingOverview } from '@/components/billing/billing-overview'
+import { ManagedCreditsPanel } from '@/components/billing/managed-credits-panel'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -46,6 +47,8 @@ export default async function BillingPage() {
       <BillingOverview
         subscriptionConfigured={Boolean(snapshot.subscriptionManagerAddress)}
       />
+
+      <ManagedCreditsPanel />
 
       <Card className='space-y-4'>
         <div className='flex flex-col justify-between gap-3 sm:flex-row sm:items-center'>

@@ -47,6 +47,10 @@ export default function DeveloperDocsPage() {
           body='Keep buyer private keys in a backend, CLI, worker, or autonomous-agent runtime. Browser frontends should call their own backend or use a wallet/paywall flow; they should not embed private keys in React code.'
         />
         <DocSection
+          title='Managed credits'
+          body='x402 is the native path. Managed credits are a convenience layer for teams that want API keys: create a credit account, record a MUSD top-up transaction, then call credit-backed product endpoints with a Tollora API key while Tollora debits the off-chain balance and records usage receipts.'
+        />
+        <DocSection
           title='Provider onboarding'
           body='Providers do not need to rebuild their API around x402. They list their existing HTTPS endpoint, schema, price, receiving wallet, and optional webhook. Tollora handles the 402 payment flow first, then forwards the paid request to the provider adapter or configured endpoint.'
         />
@@ -128,6 +132,37 @@ const response = await fetchWithPayment(
 );
 
 console.log(await response.json());`}
+        </pre>
+      </Card>
+
+      <Card>
+        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          Managed-credit API key
+        </p>
+        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
+          {`POST /api/credits/accounts
+Content-Type: application/json
+
+{ "wallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688" }
+
+POST /api/credits/top-ups
+Content-Type: application/json
+
+{
+  "wallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
+  "amountMusd": 25,
+  "settlementTxHash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+}
+
+POST /api/credits/products/prompt-enhancer-api/call
+Authorization: Bearer tlr_your_api_key
+Content-Type: application/json
+
+{
+  "prompt": "Write a launch post for Tollora.",
+  "audience": "developers",
+  "outputStyle": "concise"
+}`}
         </pre>
       </Card>
 

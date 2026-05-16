@@ -18,6 +18,16 @@ export default function DevelopersPage() {
         'Expose a Tollora endpoint that returns HTTP 402 payment requirements until the client provides a valid MUSD payment payload.'
     },
     {
+      title: 'Use x402 directly',
+      detail:
+        'Call the hosted Tollora endpoint from your backend or agent with an x402 buyer client. No repository clone or Tollora API key is required.'
+    },
+    {
+      title: 'Use credits',
+      detail:
+        'Teams that prefer API-key ergonomics can top up MUSD credits once and let Tollora debit usage from a managed balance.'
+    },
+    {
       title: 'Forward the request',
       detail:
         'After verification, Tollora forwards the request, stores usage, and returns the provider response to the buyer or agent.'
@@ -45,8 +55,8 @@ export default function DevelopersPage() {
           <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
             Tollora gives providers a marketplace listing, stable gateway
             endpoint, MUSD payment verification, request forwarding, receipts,
-            usage logs, agent-ready HTTP semantics, and proof-backed run
-            records on Mezo.
+            usage logs, agent-ready HTTP semantics, and proof-backed run records
+            on Mezo.
           </p>
           <div className='flex flex-col gap-3 sm:flex-row'>
             <Link href='/marketplace' className={buttonClasses({ size: 'sm' })}>
@@ -84,7 +94,7 @@ export default function DevelopersPage() {
       </section>
 
       <section className='mx-auto w-full max-w-6xl px-6 pb-16'>
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
           {steps.map(step => (
             <Card key={step.title} className='min-h-52'>
               <h2 className='font-display text-xl'>{step.title}</h2>

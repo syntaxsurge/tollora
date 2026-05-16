@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react'
 
+import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
+import { registerExactEvmScheme } from '@x402/evm/exact/client'
+import { useActiveAccount } from 'thirdweb/react'
+import { useWalletClient } from 'wagmi'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
@@ -10,6 +15,7 @@ import {
   orderStatusLabels
 } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
+import { walletProvider } from '@/lib/config/wallet'
 
 type OrderStatusClientProps = {
   orderId: string
@@ -20,10 +26,95 @@ export function OrderStatusClient({
   orderId,
   initialOrder
 }: OrderStatusClientProps) {
+  if (walletProvider === 'rainbow-kit') {
+    return (
+      <RainbowOrderStatusClient orderId={orderId} initialOrder={initialOrder} />
+    )
+  }
+
+  return (
+    <ThirdwebOrderStatusClient orderId={orderId} initialOrder={initialOrder} />
+  )
+}
+
+type BrowserEvmSigner = {
+  readonly address: `0x${string}`
+  signTypedData(message: {
+    domain: Record<string, unknown>
+    types: Record<string, unknown>
+    primaryType: string
+    message: Record<string, unknown>
+  }): Promise<`0x${string}`>
+}
+
+function RainbowOrderStatusClient(props: OrderStatusClientProps) {
+  const { data: walletClient } = useWalletClient()
+
+  return (
+    <OrderStatusContent
+      {...props}
+      walletAddress={walletClient?.account?.address ?? null}
+      walletLabel='RainbowKit wallet'
+      getSigner={() => {
+        if (!walletClient?.account) {
+          return null
+        }
+
+        return {
+          address: walletClient.account.address,
+          signTypedData: message =>
+            walletClient.signTypedData({
+              account: walletClient.account,
+              domain: message.domain,
+              types: message.types,
+              primaryType: message.primaryType,
+              message: message.message
+            } as Parameters<typeof walletClient.signTypedData>[0])
+        } satisfies BrowserEvmSigner
+      }}
+    />
+  )
+}
+
+function ThirdwebOrderStatusClient(props: OrderStatusClientProps) {
+  const account = useActiveAccount()
+
+  return (
+    <OrderStatusContent
+      {...props}
+      walletAddress={account?.address ?? null}
+      walletLabel='Thirdweb wallet'
+      getSigner={() => {
+        if (!account?.address) {
+          return null
+        }
+
+        return {
+          address: account.address as `0x${string}`,
+          signTypedData: message =>
+            account.signTypedData(message as never) as Promise<`0x${string}`>
+        } satisfies BrowserEvmSigner
+      }}
+    />
+  )
+}
+
+function OrderStatusContent({
+  orderId,
+  initialOrder,
+  walletAddress,
+  walletLabel,
+  getSigner
+}: OrderStatusClientProps & {
+  walletAddress: string | null
+  walletLabel: string
+  getSigner: () => BrowserEvmSigner | null
+}) {
   const [order, setOrder] = useState<MarketplaceOrder | null>(initialOrder)
   const [status, setStatus] = useState('')
   const [paymentRequirements, setPaymentRequirements] = useState<unknown>(null)
-  const [isRunning, setIsRunning] = useState(false)
+  const [isInspecting, setIsInspecting] = useState(false)
+  const [isPaying, setIsPaying] = useState(false)
 
   useEffect(() => {
     if (order) {
@@ -42,7 +133,7 @@ export function OrderStatusClient({
       return
     }
 
-    setIsRunning(true)
+    setIsInspecting(true)
     setStatus('')
     setPaymentRequirements(null)
 
@@ -120,7 +211,115 @@ export function OrderStatusClient({
           : 'Unable to inspect payment requirements.'
       )
     } finally {
-      setIsRunning(false)
+      setIsInspecting(false)
+    }
+  }
+
+  async function runWithWallet() {
+    if (!order) {
+      return
+    }
+
+    const signer = getSigner()
+
+    if (!signer) {
+      setStatus(`Connect a ${walletLabel} before running this paid API call.`)
+      return
+    }
+
+    setIsPaying(true)
+    setStatus('Waiting for wallet signature and MUSD settlement.')
+    setPaymentRequirements(null)
+
+    try {
+      const client = registerExactEvmScheme(new x402Client(), { signer })
+      const httpClient = new x402HTTPClient(client)
+      const fetchWithPayment = wrapFetchWithPayment(fetch, httpClient)
+      const response = await fetchWithPayment(
+        `/api/x402/products/${order.productSlug}/call`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-Tollora-Order-Id': order.id
+          },
+          body: order.requestPayloadJson ?? '{}'
+        }
+      )
+      const body = (await readResponseBody(response)) as {
+        error?: string
+        data?: unknown
+        order?: Partial<MarketplaceOrder>
+        receipt?: MarketplaceReceipt
+      }
+
+      if (response.status === 402) {
+        setPaymentRequirements({
+          status: response.status,
+          statusText: response.statusText,
+          paymentRequired: decodePaymentRequiredHeader(response),
+          response: body
+        })
+        throw new Error(
+          body.error ??
+            'Wallet payment was not completed. Check MUSD balance, network, and signature approval.'
+        )
+      }
+
+      if (!response.ok) {
+        throw new Error(body.error ?? 'Unable to run the paid API request.')
+      }
+
+      const settlement = httpClient.getPaymentSettleResponse(name =>
+        response.headers.get(name)
+      )
+      const receipt = body.receipt
+        ? {
+            ...body.receipt,
+            orderId: order.id
+          }
+        : undefined
+      const nextOrder: MarketplaceOrder = {
+        ...order,
+        ...body.order,
+        id: order.id,
+        buyerWallet: receipt?.buyerWallet ?? signer.address,
+        status:
+          (body.order?.status as MarketplaceOrder['status']) ?? 'completed',
+        receiptId: receipt?.id,
+        explorerUrl: receipt?.explorerUrl,
+        responsePayload: body.data,
+        resultUrl: receipt?.resultUrl ?? body.order?.resultUrl,
+        updatedAt: new Date().toISOString()
+      }
+
+      window.sessionStorage.setItem(
+        `tollora:order:${order.id}`,
+        JSON.stringify(nextOrder)
+      )
+
+      if (receipt) {
+        window.sessionStorage.setItem(
+          `tollora:receipt:${receipt.id}`,
+          JSON.stringify(receipt)
+        )
+      }
+
+      setOrder(nextOrder)
+      setStatus(
+        settlement.transaction
+          ? `MUSD payment settled on Mezo. Transaction: ${settlement.transaction}`
+          : 'MUSD payment settled and provider response returned.'
+      )
+    } catch (caughtError) {
+      setStatus(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to run the paid API request.'
+      )
+    } finally {
+      setIsPaying(false)
     }
   }
 
@@ -160,15 +359,32 @@ export function OrderStatusClient({
       {order.status === 'payment_required' ? (
         <Card className='space-y-4'>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Payment execution
+            Run with wallet
           </p>
           <p className='text-foreground/65 text-sm leading-6'>
-            This page prepares a payable Tollora request and can inspect the
-            HTTP 402 payment requirements. The actual MUSD payment must be
-            signed by an x402 buyer client in a backend, CLI, worker, or
-            autonomous agent. Tollora does not ask you to paste a payment header
-            by hand.
+            This page prepares a payable Tollora request, signs the x402 MUSD
+            payment with your connected wallet, retries the API call, and saves
+            the returned receipt. Developers and agents can call the same hosted
+            endpoint with an x402 buyer client.
           </p>
+          <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
+            <p className='text-foreground/60 text-xs uppercase'>
+              Connected signer
+            </p>
+            <p className='mt-1 font-semibold break-all'>
+              {walletAddress ?? `Connect a ${walletLabel} to pay from the site`}
+            </p>
+          </div>
+        </Card>
+      ) : null}
+      {order.responsePayload ? (
+        <Card>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Provider result
+          </p>
+          <pre className='bg-muted mt-4 max-h-96 overflow-auto rounded-lg p-4 text-xs leading-6'>
+            {JSON.stringify(order.responsePayload, null, 2)}
+          </pre>
         </Card>
       ) : null}
       {paymentRequirements ? (
@@ -239,10 +455,17 @@ export function OrderStatusClient({
       ) : null}
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
         <Button
-          onClick={inspectPaymentRequirement}
-          disabled={order.status !== 'payment_required' || isRunning}
+          onClick={runWithWallet}
+          disabled={order.status !== 'payment_required' || isPaying}
         >
-          {isRunning ? 'Checking payment' : 'Inspect payment requirement'}
+          {isPaying ? 'Running with wallet' : 'Run with wallet'}
+        </Button>
+        <Button
+          variant='outline'
+          onClick={inspectPaymentRequirement}
+          disabled={order.status !== 'payment_required' || isInspecting}
+        >
+          {isInspecting ? 'Checking payment' : 'Inspect 402'}
         </Button>
         {status ? (
           <p className='text-foreground/65 text-sm' role='status'>

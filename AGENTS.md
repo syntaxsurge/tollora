@@ -400,6 +400,13 @@ Before creating a new helper or service file:
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
+- `POST /api/credits/accounts` — creates or returns a managed credit account and
+  Tollora API key for a wallet.
+- `POST /api/credits/top-ups` — records a MUSD top-up transaction hash and
+  increases the wallet's managed credit balance.
+- `POST /api/credits/products/[slug]/call` — calls a product with a Tollora API
+  key, debits managed credits, forwards to the provider adapter, and records a
+  receipt linked to the top-up transaction.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
   autonomous Launch Pack Agent runs with objective, source context, owner
   wallet, budget cap, max paid actions, allowed marketplace tools, and signer
@@ -473,8 +480,8 @@ Before creating a new helper or service file:
   entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
   schema, copyable reference payload, full endpoint URL, raw 402 inspection
-  curl, standalone x402 buyer integration code, and entry point for creating a
-  payable request.
+  curl, standalone x402 buyer integration code, Run with wallet entry point, Use
+  from code anchor, and Use in agent run entry point.
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, request body, connected buyer wallet, and x402 documentation link
   before a payable API request is created.
@@ -494,15 +501,17 @@ Before creating a new helper or service file:
   request IDs, and status labels.
 - `/orders` and `/orders/[orderId]` show buyer request lifecycle state using
   shared order status labels and descriptions from
-  `src/features/marketplace/status.ts`; order detail pages inspect x402 payment
-  requirements, keep browser payment execution pointed at SDK-backed buyers or
-  autonomous agents, persist receipt metadata in browser session storage, and
-  link to the settlement receipt and Mezo explorer transaction.
+  `src/features/marketplace/status.ts`; order detail pages sign x402 MUSD
+  payments with the connected browser wallet, retry the product call, display
+  provider results, keep 402 inspection as a diagnostic action, persist receipt
+  metadata in browser session storage, and link to the settlement receipt and
+  Mezo explorer transaction.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.
-- `/billing` displays workspace billing context, payment readiness, autonomous
-  agent spend, proof counts, and recent MUSD receipt records.
+- `/billing` displays workspace billing context, managed credit API-key
+  creation, MUSD top-up records, API-key debit history, payment readiness,
+  autonomous agent spend, proof counts, and recent MUSD receipt records.
 - `/admin/products` and `/admin/orders` provide allowlisted operational review
   for marketplace listings and buyer API request records.
 - `/developers` and `/developers/docs` describe provider onboarding, x402 paid

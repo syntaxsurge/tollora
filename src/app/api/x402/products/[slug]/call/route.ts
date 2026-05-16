@@ -8,8 +8,14 @@ import type { HTTPProcessResult } from '@x402/core/server'
 import { getProductBySlug } from '@/features/marketplace/products'
 import {
   buildExplorerUrl,
-  buildReceiptAmounts
+  buildReceiptAmounts,
+  recordMarketplaceReceipt
 } from '@/features/marketplace/receipts'
+import {
+  getMarketplaceOrderById,
+  recordMarketplaceOrder,
+  updateMarketplaceOrder
+} from '@/features/marketplace/orders'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
 import { x402Network } from '@/lib/config/chains'
@@ -86,13 +92,17 @@ async function handlePaidProductCall(
   }
 
   const createdAt = new Date().toISOString()
+  const requestedOrderId = adapter.getHeader('x-tollora-order-id')
+  const existingOrder = requestedOrderId
+    ? getMarketplaceOrderById(requestedOrderId)
+    : undefined
   const payloadHash = createHash('sha256')
     .update(JSON.stringify(payload))
     .update(product.slug)
     .digest('hex')
     .slice(0, 12)
-  const requestId = `req_${payloadHash}`
-  const orderId = `ord_${payloadHash}`
+  const requestId = existingOrder?.requestId ?? `req_${payloadHash}`
+  const orderId = existingOrder?.id ?? `ord_${payloadHash}`
   const receiptId = `rcpt_${createHash('sha256')
     .update(orderId)
     .update(requestId)
@@ -185,6 +195,8 @@ async function handlePaidProductCall(
     explorerUrl: buildExplorerUrl(settlement.transaction),
     createdAt
   }
+  recordMarketplaceReceipt(receipt)
+
   const finalBody = {
     ...paidResponse,
     order: {
@@ -199,6 +211,33 @@ async function handlePaidProductCall(
       network: settlement.network,
       transaction: settlement.transaction
     }
+  }
+  const nextOrder = {
+    id: orderId,
+    productSlug: product.slug,
+    productName: product.name,
+    providerName: product.providerName,
+    providerWallet: product.providerWallet,
+    buyerWallet:
+      settlement.payer ?? extractBuyerWallet(processResult.paymentPayload),
+    status: adapterResult.status,
+    amountMusd: product.priceLabel,
+    requestId,
+    requestPayloadJson:
+      existingOrder?.requestPayloadJson ?? JSON.stringify(payload, null, 2),
+    receiptId,
+    externalJobId: adapterResult.externalJobId,
+    explorerUrl: receipt.explorerUrl,
+    responsePayload: adapterResult.responsePayload ?? finalBody.data,
+    resultUrl: adapterResult.resultUrl,
+    createdAt: existingOrder?.createdAt ?? createdAt,
+    updatedAt: createdAt
+  }
+
+  if (existingOrder) {
+    updateMarketplaceOrder(orderId, nextOrder)
+  } else {
+    recordMarketplaceOrder(nextOrder)
   }
 
   return NextResponse.json(finalBody, {

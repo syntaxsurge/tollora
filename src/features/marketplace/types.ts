@@ -16,6 +16,7 @@ export type MarketplaceOrder = {
   receiptId?: string
   explorerUrl?: string | null
   externalJobId?: string
+  responsePayload?: unknown
   createdAt: string
   updatedAt: string
   resultUrl?: string

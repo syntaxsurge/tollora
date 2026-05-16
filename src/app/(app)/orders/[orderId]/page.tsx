@@ -24,10 +24,10 @@ export default async function OrderDetailPage({
         <Badge>Order detail</Badge>
         <div className='mt-4 flex flex-col justify-between gap-5 lg:flex-row lg:items-end'>
           <div className='max-w-3xl space-y-3'>
-            <h1 className='font-display text-4xl'>API request status</h1>
+            <h1 className='font-display text-4xl'>Run & Pay playground</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Review payment state, provider processing state, request ID,
-              amount, buyer wallet, and result readiness for a Tollora API call.
+              Sign the x402 payment with your connected wallet, settle MUSD on
+              Mezo, receive the provider response, and inspect the receipt.
             </p>
           </div>
           <Link

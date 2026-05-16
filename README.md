@@ -21,8 +21,10 @@ provider dashboards.
 - Provider product management for listing APIs, validating schemas, reviewing
   product status, copying gateway endpoints, and testing paid request setup.
 - Buyer order lifecycle pages for payment-required, processing, completed,
-  failed, and expired API requests, with x402 payment requirement inspection,
-  signed payment retry, MUSD settlement, and receipt links.
+  failed, and expired API requests, with browser wallet x402 checkout, MUSD
+  settlement, provider results, and receipt links.
+- Managed credits for teams that prefer API-key usage after recording MUSD
+  top-ups.
 - x402-protected product call route for Mezo Testnet settlement through the
   configured facilitator.
 - Public proof pages for autonomous runs with receipt rollups, proof hashes, and
@@ -82,6 +84,11 @@ pnpm x402:call prompt-enhancer-api
 
 The command uses `@x402/fetch` to sign the payment, retry the request, and print
 the settled response.
+
+Humans can also open a marketplace product, create a payable request, and click
+`Run with wallet` to sign the x402 payment from the connected browser wallet.
+Teams that want API-key ergonomics can use `/billing` to create a managed credit
+account and call `/api/credits/products/{slug}/call` with a Tollora API key.
 
 ## Walkthrough And Deployment
 
