@@ -472,8 +472,8 @@ Before creating a new helper or service file:
   price badges, provider names, x402 protection badges, agent-ready badges, and
   entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
-  schema, reference payload, endpoint path, agent call example, and entry point
-  for running the paid request.
+  schema, copyable reference payload, full endpoint URL, raw 402 inspection
+  curl, paid terminal command, and entry point for running the paid request.
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, request body, and x402 documentation link before a paid API call.
 - `/provider` shows provider revenue, API call volume, success rate, top
@@ -582,4 +582,5 @@ Before creating a new helper or service file:
 - `pnpm convex:reset`
 - `pnpm contracts:deploy`
 - `pnpm contracts:deploy:agent`
+- `pnpm x402:call <product-slug>`
 - `pnpm --dir blockchain deploy:agent-attestor`

@@ -16,7 +16,8 @@
     "convex:redeploy": "pnpm run convex:deploy && pnpm run convex:dev",
     "convex:reset": "dotenv -e .env.local -- tsx scripts/reset-convex.ts",
     "contracts:deploy": "tsx scripts/deploy-contracts.ts",
-    "contracts:deploy:agent": "pnpm --dir blockchain deploy:agent-attestor"
+    "contracts:deploy:agent": "pnpm --dir blockchain deploy:agent-attestor",
+    "x402:call": "tsx scripts/x402-paid-call.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.8",

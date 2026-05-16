@@ -65,6 +65,20 @@ Tollora targets Mezo Testnet for MUSD-paid API commerce:
 - Native gas currency: `BTC`
 - x402 facilitator: `https://facilitator.vativ.io/`
 
+## Paid API Calls
+
+Raw `curl` requests intentionally return `402 Payment Required` because the
+server is advertising the MUSD payment requirements. To execute a paid request
+from a terminal, set `AGENT_SPENDER_PRIVATE_KEY` or `EVM_PRIVATE_KEY` to a
+Mezo-funded MUSD wallet and run:
+
+```bash
+pnpm x402:call prompt-enhancer-api
+```
+
+The command uses `@x402/fetch` to sign the payment, retry the request, and print
+the settled response.
+
 ## Walkthrough And Deployment
 
 - Deployment checklist:

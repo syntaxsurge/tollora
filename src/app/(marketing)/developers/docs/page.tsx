@@ -39,6 +39,10 @@ export default function DeveloperDocsPage() {
           body={`Tollora uses ${x402Network} for Mezo Testnet payment requirements. Prices are expressed as dollar strings and resolve to MUSD through the x402 EVM stablecoin registry.`}
         />
         <DocSection
+          title='Terminal buyers'
+          body='A plain curl request should return HTTP 402 with payment requirements. A paid terminal or agent integration should use @x402/fetch with a funded Mezo MUSD signer so the client signs the payment, retries the request, and receives the paid response.'
+        />
+        <DocSection
           title='Provider onboarding'
           body='Providers define product metadata, price, method, endpoint URL, request schema, response schema, reference payload, webhook URL, and receiving wallet address. Published products appear in the marketplace after moderation.'
         />
@@ -85,17 +89,10 @@ Content-Type: application/json
 
       <Card>
         <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Agent example
+          Paid terminal call
         </p>
         <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`POST /api/x402/products/cliplore-ai-video-generator/call
-Content-Type: application/json
-
-{
-  "prompt": "Create a product teaser for a MUSD-native paid API gateway.",
-  "format": "vertical",
-  "duration": "30s"
-}`}
+          {`pnpm x402:call prompt-enhancer-api --payload '{"prompt":"Write a launch post for Tollora, a Mezo-native marketplace where agents buy paid APIs.","audience":"developers","outputStyle":"concise"}'`}
         </pre>
       </Card>
 
