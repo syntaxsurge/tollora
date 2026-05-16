@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import {
   orderStatusDetails,
@@ -23,7 +22,6 @@ export function OrderStatusClient({
 }: OrderStatusClientProps) {
   const [order, setOrder] = useState<MarketplaceOrder | null>(initialOrder)
   const [status, setStatus] = useState('')
-  const [paymentHeader, setPaymentHeader] = useState('')
   const [paymentRequirements, setPaymentRequirements] = useState<unknown>(null)
   const [isRunning, setIsRunning] = useState(false)
 
@@ -39,7 +37,7 @@ export function OrderStatusClient({
     }
   }, [order, orderId])
 
-  async function runOrder() {
+  async function inspectPaymentRequirement() {
     if (!order) {
       return
     }
@@ -53,10 +51,6 @@ export function OrderStatusClient({
       Accept: 'application/json'
     }
 
-    if (paymentHeader.trim()) {
-      headers['X-PAYMENT'] = paymentHeader.trim()
-    }
-
     try {
       const response = await fetch(
         `/api/x402/products/${order.productSlug}/call`,
@@ -66,16 +60,21 @@ export function OrderStatusClient({
           body: order.requestPayloadJson ?? '{}'
         }
       )
-      const body = (await response.json()) as {
+      const body = (await readResponseBody(response)) as {
         error?: string
         order?: Partial<MarketplaceOrder>
         receipt?: MarketplaceReceipt
       }
 
       if (response.status === 402) {
-        setPaymentRequirements(body)
+        setPaymentRequirements({
+          status: response.status,
+          statusText: response.statusText,
+          paymentRequired: decodePaymentRequiredHeader(response),
+          response: body
+        })
         setStatus(
-          'Payment requirements returned. Sign the request and retry with the X-PAYMENT header.'
+          'Payment requirements returned. Use an x402 buyer client, backend, or agent runner to sign and settle this request.'
         )
         return
       }
@@ -118,7 +117,7 @@ export function OrderStatusClient({
       setStatus(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Unable to run the paid API request.'
+          : 'Unable to inspect payment requirements.'
       )
     } finally {
       setIsRunning(false)
@@ -160,20 +159,15 @@ export function OrderStatusClient({
       </div>
       {order.status === 'payment_required' ? (
         <Card className='space-y-4'>
-          <label className='space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Signed x402 payment header
-            </span>
-            <Input
-              value={paymentHeader}
-              onChange={event => setPaymentHeader(event.target.value)}
-              aria-label='Signed x402 payment header'
-            />
-          </label>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Payment execution
+          </p>
           <p className='text-foreground/65 text-sm leading-6'>
-            Run without a header to inspect the HTTP 402 response. Run again
-            with a signed x402 payment header to settle MUSD on Mezo Testnet and
-            receive the paid API result.
+            This page prepares a payable Tollora request and can inspect the
+            HTTP 402 payment requirements. The actual MUSD payment must be
+            signed by an x402 buyer client in a backend, CLI, worker, or
+            autonomous agent. Tollora does not ask you to paste a payment header
+            by hand.
           </p>
         </Card>
       ) : null}
@@ -219,9 +213,7 @@ export function OrderStatusClient({
           </div>
           {order.explorerUrl ? (
             <div className='border-foreground/10 rounded-lg border p-4'>
-              <p className='text-foreground/60 text-xs uppercase'>
-                Explorer
-              </p>
+              <p className='text-foreground/60 text-xs uppercase'>Explorer</p>
               <a
                 className='text-foreground mt-1 block font-semibold underline-offset-4 hover:underline'
                 href={order.explorerUrl}
@@ -247,10 +239,10 @@ export function OrderStatusClient({
       ) : null}
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
         <Button
-          onClick={runOrder}
+          onClick={inspectPaymentRequirement}
           disabled={order.status !== 'payment_required' || isRunning}
         >
-          {isRunning ? 'Running paid request' : 'Pay and run'}
+          {isRunning ? 'Checking payment' : 'Inspect payment requirement'}
         </Button>
         {status ? (
           <p className='text-foreground/65 text-sm' role='status'>
@@ -260,4 +252,54 @@ export function OrderStatusClient({
       </div>
     </div>
   )
+}
+
+async function readResponseBody(response: Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+
+  if (
+    contentType.includes('application/json') ||
+    contentType.includes('+json')
+  ) {
+    return response.json()
+  }
+
+  const text = await response.text()
+
+  return {
+    error:
+      response.status === 402
+        ? 'MUSD payment required.'
+        : 'The server returned a non-JSON response.',
+    contentType,
+    bodyPreview: text.slice(0, 300)
+  }
+}
+
+function decodePaymentRequiredHeader(response: Response) {
+  const encoded =
+    response.headers.get('payment-required') ??
+    response.headers.get('PAYMENT-REQUIRED')
+
+  if (!encoded) {
+    return null
+  }
+
+  try {
+    return JSON.parse(encoded) as unknown
+  } catch {
+    // Some x402 implementations send the header as base64/base64url JSON.
+  }
+
+  try {
+    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      '='
+    )
+
+    return JSON.parse(window.atob(padded)) as unknown
+  } catch {
+    return encoded
+  }
 }

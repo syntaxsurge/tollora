@@ -31,8 +31,9 @@ export default async function NewOrderPage({
           <div className='space-y-3'>
             <h1 className='font-display text-4xl'>{product.name}</h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Review the product endpoint, MUSD price, request body, and x402
-              payment path before executing this API call through the gateway.
+              Create a payable request record for this API. No MUSD is charged
+              on this page; the paid response is returned after an x402 buyer
+              client, backend, CLI, or agent signs and settles the payment.
             </p>
           </div>
           <Card className='bg-background/85'>
@@ -41,7 +42,7 @@ export default async function NewOrderPage({
             </p>
             <p className='mt-2 text-2xl font-semibold'>{product.priceLabel}</p>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Settled as MUSD on Mezo Testnet.
+              Charged only after signed x402 settlement on Mezo Testnet.
             </p>
           </Card>
         </div>

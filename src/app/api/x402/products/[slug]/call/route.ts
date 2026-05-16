@@ -13,6 +13,7 @@ import {
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
 import { x402Network } from '@/lib/config/chains'
+import { envServer } from '@/lib/env/env.server'
 import { NextRequestAdapter } from '@/lib/x402/next-request-adapter'
 import {
   getTolloraPaywallConfig,
@@ -74,7 +75,7 @@ async function handlePaidProductCall(
   )
 
   if (processResult.type === 'payment-error') {
-    return toNextResponse(processResult)
+    return toNextResponse(processResult, product)
   }
 
   if (processResult.type === 'no-payment-required') {
@@ -159,16 +160,13 @@ async function handlePaidProductCall(
   )
 
   if (!settlement.success) {
-    return new NextResponse(
-      JSON.stringify(settlement.response.body ?? {}),
-      {
-        status: settlement.response.status,
-        headers: {
-          ...settlement.response.headers,
-          'Content-Type': 'application/json'
-        }
+    return new NextResponse(JSON.stringify(settlement.response.body ?? {}), {
+      status: settlement.response.status,
+      headers: {
+        ...settlement.response.headers,
+        'Content-Type': 'application/json'
       }
-    )
+    })
   }
 
   const receipt = {
@@ -212,18 +210,37 @@ async function handlePaidProductCall(
 }
 
 function toNextResponse(
-  processResult: Extract<HTTPProcessResult, { type: 'payment-error' }>
+  processResult: Extract<HTTPProcessResult, { type: 'payment-error' }>,
+  product: NonNullable<ReturnType<typeof getProductBySlug>>
 ) {
   const { response } = processResult
 
   if (response.isHtml) {
-    return new NextResponse(String(response.body ?? ''), {
-      status: response.status,
-      headers: {
-        ...response.headers,
-        'Content-Type': 'text/html; charset=utf-8'
+    return new NextResponse(
+      JSON.stringify({
+        error: 'MUSD payment required.',
+        product: {
+          slug: product.slug,
+          name: product.name,
+          providerName: product.providerName,
+          priceLabel: product.priceLabel,
+          endpointPath: product.endpointPath
+        },
+        payment: {
+          network: x402Network,
+          scheme: 'exact',
+          facilitatorUrl:
+            envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
+        }
+      }),
+      {
+        status: response.status,
+        headers: {
+          ...response.headers,
+          'Content-Type': 'application/json'
+        }
       }
-    })
+    )
   }
 
   return new NextResponse(JSON.stringify(response.body ?? {}), {

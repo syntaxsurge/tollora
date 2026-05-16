@@ -124,7 +124,7 @@ console.log({ body, payment });`
                 href={`/orders/new?product=${product.slug}`}
                 className={buttonClasses({ size: 'sm' })}
               >
-                Pay and run
+                Create payable request
               </Link>
               <Link
                 href={`/agents/new?tool=${product.slug}`}

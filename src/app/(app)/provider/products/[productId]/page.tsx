@@ -81,7 +81,7 @@ export default async function ProviderProductPage({
               href={`/orders/new?product=${product.slug}`}
               className={buttonClasses({ variant: 'outline', size: 'sm' })}
             >
-              Test endpoint
+              Create payable request
             </Link>
             <Link
               href='/provider/usage'

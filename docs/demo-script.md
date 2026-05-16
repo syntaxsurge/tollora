@@ -23,10 +23,11 @@ Mezo.
    badges.
 7. Open `/marketplace/cliplore-ai-video-generator` and show the ClipLore API
    listing, request schema, response schema, price, and endpoint.
-8. Create a paid request from the product page and open the order detail view.
-9. Run the request without a payment header to show HTTP 402 payment
-   requirements.
-10. Retry with a signed `X-PAYMENT` payload from the wallet or agent client.
+8. Create a payable request from the product page and open the order detail
+   view.
+9. Inspect the HTTP 402 payment requirements from the order detail view.
+10. Execute the same product call from an x402 buyer client or autonomous agent
+    so the SDK generates the signed `X-PAYMENT` payload and settles MUSD.
 11. Show the provider response, receipt ID, and Mezo explorer link.
 12. Open `/receipts/[receiptId]` and explain buyer wallet, provider wallet, MUSD
     amount, fee split, network, and transaction hash.

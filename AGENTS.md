@@ -473,10 +473,11 @@ Before creating a new helper or service file:
   entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
   schema, copyable reference payload, full endpoint URL, raw 402 inspection
-  curl, standalone x402 buyer integration code, and entry point for running the
-  paid request.
+  curl, standalone x402 buyer integration code, and entry point for creating a
+  payable request.
 - `/orders/new` shows selected product price, gateway endpoint, method,
-  provider, request body, and x402 documentation link before a paid API call.
+  provider, request body, connected buyer wallet, and x402 documentation link
+  before a payable API request is created.
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.
@@ -487,16 +488,16 @@ Before creating a new helper or service file:
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
   schemas, endpoint URL, wallet fields, and visibility before posting to the
   product API route.
-- `/provider/products/[productId]` shows product operations, test-order links,
-  usage links, endpoint copy support, and schema details.
+- `/provider/products/[productId]` shows product operations, payable request
+  links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
   request IDs, and status labels.
 - `/orders` and `/orders/[orderId]` show buyer request lifecycle state using
   shared order status labels and descriptions from
-  `src/features/marketplace/status.ts`; order detail pages can request x402
-  payment requirements, retry with a signed `X-PAYMENT` header, persist receipt
-  metadata in browser session storage, and link to the settlement receipt and
-  Mezo explorer transaction.
+  `src/features/marketplace/status.ts`; order detail pages inspect x402 payment
+  requirements, keep browser payment execution pointed at SDK-backed buyers or
+  autonomous agents, persist receipt metadata in browser session storage, and
+  link to the settlement receipt and Mezo explorer transaction.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

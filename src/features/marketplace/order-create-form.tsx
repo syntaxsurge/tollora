@@ -1,11 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import type { ApiProduct } from '@/features/marketplace/products'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 
@@ -14,9 +15,31 @@ type OrderCreateFormProps = {
 }
 
 export function OrderCreateForm({ product }: OrderCreateFormProps) {
+  return (
+    <WalletAddressConsumer>
+      {({ address }) => (
+        <OrderCreateFormFields product={product} connectedWallet={address} />
+      )}
+    </WalletAddressConsumer>
+  )
+}
+
+function OrderCreateFormFields({
+  product,
+  connectedWallet
+}: OrderCreateFormProps & {
+  connectedWallet: string | null
+}) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [buyerWallet, setBuyerWallet] = useState(connectedWallet ?? '')
+
+  useEffect(() => {
+    if (connectedWallet && !buyerWallet) {
+      setBuyerWallet(connectedWallet)
+    }
+  }, [buyerWallet, connectedWallet])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -68,9 +91,16 @@ export function OrderCreateForm({ product }: OrderCreateFormProps) {
           </span>
           <Input
             name='buyerWallet'
-            defaultValue='0x7CE33579392AEAF1791c9B0c8302a502B5867688'
+            value={buyerWallet}
+            onChange={event => setBuyerWallet(event.target.value)}
+            placeholder='Connect a wallet or paste the buyer wallet address'
             required
           />
+          <span className='text-foreground/60 block text-xs leading-5'>
+            This wallet owns the payable request record. Creating the request
+            does not charge MUSD; settlement happens only when an x402 buyer
+            client signs and submits payment.
+          </span>
         </label>
         <label className='space-y-2'>
           <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -86,7 +116,7 @@ export function OrderCreateForm({ product }: OrderCreateFormProps) {
       </Card>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
         <Button type='submit' disabled={isSubmitting}>
-          {isSubmitting ? 'Preparing request' : 'Create test order'}
+          {isSubmitting ? 'Preparing request' : 'Create payable request'}
         </Button>
         {error ? (
           <p className='text-sm text-red-600' role='alert'>
