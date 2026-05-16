@@ -503,10 +503,13 @@ Before creating a new helper or service file:
   shared order status labels and descriptions from
   `src/features/marketplace/status.ts`; order detail pages sign x402 MUSD
   payments with the connected browser wallet, check and submit the required Mezo
-  MUSD Permit2 allowance transaction when needed, retry the product call,
-  display provider results, keep 402 inspection as a diagnostic action, persist
-  receipt metadata in browser session storage, and link to the settlement
-  receipt and Mezo explorer transaction.
+  MUSD Permit2 allowance transaction when needed, verify MUSD balance before
+  asking for payment signatures, retry the product call, display step-by-step
+  wallet progress with explorer links for submitted transactions, surface
+  settlement failure guidance from the x402 facilitator, display provider
+  results, keep 402 inspection as a diagnostic action, persist receipt metadata
+  in browser session storage, and link to the settlement receipt and Mezo
+  explorer transaction.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

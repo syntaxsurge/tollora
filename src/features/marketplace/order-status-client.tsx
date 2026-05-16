@@ -10,11 +10,19 @@ import {
   getPermit2AllowanceReadParams
 } from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  WalletCards
+} from 'lucide-react'
 import { prepareTransaction, sendTransaction } from 'thirdweb'
 import { useActiveAccount } from 'thirdweb/react'
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, formatUnits, http, parseAbi } from 'viem'
 import { useWalletClient } from 'wagmi'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
@@ -23,8 +31,9 @@ import {
   orderStatusLabels
 } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
-import { defaultAppChain } from '@/lib/config/chains'
+import { defaultAppChain, getExplorerTransactionUrl } from '@/lib/config/chains'
 import { walletProvider } from '@/lib/config/wallet'
+import { cn } from '@/lib/utils/cn'
 import { thirdwebActiveChain, thirdwebClient } from '@/lib/wallet/thirdweb'
 
 type OrderStatusClientProps = {
@@ -68,6 +77,51 @@ type BrowserWalletControls = {
     transaction: Permit2ApprovalTransaction
   ) => Promise<`0x${string}`>
 }
+
+type WalletStepId =
+  | 'requirement'
+  | 'allowance'
+  | 'signature'
+  | 'settlement'
+  | 'result'
+
+type WalletStepStatus = 'idle' | 'active' | 'complete' | 'error'
+
+type WalletStep = {
+  id: WalletStepId
+  title: string
+  description: string
+  status: WalletStepStatus
+  detail?: string
+  txHash?: `0x${string}`
+}
+
+type PaymentRequirementInspection = {
+  status: number
+  statusText: string
+  paymentRequired: PaymentRequired | null
+  response: unknown
+}
+
+type PaidApiErrorBody = {
+  error?: string
+  message?: string
+  reason?: string
+  guidance?: string
+  details?: unknown
+  settlement?: {
+    errorReason?: string
+    errorMessage?: string
+    transaction?: string
+    network?: string
+    status?: number
+  }
+}
+
+const musdBalanceAbi = parseAbi([
+  'function balanceOf(address owner) view returns (uint256)'
+])
+const MUSD_DECIMALS = 18
 
 const mezoPublicClient = createPublicClient({
   chain: defaultAppChain.viemChain,
@@ -172,7 +226,11 @@ function OrderStatusContent({
 }) {
   const [order, setOrder] = useState<MarketplaceOrder | null>(initialOrder)
   const [status, setStatus] = useState('')
-  const [paymentRequirements, setPaymentRequirements] = useState<unknown>(null)
+  const [paymentRequirements, setPaymentRequirements] =
+    useState<PaymentRequirementInspection | null>(null)
+  const [walletSteps, setWalletSteps] =
+    useState<WalletStep[]>(createWalletSteps)
+  const [paymentError, setPaymentError] = useState('')
   const [isInspecting, setIsInspecting] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
 
@@ -195,6 +253,7 @@ function OrderStatusContent({
 
     setIsInspecting(true)
     setStatus('')
+    setPaymentError('')
     setPaymentRequirements(null)
 
     const headers: HeadersInit = {
@@ -275,6 +334,32 @@ function OrderStatusContent({
     }
   }
 
+  function updateWalletStep(id: WalletStepId, update: Partial<WalletStep>) {
+    setWalletSteps(current =>
+      current.map(step => (step.id === id ? { ...step, ...update } : step))
+    )
+  }
+
+  function failActiveWalletStep(message: string) {
+    setWalletSteps(current => {
+      const activeStep = current.find(step => step.status === 'active')
+
+      if (!activeStep) {
+        return current
+      }
+
+      return current.map(step =>
+        step.id === activeStep.id
+          ? {
+              ...step,
+              status: 'error',
+              detail: message
+            }
+          : step
+      )
+    })
+  }
+
   async function runWithWallet() {
     if (!order) {
       return
@@ -288,13 +373,19 @@ function OrderStatusContent({
     }
 
     setIsPaying(true)
+    setWalletSteps(createWalletSteps('requirement'))
     setStatus('Reading the x402 payment requirement from Tollora.')
+    setPaymentError('')
     setPaymentRequirements(null)
 
     try {
       const initialRequirement = await requestPaymentRequirement(order)
 
       if (initialRequirement) {
+        updateWalletStep('requirement', {
+          status: 'complete',
+          detail: 'Tollora returned a payable x402 requirement.'
+        })
         setPaymentRequirements({
           status: initialRequirement.status,
           statusText: initialRequirement.statusText,
@@ -304,10 +395,15 @@ function OrderStatusContent({
         await ensurePermit2Allowance(
           initialRequirement.paymentRequired,
           walletControls,
-          message => setStatus(message)
+          message => setStatus(message),
+          updateWalletStep
         )
       }
 
+      updateWalletStep('signature', {
+        status: 'active',
+        detail: 'Confirm the x402 MUSD payment signature in your wallet.'
+      })
       setStatus('Waiting for wallet signature and MUSD settlement.')
 
       const client = registerExactEvmScheme(new x402Client(), {
@@ -334,17 +430,29 @@ function OrderStatusContent({
         error?: string
         message?: string
         reason?: string
+        guidance?: string
         details?: unknown
+        settlement?: PaidApiErrorBody['settlement']
         data?: unknown
         order?: Partial<MarketplaceOrder>
         receipt?: MarketplaceReceipt
+        x402?: {
+          transaction?: string
+          network?: string
+        }
       }
 
       if (response.status === 402) {
+        const nextPaymentRequired = decodePaymentRequiredHeader(response)
+
+        if (!nextPaymentRequired) {
+          throw new Error(buildPaidRequestError(response, body, paymentResult))
+        }
+
         setPaymentRequirements({
           status: response.status,
           statusText: response.statusText,
-          paymentRequired: decodePaymentRequiredHeader(response),
+          paymentRequired: nextPaymentRequired,
           response: body
         })
         throw new Error(
@@ -361,6 +469,28 @@ function OrderStatusContent({
         paymentResult?.kind === 'success'
           ? paymentResult.settleResponse
           : getSettleResponseOrNull(httpClient, response)
+      const settlementTxHash =
+        settlement?.transaction ||
+        body.x402?.transaction ||
+        body.receipt?.txHash
+
+      updateWalletStep('signature', {
+        status: 'complete',
+        detail: 'Wallet signed the x402 payment payload.'
+      })
+      updateWalletStep('settlement', {
+        status: 'complete',
+        detail: settlementTxHash
+          ? 'MUSD settled on Mezo Testnet.'
+          : 'MUSD settled and Tollora received the paid response.',
+        txHash: isHexTransactionHash(settlementTxHash)
+          ? settlementTxHash
+          : undefined
+      })
+      updateWalletStep('result', {
+        status: 'complete',
+        detail: 'Provider response and receipt were saved.'
+      })
       const receipt = body.receipt
         ? {
             ...body.receipt,
@@ -395,16 +525,19 @@ function OrderStatusContent({
 
       setOrder(nextOrder)
       setStatus(
-        settlement?.transaction
-          ? `MUSD payment settled on Mezo. Transaction: ${settlement.transaction}`
+        settlementTxHash
+          ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
           : 'MUSD payment settled and provider response returned.'
       )
     } catch (caughtError) {
-      setStatus(
+      const message =
         caughtError instanceof Error
           ? caughtError.message
           : 'Unable to run the paid API request.'
-      )
+
+      setPaymentError(message)
+      setStatus(message)
+      failActiveWalletStep(message)
     } finally {
       setIsPaying(false)
     }
@@ -445,27 +578,40 @@ function OrderStatusContent({
       </div>
       {order.status === 'payment_required' ? (
         <Card className='space-y-4'>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Run with wallet
-          </p>
-          <p className='text-foreground/65 text-sm leading-6'>
-            This page prepares a payable Tollora request, signs the x402 MUSD
-            payment with your connected wallet, retries the API call, and saves
-            the returned receipt. Developers and agents can call the same hosted
-            endpoint with an x402 buyer client.
-          </p>
-          <p className='text-foreground/65 text-sm leading-6'>
-            Mezo MUSD payments use Permit2. If this wallet has not approved MUSD
-            for x402 settlement yet, the first run asks for a one-time allowance
-            transaction before the payment signature.
-          </p>
-          <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
-            <p className='text-foreground/60 text-xs uppercase'>
-              Connected signer
-            </p>
-            <p className='mt-1 font-semibold break-all'>
-              {walletAddress ?? `Connect a ${walletLabel} to pay from the site`}
-            </p>
+          <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+            <div>
+              <div className='flex flex-wrap items-center gap-2'>
+                <WalletCards className='text-primary h-5 w-5' aria-hidden />
+                <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Run & Pay playground
+                </p>
+              </div>
+              <h2 className='mt-3 text-xl font-semibold'>
+                Pay this API call with your wallet
+              </h2>
+              <p className='text-foreground/65 mt-2 max-w-3xl text-sm leading-6'>
+                Tollora reads the x402 price, checks whether your wallet needs a
+                one-time MUSD Permit2 approval, asks you to sign the payment,
+                settles on Mezo, and then shows the paid provider response.
+              </p>
+            </div>
+            <Badge className='w-fit'>Mezo MUSD x402</Badge>
+          </div>
+          <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]'>
+            <PaymentStepList steps={walletSteps} />
+            <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
+              <p className='text-foreground/60 text-xs uppercase'>
+                Connected signer
+              </p>
+              <p className='mt-1 font-semibold break-all'>
+                {walletAddress ??
+                  `Connect a ${walletLabel} to pay from the site`}
+              </p>
+              <p className='text-foreground/60 mt-3 text-xs leading-5'>
+                First-time wallets need one approval transaction, then one x402
+                payment signature for each paid call.
+              </p>
+            </div>
           </div>
         </Card>
       ) : null}
@@ -480,15 +626,9 @@ function OrderStatusContent({
         </Card>
       ) : null}
       {paymentRequirements ? (
-        <Card>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Payment requirements
-          </p>
-          <pre className='bg-muted mt-4 max-h-80 overflow-auto rounded-lg p-4 text-xs leading-6'>
-            {JSON.stringify(paymentRequirements, null, 2)}
-          </pre>
-        </Card>
+        <PaymentRequirementCard inspection={paymentRequirements} />
       ) : null}
+      {paymentError ? <PaymentErrorCard message={paymentError} /> : null}
       <div className='grid gap-3 text-sm md:grid-cols-2'>
         {[
           ['Order ID', order.id],
@@ -560,12 +700,173 @@ function OrderStatusContent({
           {isInspecting ? 'Checking payment' : 'Inspect 402'}
         </Button>
         {status ? (
-          <p className='text-foreground/65 text-sm' role='status'>
+          <p className='text-foreground/65 min-w-0 text-sm' role='status'>
             {status}
           </p>
         ) : null}
       </div>
     </div>
+  )
+}
+
+function createWalletSteps(activeStep?: WalletStepId): WalletStep[] {
+  const steps: Array<Omit<WalletStep, 'status'>> = [
+    {
+      id: 'requirement',
+      title: 'Read x402 price',
+      description: 'Fetch the payable MUSD requirement from Tollora.'
+    },
+    {
+      id: 'allowance',
+      title: 'Prepare MUSD',
+      description: 'Check balance and approve Permit2 when required.'
+    },
+    {
+      id: 'signature',
+      title: 'Sign payment',
+      description: 'Confirm the x402 payment signature in your wallet.'
+    },
+    {
+      id: 'settlement',
+      title: 'Settle on Mezo',
+      description: 'The facilitator submits settlement on-chain.'
+    },
+    {
+      id: 'result',
+      title: 'Receive result',
+      description: 'Tollora returns the provider response and receipt.'
+    }
+  ]
+
+  return steps.map(step => ({
+    ...step,
+    status: step.id === activeStep ? 'active' : 'idle'
+  }))
+}
+
+function PaymentStepList({ steps }: { steps: WalletStep[] }) {
+  return (
+    <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-5'>
+      {steps.map(step => (
+        <div
+          key={step.id}
+          className={cn(
+            'border-foreground/10 bg-background/40 rounded-lg border p-4',
+            step.status === 'active' && 'border-brand-cyan/50 bg-accent/10',
+            step.status === 'complete' && 'border-emerald-500/35',
+            step.status === 'error' && 'border-destructive/50 bg-destructive/10'
+          )}
+        >
+          <div className='flex items-center gap-2'>
+            <StepIcon status={step.status} />
+            <p className='text-sm font-semibold'>{step.title}</p>
+          </div>
+          <p className='text-foreground/60 mt-2 text-xs leading-5'>
+            {step.detail ?? step.description}
+          </p>
+          {step.txHash ? (
+            <a
+              className='text-primary mt-3 inline-flex max-w-full items-center gap-1 text-xs font-semibold break-all underline-offset-4 hover:underline'
+              href={
+                getExplorerTransactionUrl(step.txHash, defaultAppChain.id) ??
+                '#'
+              }
+              target='_blank'
+              rel='noreferrer'
+            >
+              View transaction
+              <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+            </a>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function StepIcon({ status }: { status: WalletStepStatus }) {
+  if (status === 'active') {
+    return <Loader2 className='text-primary h-4 w-4 animate-spin' aria-hidden />
+  }
+
+  if (status === 'complete') {
+    return <CheckCircle2 className='h-4 w-4 text-emerald-500' aria-hidden />
+  }
+
+  if (status === 'error') {
+    return <AlertTriangle className='text-destructive h-4 w-4' aria-hidden />
+  }
+
+  return (
+    <span
+      className='border-foreground/25 block h-4 w-4 rounded-full border'
+      aria-hidden
+    />
+  )
+}
+
+function PaymentRequirementCard({
+  inspection
+}: {
+  inspection: PaymentRequirementInspection
+}) {
+  const requirement = inspection.paymentRequired?.accepts[0]
+
+  return (
+    <Card className='space-y-4'>
+      <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+        <div>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Payment quote
+          </p>
+          <h2 className='mt-2 text-lg font-semibold'>
+            {requirement
+              ? `${formatMusdAmount(BigInt(requirement.amount))} MUSD required`
+              : 'x402 payment requirement returned'}
+          </h2>
+        </div>
+        <Badge className='w-fit'>{inspection.status} Payment Required</Badge>
+      </div>
+      {requirement ? (
+        <div className='grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4'>
+          <SummaryTile label='Network' value={requirement.network} />
+          <SummaryTile label='Scheme' value={requirement.scheme} />
+          <SummaryTile label='Asset' value={requirement.asset} />
+          <SummaryTile label='Pay to' value={requirement.payTo} />
+        </div>
+      ) : null}
+      <details className='border-foreground/10 rounded-lg border p-4'>
+        <summary className='cursor-pointer text-sm font-semibold'>
+          Raw x402 requirement JSON
+        </summary>
+        <pre className='bg-muted mt-4 max-h-80 overflow-auto rounded-lg p-4 text-xs leading-6'>
+          {JSON.stringify(inspection, null, 2)}
+        </pre>
+      </details>
+    </Card>
+  )
+}
+
+function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className='border-foreground/10 rounded-lg border p-3'>
+      <p className='text-foreground/60 text-xs uppercase'>{label}</p>
+      <p className='mt-1 font-semibold break-all'>{value}</p>
+    </div>
+  )
+}
+
+function PaymentErrorCard({ message }: { message: string }) {
+  return (
+    <Card className='border-destructive/45 bg-destructive/10'>
+      <div className='flex gap-3'>
+        <AlertTriangle className='text-destructive mt-0.5 h-5 w-5 shrink-0' />
+        <div>
+          <p className='font-semibold'>Payment did not settle</p>
+          <p className='text-foreground/70 mt-2 text-sm leading-6'>{message}</p>
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -588,7 +889,9 @@ function buildPaidRequestError(
     error?: string
     message?: string
     reason?: string
+    guidance?: string
     details?: unknown
+    settlement?: PaidApiErrorBody['settlement']
   },
   paymentResult: x402PaymentResult | null
 ) {
@@ -602,6 +905,13 @@ function buildPaidRequestError(
       'Mezo MUSD settlement still needs Permit2 allowance or sufficient wallet funds.',
       'Approve the MUSD allowance when prompted, then confirm the wallet has enough MUSD and BTC gas on Mezo Testnet.'
     ].join(' ')
+  }
+
+  if (
+    paymentResult?.kind === 'error' &&
+    isPaidApiErrorBody(paymentResult.body)
+  ) {
+    return formatPaidApiError(paymentResult.body, response)
   }
 
   if (paymentResult?.kind === 'settle_failed') {
@@ -622,17 +932,46 @@ function buildPaidRequestError(
     )
   }
 
+  const message = formatPaidApiError(body, response)
+
+  return message
+    ? message
+    : `Paid API request failed (${response.status} ${response.statusText}).`
+}
+
+function formatPaidApiError(body: PaidApiErrorBody, response: Response) {
   const details =
     typeof body.details === 'string'
       ? body.details
       : body.details
         ? JSON.stringify(body.details)
         : ''
-  const message = body.error ?? body.message ?? body.reason ?? details
+  const settlementReason =
+    body.settlement?.errorMessage ?? body.settlement?.errorReason
+  const parts = [
+    body.error,
+    body.message,
+    settlementReason,
+    body.reason,
+    details,
+    body.guidance
+  ].filter((part): part is string => Boolean(part))
 
-  return message
-    ? `${message} (${response.status} ${response.statusText})`
-    : `Paid API request failed (${response.status} ${response.statusText}).`
+  if (parts.length === 0) {
+    return ''
+  }
+
+  return `${dedupeText(parts).join(' ')} (${response.status} ${
+    response.statusText
+  }).`
+}
+
+function dedupeText(parts: string[]) {
+  return parts.filter((part, index) => parts.indexOf(part) === index)
+}
+
+function isPaidApiErrorBody(value: unknown): value is PaidApiErrorBody {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
 async function requestPaymentRequirement(order: MarketplaceOrder) {
@@ -668,11 +1007,20 @@ async function requestPaymentRequirement(order: MarketplaceOrder) {
 async function ensurePermit2Allowance(
   paymentRequired: PaymentRequired,
   walletControls: BrowserWalletControls,
-  onStatus: (message: string) => void
+  onStatus: (message: string) => void,
+  onStep: (id: WalletStepId, update: Partial<WalletStep>) => void
 ) {
+  onStep('allowance', {
+    status: 'active',
+    detail: 'Checking MUSD balance and Permit2 allowance.'
+  })
   const requirement = getPermit2Requirement(paymentRequired)
 
   if (!requirement) {
+    onStep('allowance', {
+      status: 'complete',
+      detail: 'This payment requirement does not need Permit2 approval.'
+    })
     return
   }
 
@@ -687,19 +1035,45 @@ async function ensurePermit2Allowance(
   const requiredAmount = BigInt(requirement.amount)
 
   if (requiredAmount <= 0n) {
+    onStep('allowance', {
+      status: 'complete',
+      detail: 'No MUSD allowance is needed for a zero-amount request.'
+    })
     return
   }
 
   onStatus('Checking MUSD Permit2 allowance on Mezo Testnet.')
 
-  const allowance = await mezoPublicClient.readContract(
-    getPermit2AllowanceReadParams({
-      tokenAddress,
-      ownerAddress: walletControls.signer.address
-    })
-  )
+  const [balance, allowance] = await Promise.all([
+    mezoPublicClient.readContract({
+      address: tokenAddress,
+      abi: musdBalanceAbi,
+      functionName: 'balanceOf',
+      args: [walletControls.signer.address]
+    }),
+    mezoPublicClient.readContract(
+      getPermit2AllowanceReadParams({
+        tokenAddress,
+        ownerAddress: walletControls.signer.address
+      })
+    )
+  ])
+
+  if (balance < requiredAmount) {
+    throw new Error(
+      `Insufficient MUSD balance. This API call needs ${formatMusdAmount(
+        requiredAmount
+      )} MUSD, but the connected wallet has ${formatMusdAmount(
+        balance
+      )} MUSD on Mezo Testnet.`
+    )
+  }
 
   if (allowance >= requiredAmount) {
+    onStep('allowance', {
+      status: 'complete',
+      detail: 'MUSD Permit2 allowance is already sufficient.'
+    })
     return
   }
 
@@ -711,6 +1085,11 @@ async function ensurePermit2Allowance(
   const transactionHash =
     await walletControls.sendTransaction(approvalTransaction)
 
+  onStep('allowance', {
+    status: 'active',
+    detail: 'MUSD approval transaction submitted.',
+    txHash: transactionHash
+  })
   onStatus(`Waiting for MUSD Permit2 approval to confirm: ${transactionHash}`)
 
   const receipt = await mezoPublicClient.waitForTransactionReceipt({
@@ -720,6 +1099,12 @@ async function ensurePermit2Allowance(
   if (receipt.status !== 'success') {
     throw new Error('MUSD Permit2 approval transaction did not succeed.')
   }
+
+  onStep('allowance', {
+    status: 'complete',
+    detail: 'MUSD Permit2 approval confirmed on Mezo.',
+    txHash: transactionHash
+  })
 }
 
 function getPermit2Requirement(paymentRequired: PaymentRequired) {
@@ -732,6 +1117,18 @@ function getPermit2Requirement(paymentRequired: PaymentRequired) {
 
 function isHexAddress(value: string): value is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(value)
+}
+
+function isHexTransactionHash(
+  value: string | null | undefined
+): value is `0x${string}` {
+  return /^0x[a-fA-F0-9]{64}$/.test(value ?? '')
+}
+
+function formatMusdAmount(amount: bigint) {
+  return Number(formatUnits(amount, MUSD_DECIMALS)).toLocaleString(undefined, {
+    maximumFractionDigits: 6
+  })
 }
 
 async function readResponseBody(response: Response) {

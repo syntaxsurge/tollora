@@ -171,8 +171,7 @@ async function handlePaidProductCall(
       }
     )
     .catch(error => {
-      settlementErrorMessage =
-        error instanceof Error ? error.message : 'Unknown settlement error'
+      settlementErrorMessage = describeUnknownError(error)
 
       return null
     })
@@ -181,9 +180,15 @@ async function handlePaidProductCall(
     return NextResponse.json(
       {
         error: 'MUSD settlement failed.',
+        reason: 'settlement_exception',
         message:
           settlementErrorMessage ||
-          'The x402 facilitator did not return a valid settlement response. Confirm the buyer wallet has MUSD on Mezo Testnet and try again.'
+          'The x402 facilitator did not return a valid settlement response.',
+        guidance:
+          'Confirm the buyer wallet has MUSD, BTC gas, and MUSD Permit2 allowance on Mezo Testnet, then try again.',
+        settlement: {
+          status: 402
+        }
       },
       { status: 402 }
     )
@@ -195,7 +200,19 @@ async function handlePaidProductCall(
         error: 'MUSD settlement failed.',
         reason: settlement.errorReason,
         message: settlement.errorMessage,
-        details: settlement.response.body ?? null
+        details: settlement.response.body ?? null,
+        guidance: buildSettlementGuidance(
+          settlement.errorReason,
+          settlement.errorMessage,
+          settlement.response.body
+        ),
+        settlement: {
+          errorReason: settlement.errorReason,
+          errorMessage: settlement.errorMessage,
+          transaction: settlement.transaction,
+          network: settlement.network,
+          status: settlement.response.status
+        }
       },
       {
         status: settlement.response.status,
@@ -361,4 +378,47 @@ function extractBuyerWallet(paymentPayload: unknown) {
   }
 
   return payload.payload?.authorization?.from ?? ''
+}
+
+function buildSettlementGuidance(
+  reason: string | undefined,
+  message: string | undefined,
+  details: unknown
+) {
+  const haystack = [
+    reason,
+    message,
+    typeof details === 'string' ? details : JSON.stringify(details ?? '')
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  if (haystack.includes('balance') || haystack.includes('funds')) {
+    return 'The paying wallet does not appear to have enough MUSD on Mezo Testnet for this API call.'
+  }
+
+  if (haystack.includes('allowance') || haystack.includes('permit2')) {
+    return 'The paying wallet needs to approve MUSD Permit2 allowance before this x402 payment can settle.'
+  }
+
+  if (haystack.includes('signature') || haystack.includes('authorization')) {
+    return 'The wallet signature was rejected by settlement. Re-run the payment and approve the latest x402 signature prompt.'
+  }
+
+  return 'Confirm the wallet has Mezo Testnet MUSD, BTC gas, and MUSD Permit2 allowance, then try again.'
+}
+
+function describeUnknownError(error: unknown) {
+  if (error instanceof Error) {
+    const cause =
+      error.cause instanceof Error
+        ? ` Cause: ${error.cause.message}`
+        : error.cause
+          ? ` Cause: ${JSON.stringify(error.cause)}`
+          : ''
+
+    return `${error.message}${cause}`
+  }
+
+  return typeof error === 'string' ? error : 'Unknown settlement error'
 }
