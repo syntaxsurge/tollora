@@ -84,6 +84,45 @@ export function GET() {
           }
         }
       },
+      '/api/orders/{orderId}': {
+        get: {
+          tags: ['Marketplace'],
+          summary: 'Get an order lifecycle record',
+          parameters: [pathStringParameter('orderId')],
+          responses: {
+            '200': {
+              description: 'Order lifecycle record',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Order' }
+                }
+              }
+            },
+            '404': { description: 'Order not found' }
+          }
+        }
+      },
+      '/api/orders/{orderId}/provider-status': {
+        get: {
+          tags: ['Marketplace'],
+          summary: 'Poll a long-running provider job',
+          parameters: [pathStringParameter('orderId')],
+          responses: {
+            '200': {
+              description: 'Updated order and provider status payload',
+              content: {
+                'application/json': {
+                  schema: {
+                    $ref: '#/components/schemas/ProviderStatusResponse'
+                  }
+                }
+              }
+            },
+            '400': { description: 'Order is not pollable' },
+            '404': { description: 'Order not found' }
+          }
+        }
+      },
       '/api/x402/products/{slug}/call': {
         get: paidCallOperation('GET'),
         post: paidCallOperation('POST')
@@ -411,7 +450,10 @@ export function GET() {
             amountMusd: { type: 'string' },
             requestId: { type: 'string' },
             receiptId: { type: 'string' },
-            explorerUrl: { type: 'string' }
+            explorerUrl: { type: 'string' },
+            externalJobId: { type: 'string' },
+            resultUrl: { type: 'string' },
+            responsePayload: { type: 'object', additionalProperties: true }
           }
         },
         PaidProductResponse: {
@@ -436,6 +478,22 @@ export function GET() {
             network: { type: 'string', enum: [x402Network] },
             txHash: { type: 'string' },
             explorerUrl: { type: 'string' }
+          }
+        },
+        ProviderStatusResponse: {
+          type: 'object',
+          properties: {
+            order: { $ref: '#/components/schemas/Order' },
+            provider: {
+              type: 'object',
+              properties: {
+                status: { type: 'string' },
+                externalJobId: { type: 'string' },
+                resultUrl: { type: 'string' },
+                responsePayload: { type: 'object', additionalProperties: true },
+                errorMessage: { type: 'string' }
+              }
+            }
           }
         },
         CreateAgentRunRequest: {

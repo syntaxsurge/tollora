@@ -98,6 +98,8 @@ const payment = new x402HTTPClient(client).getPaymentSettleResponse(name =>
 );
 
 console.log({ body, payment });`
+  const settlementLabel = getSettlementLabel(product.settlementModel)
+  const resultDeliveryLabel = getResultDeliveryLabel(product.resultDelivery)
 
   return (
     <div className='space-y-8'>
@@ -143,8 +145,9 @@ console.log({ body, payment });`
           <Card className='bg-background/85 min-w-0 space-y-4'>
             {[
               ['Price', product.priceLabel],
-              ['Settlement', 'MUSD on Mezo Testnet'],
+              ['Settlement', settlementLabel],
               ['Processing', product.estimatedLatency],
+              ['Result delivery', resultDeliveryLabel],
               ['Endpoint', endpointUrl]
             ].map(([label, value]) => (
               <div key={label}>
@@ -164,6 +167,40 @@ console.log({ body, payment });`
       <section className='grid min-w-0 gap-5 2xl:grid-cols-2'>
         <SchemaCard title='Request schema' schema={product.requestSchema} />
         <SchemaCard title='Response schema' schema={product.responseSchema} />
+      </section>
+
+      <section className='grid min-w-0 gap-5 lg:grid-cols-3'>
+        <Card className='min-w-0'>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Execution mode
+          </p>
+          <h2 className='mt-3 text-xl font-semibold capitalize'>
+            {product.executionMode}
+          </h2>
+          <p className='text-foreground/70 mt-2 text-sm leading-6'>
+            {product.executionMode === 'asynchronous'
+              ? 'The paid response returns a provider job id. Final output is fetched later through polling or webhooks.'
+              : 'The paid response contains the completed API result in the same request.'}
+          </p>
+        </Card>
+        <Card className='min-w-0'>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Billing model
+          </p>
+          <h2 className='mt-3 text-xl font-semibold'>{settlementLabel}</h2>
+          <p className='text-foreground/70 mt-2 text-sm leading-6'>
+            {getSettlementDescription(product.settlementModel)}
+          </p>
+        </Card>
+        <Card className='min-w-0'>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Result handling
+          </p>
+          <h2 className='mt-3 text-xl font-semibold'>{resultDeliveryLabel}</h2>
+          <p className='text-foreground/70 mt-2 text-sm leading-6'>
+            {getResultDeliveryDescription(product.resultDelivery)}
+          </p>
+        </Card>
       </section>
 
       <section className='grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
@@ -212,6 +249,54 @@ console.log({ body, payment });`
       </section>
     </div>
   )
+}
+
+function getSettlementLabel(model: string) {
+  if (model === 'pay_on_job_acceptance') {
+    return 'Pay when job is accepted'
+  }
+
+  if (model === 'pay_to_claim_result') {
+    return 'Pay to claim completed result'
+  }
+
+  return 'Pay after successful response'
+}
+
+function getSettlementDescription(model: string) {
+  if (model === 'pay_on_job_acceptance') {
+    return 'Best for providers that incur cost immediately. Tollora settles once the provider accepts the job, then tracks the final result separately.'
+  }
+
+  if (model === 'pay_to_claim_result') {
+    return 'Best for long-running APIs when buyers should only pay after successful completion. The result is locked until payment settles.'
+  }
+
+  return 'Best for fast APIs. Tollora calls the provider first and settles only when the provider returns a successful response.'
+}
+
+function getResultDeliveryLabel(delivery: string) {
+  if (delivery === 'poll_or_webhook') {
+    return 'Poll or webhook'
+  }
+
+  if (delivery === 'claim_after_completion') {
+    return 'Claim after completion'
+  }
+
+  return 'Direct response'
+}
+
+function getResultDeliveryDescription(delivery: string) {
+  if (delivery === 'poll_or_webhook') {
+    return 'The first response includes a job id. Buyers can poll Tollora, and providers can update status through a webhook.'
+  }
+
+  if (delivery === 'claim_after_completion') {
+    return 'The provider completes work first, then Tollora charges the buyer before revealing the final output.'
+  }
+
+  return 'The paid response contains the usable result immediately.'
 }
 
 function SchemaCard({

@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { NextResponse } from 'next/server'
 
+import { updateMarketplaceOrder } from '@/features/marketplace/orders'
 import { cliploreWebhookSchema } from '@/features/provider-adapters/cliplore/schemas'
 import { envServer } from '@/lib/env/env.server'
 
@@ -29,8 +30,31 @@ export async function POST(request: Request) {
     )
   }
 
+  const nextOrder = updateMarketplaceOrder(parsed.data.orderId, {
+    status:
+      parsed.data.status === 'queued'
+        ? 'processing'
+        : parsed.data.status === 'completed'
+          ? 'completed'
+          : parsed.data.status === 'failed'
+            ? 'failed'
+            : 'processing',
+    externalJobId: parsed.data.externalJobId,
+    resultUrl: parsed.data.resultUrl,
+    responsePayload: {
+      provider: 'cliplore',
+      orderId: parsed.data.orderId,
+      receiptId: parsed.data.receiptId,
+      externalJobId: parsed.data.externalJobId,
+      status: parsed.data.status,
+      resultUrl: parsed.data.resultUrl,
+      errorMessage: parsed.data.errorMessage
+    }
+  })
+
   return NextResponse.json({
     accepted: true,
+    order: nextOrder,
     event: {
       provider: 'cliplore',
       orderId: parsed.data.orderId,

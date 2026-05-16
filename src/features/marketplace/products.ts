@@ -7,6 +7,15 @@ export type ApiProductCategory =
   | 'developer'
 
 export type ApiProductStatus = 'published' | 'draft' | 'paused'
+export type ApiProductExecutionMode = 'synchronous' | 'asynchronous'
+export type ApiProductSettlementModel =
+  | 'pay_on_successful_response'
+  | 'pay_on_job_acceptance'
+  | 'pay_to_claim_result'
+export type ApiProductResultDelivery =
+  | 'direct_response'
+  | 'poll_or_webhook'
+  | 'claim_after_completion'
 
 export type ApiProduct = {
   slug: string
@@ -21,6 +30,9 @@ export type ApiProduct = {
   method: 'GET' | 'POST'
   endpointPath: string
   estimatedLatency: string
+  executionMode: ApiProductExecutionMode
+  settlementModel: ApiProductSettlementModel
+  resultDelivery: ApiProductResultDelivery
   requestSchema: Record<string, string>
   responseSchema: Record<string, string>
   referencePayload: Record<string, unknown>
@@ -48,6 +60,9 @@ export const marketplaceProducts: ApiProduct[] = [
     method: 'POST',
     endpointPath: '/api/x402/products/cliplore-ai-video-generator/call',
     estimatedLatency: '4-8 minutes',
+    executionMode: 'asynchronous',
+    settlementModel: 'pay_on_job_acceptance',
+    resultDelivery: 'poll_or_webhook',
     requestSchema: {
       prompt: 'string',
       format: '"short" | "square" | "vertical"',
@@ -89,6 +104,9 @@ export const marketplaceProducts: ApiProduct[] = [
     method: 'POST',
     endpointPath: '/api/x402/products/prompt-enhancer-api/call',
     estimatedLatency: '< 2 seconds',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
     requestSchema: {
       prompt: 'string',
       audience: 'string | undefined',
@@ -126,6 +144,9 @@ export const marketplaceProducts: ApiProduct[] = [
     method: 'POST',
     endpointPath: '/api/x402/products/document-summary-api/call',
     estimatedLatency: '< 10 seconds',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
     requestSchema: {
       documentText: 'string',
       summaryDepth: '"brief" | "standard" | "detailed"'
@@ -161,6 +182,9 @@ export const marketplaceProducts: ApiProduct[] = [
     method: 'GET',
     endpointPath: '/api/x402/products/market-snapshot-api/call',
     estimatedLatency: '< 1 second',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
     requestSchema: {
       symbol: 'string',
       venue: 'string | undefined'

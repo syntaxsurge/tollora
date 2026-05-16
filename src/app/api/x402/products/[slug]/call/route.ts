@@ -238,7 +238,8 @@ async function handlePaidProductCall(
     network: x402Network as 'eip155:31611',
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),
-    createdAt
+    createdAt,
+    resultUrl: adapterResult.resultUrl
   }
   recordMarketplaceReceipt(receipt)
 

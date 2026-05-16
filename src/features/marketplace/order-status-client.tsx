@@ -233,6 +233,7 @@ function OrderStatusContent({
   const [paymentError, setPaymentError] = useState('')
   const [isInspecting, setIsInspecting] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
+  const [isPolling, setIsPolling] = useState(false)
 
   useEffect(() => {
     if (order) {
@@ -543,6 +544,50 @@ function OrderStatusContent({
     }
   }
 
+  async function pollProviderStatus() {
+    if (!order?.externalJobId) {
+      return
+    }
+
+    setIsPolling(true)
+    setStatus('Checking provider job status.')
+
+    try {
+      const response = await fetch(`/api/orders/${order.id}/provider-status`, {
+        headers: {
+          Accept: 'application/json'
+        }
+      })
+      const body = (await readResponseBody(response)) as {
+        error?: string
+        order?: MarketplaceOrder
+      }
+
+      if (!response.ok || !body.order) {
+        throw new Error(body.error ?? 'Unable to refresh provider job status.')
+      }
+
+      setOrder(body.order)
+      window.sessionStorage.setItem(
+        `tollora:order:${body.order.id}`,
+        JSON.stringify(body.order)
+      )
+      setStatus(
+        body.order.status === 'completed'
+          ? 'Provider job completed. The API response is ready.'
+          : `Provider job is ${orderStatusLabels[body.order.status].toLowerCase()}.`
+      )
+    } catch (caughtError) {
+      setStatus(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to refresh provider job status.'
+      )
+    } finally {
+      setIsPolling(false)
+    }
+  }
+
   if (!order) {
     return (
       <div>
@@ -555,51 +600,35 @@ function OrderStatusContent({
   }
 
   return (
-    <div className='space-y-5'>
-      <div className='grid gap-4 md:grid-cols-3'>
-        {[
-          ['Product', order.productName],
-          ['Amount', order.amountMusd],
-          ['Status', orderStatusLabels[order.status]]
-        ].map(([label, value]) => (
-          <div key={label} className='bg-muted rounded-lg p-4'>
-            <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-            <p className='mt-1 font-semibold'>{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className='border-foreground/10 rounded-lg border p-5'>
-        <p className='text-sm font-semibold'>
-          {orderStatusLabels[order.status]}
-        </p>
-        <p className='text-foreground/65 mt-2 text-sm leading-6'>
-          {orderStatusDetails[order.status]}
-        </p>
-      </div>
-      {order.status === 'payment_required' ? (
-        <Card className='space-y-4'>
+    <div className='space-y-6'>
+      <div className='grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.55fr)]'>
+        <Card className='space-y-5 p-5 sm:p-6 lg:p-8'>
           <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
             <div>
               <div className='flex flex-wrap items-center gap-2'>
                 <WalletCards className='text-primary h-5 w-5' aria-hidden />
                 <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                  Run & Pay playground
+                  Payment console
                 </p>
               </div>
-              <h2 className='mt-3 text-xl font-semibold'>
-                Pay this API call with your wallet
+              <h2 className='mt-3 text-2xl font-semibold'>
+                {order.status === 'payment_required'
+                  ? 'Pay this API call with your wallet'
+                  : 'Payment and provider call'}
               </h2>
-              <p className='text-foreground/65 mt-2 max-w-3xl text-sm leading-6'>
-                Tollora reads the x402 price, checks whether your wallet needs a
-                one-time MUSD Permit2 approval, asks you to sign the payment,
-                settles on Mezo, and then shows the paid provider response.
+              <p className='text-foreground/70 mt-2 max-w-3xl text-base leading-7'>
+                Tollora reads the x402 price, prepares MUSD, signs the payment,
+                settles on Mezo, then returns either a direct API response or an
+                async provider job to poll.
               </p>
             </div>
             <Badge className='w-fit'>Mezo MUSD x402</Badge>
           </div>
-          <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]'>
-            <PaymentStepList steps={walletSteps} />
-            <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
+
+          <PaymentStepList steps={walletSteps} />
+
+          <div className='border-foreground/10 bg-background/40 flex flex-col gap-4 rounded-lg border p-4 lg:flex-row lg:items-center lg:justify-between'>
+            <div className='min-w-0'>
               <p className='text-foreground/60 text-xs uppercase'>
                 Connected signer
               </p>
@@ -607,104 +636,51 @@ function OrderStatusContent({
                 {walletAddress ??
                   `Connect a ${walletLabel} to pay from the site`}
               </p>
-              <p className='text-foreground/60 mt-3 text-xs leading-5'>
-                First-time wallets need one approval transaction, then one x402
-                payment signature for each paid call.
-              </p>
+              <StatusMessage status={status} explorerUrl={order.explorerUrl} />
+            </div>
+            <div className='flex shrink-0 flex-col gap-2 sm:flex-row'>
+              <Button
+                onClick={runWithWallet}
+                disabled={order.status !== 'payment_required' || isPaying}
+              >
+                {isPaying ? (
+                  <>
+                    <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                    Running
+                  </>
+                ) : order.status === 'payment_required' ? (
+                  'Run with wallet'
+                ) : (
+                  'Payment complete'
+                )}
+              </Button>
+              <Button
+                variant='outline'
+                onClick={inspectPaymentRequirement}
+                disabled={order.status !== 'payment_required' || isInspecting}
+              >
+                {isInspecting ? 'Checking quote' : 'Inspect quote'}
+              </Button>
             </div>
           </div>
         </Card>
-      ) : null}
-      {order.responsePayload ? (
-        <Card>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Provider result
-          </p>
-          <pre className='bg-muted mt-4 max-h-96 overflow-auto rounded-lg p-4 text-xs leading-6'>
-            {JSON.stringify(order.responsePayload, null, 2)}
-          </pre>
-        </Card>
-      ) : null}
+
+        <OrderSnapshotCard order={order} />
+      </div>
+
       {paymentRequirements ? (
         <PaymentRequirementCard inspection={paymentRequirements} />
       ) : null}
       {paymentError ? <PaymentErrorCard message={paymentError} /> : null}
-      <div className='grid gap-3 text-sm md:grid-cols-2'>
-        {[
-          ['Order ID', order.id],
-          ['Request ID', order.requestId],
-          ['Provider', order.providerName],
-          ['Provider wallet', order.providerWallet ?? ''],
-          ['Buyer wallet', order.buyerWallet],
-          ['Created', new Date(order.createdAt).toLocaleString()],
-          ['Updated', new Date(order.updatedAt).toLocaleString()]
-        ].map(([label, value]) => (
-          <div
-            key={label}
-            className='border-foreground/10 rounded-lg border p-4'
-          >
-            <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-            <p className='mt-1 font-semibold break-words'>{value}</p>
-          </div>
-        ))}
-      </div>
-      {order.receiptId ? (
-        <div className='grid gap-3 text-sm md:grid-cols-2'>
-          <div className='border-foreground/10 rounded-lg border p-4'>
-            <p className='text-foreground/60 text-xs uppercase'>Receipt</p>
-            <a
-              className='text-foreground mt-1 block font-semibold underline-offset-4 hover:underline'
-              href={`/receipts/${order.receiptId}`}
-            >
-              {order.receiptId}
-            </a>
-          </div>
-          {order.explorerUrl ? (
-            <div className='border-foreground/10 rounded-lg border p-4'>
-              <p className='text-foreground/60 text-xs uppercase'>Explorer</p>
-              <a
-                className='text-foreground mt-1 block font-semibold underline-offset-4 hover:underline'
-                href={order.explorerUrl}
-                target='_blank'
-                rel='noreferrer'
-              >
-                View transaction
-              </a>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {order.agentRunId ? (
-        <div className='border-foreground/10 rounded-lg border p-4 text-sm'>
-          <p className='text-foreground/60 text-xs uppercase'>Agent run</p>
-          <a
-            className='text-foreground mt-1 block font-semibold underline-offset-4 hover:underline'
-            href={`/agents/${order.agentRunId}`}
-          >
-            {order.agentRunId}
-          </a>
-        </div>
-      ) : null}
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-        <Button
-          onClick={runWithWallet}
-          disabled={order.status !== 'payment_required' || isPaying}
-        >
-          {isPaying ? 'Running with wallet' : 'Run with wallet'}
-        </Button>
-        <Button
-          variant='outline'
-          onClick={inspectPaymentRequirement}
-          disabled={order.status !== 'payment_required' || isInspecting}
-        >
-          {isInspecting ? 'Checking payment' : 'Inspect 402'}
-        </Button>
-        {status ? (
-          <p className='text-foreground/65 min-w-0 text-sm' role='status'>
-            {status}
-          </p>
-        ) : null}
-      </div>
+
+      <ProviderResponsePanel
+        order={order}
+        isPolling={isPolling}
+        onPoll={pollProviderStatus}
+      />
+
+      <SettlementLinks order={order} />
+      <OrderMetadataGrid order={order} />
     </div>
   )
 }
@@ -746,7 +722,7 @@ function createWalletSteps(activeStep?: WalletStepId): WalletStep[] {
 
 function PaymentStepList({ steps }: { steps: WalletStep[] }) {
   return (
-    <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-5'>
+    <div className='grid gap-3 md:grid-cols-2'>
       {steps.map(step => (
         <div
           key={step.id}
@@ -781,6 +757,233 @@ function PaymentStepList({ steps }: { steps: WalletStep[] }) {
         </div>
       ))}
     </div>
+  )
+}
+
+function OrderSnapshotCard({ order }: { order: MarketplaceOrder }) {
+  return (
+    <Card className='space-y-4 p-5 sm:p-6'>
+      <div>
+        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          Current state
+        </p>
+        <h2 className='mt-2 text-2xl font-semibold'>
+          {orderStatusLabels[order.status]}
+        </h2>
+        <p className='text-foreground/70 mt-2 text-sm leading-6'>
+          {orderStatusDetails[order.status]}
+        </p>
+      </div>
+      <div className='grid gap-3 text-sm'>
+        <SummaryTile label='Product' value={order.productName} />
+        <SummaryTile label='Amount' value={order.amountMusd} />
+        <SummaryTile label='Provider' value={order.providerName} />
+        <SummaryTile label='Request ID' value={order.requestId} />
+      </div>
+    </Card>
+  )
+}
+
+function StatusMessage({
+  status,
+  explorerUrl
+}: {
+  status: string
+  explorerUrl?: string | null
+}) {
+  if (!status) {
+    return (
+      <p className='text-foreground/60 mt-3 text-sm leading-6'>
+        First-time wallets may need one MUSD approval transaction before the
+        x402 payment signature.
+      </p>
+    )
+  }
+
+  return (
+    <div className='text-foreground/70 mt-3 space-y-2 text-sm leading-6'>
+      <p>{status.replace(/ Transaction: .+$/, '.')}</p>
+      {explorerUrl ? (
+        <a
+          className='text-primary inline-flex max-w-full items-center gap-1 font-semibold break-all underline-offset-4 hover:underline'
+          href={explorerUrl}
+          target='_blank'
+          rel='noreferrer'
+        >
+          Open settlement transaction
+          <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+        </a>
+      ) : null}
+    </div>
+  )
+}
+
+function ProviderResponsePanel({
+  order,
+  isPolling,
+  onPoll
+}: {
+  order: MarketplaceOrder
+  isPolling: boolean
+  onPoll: () => Promise<void>
+}) {
+  const hasAsyncJob = Boolean(order.externalJobId)
+  const hasResponse = Boolean(order.responsePayload)
+
+  return (
+    <Card className='space-y-5 p-5 sm:p-6 lg:p-8'>
+      <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+        <div>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            API response
+          </p>
+          <h2 className='mt-2 text-2xl font-semibold'>
+            {hasAsyncJob && order.status !== 'completed'
+              ? 'Async job accepted'
+              : hasResponse
+                ? 'Provider response received'
+                : 'No provider response yet'}
+          </h2>
+          <p className='text-foreground/70 mt-2 max-w-3xl text-base leading-7'>
+            {hasAsyncJob && order.status !== 'completed'
+              ? 'This API started a long-running provider job. Poll the job until it completes, or wait for the provider webhook to update the order.'
+              : hasResponse
+                ? 'This is the paid response returned by the provider adapter after x402 settlement.'
+                : 'Run the paid request to receive either a direct result or an async job id.'}
+          </p>
+        </div>
+        {hasAsyncJob ? (
+          <Badge className='w-fit'>Async provider job</Badge>
+        ) : null}
+      </div>
+
+      {hasAsyncJob ? (
+        <div className='grid gap-3 md:grid-cols-3'>
+          <SummaryTile label='Job ID' value={order.externalJobId ?? ''} />
+          <SummaryTile
+            label='Job status'
+            value={orderStatusLabels[order.status]}
+          />
+          <div className='border-foreground/10 rounded-lg border p-3'>
+            <p className='text-foreground/60 text-xs uppercase'>Result link</p>
+            {order.resultUrl ? (
+              <a
+                className='text-primary mt-1 inline-flex max-w-full items-center gap-1 font-semibold break-all underline-offset-4 hover:underline'
+                href={order.resultUrl}
+                target='_blank'
+                rel='noreferrer'
+              >
+                Open result
+                <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+              </a>
+            ) : (
+              <p className='text-foreground/65 mt-1 font-semibold'>
+                Not available yet
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {hasAsyncJob ? (
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+          <Button onClick={onPoll} disabled={isPolling}>
+            {isPolling ? (
+              <>
+                <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                Polling status
+              </>
+            ) : (
+              'Poll provider status'
+            )}
+          </Button>
+          <p className='text-foreground/60 text-sm leading-6'>
+            Long-running APIs should return quickly with a job id, then expose a
+            status endpoint or webhook for completion.
+          </p>
+        </div>
+      ) : null}
+
+      {hasResponse ? (
+        <pre className='bg-muted max-h-[32rem] overflow-auto rounded-lg p-4 text-sm leading-6 whitespace-pre-wrap'>
+          {JSON.stringify(order.responsePayload, null, 2)}
+        </pre>
+      ) : (
+        <div className='border-foreground/10 bg-background/40 rounded-lg border p-5 text-sm leading-6'>
+          The response panel will show the JSON returned by the provider
+          adapter. For async products, the first response is usually a job
+          object; the final output appears after polling or webhook completion.
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function SettlementLinks({ order }: { order: MarketplaceOrder }) {
+  if (!order.receiptId && !order.explorerUrl && !order.agentRunId) {
+    return null
+  }
+
+  const txHash = getTransactionHashFromExplorerUrl(order.explorerUrl)
+
+  return (
+    <Card className='grid gap-3 p-5 text-sm md:grid-cols-2 lg:grid-cols-3'>
+      {order.receiptId ? (
+        <div className='border-foreground/10 rounded-lg border p-4'>
+          <p className='text-foreground/60 text-xs uppercase'>Receipt</p>
+          <a
+            className='text-primary mt-1 block font-semibold break-all underline-offset-4 hover:underline'
+            href={`/receipts/${order.receiptId}`}
+          >
+            {order.receiptId}
+          </a>
+        </div>
+      ) : null}
+      {order.explorerUrl ? (
+        <div className='border-foreground/10 rounded-lg border p-4'>
+          <p className='text-foreground/60 text-xs uppercase'>
+            Mezo transaction
+          </p>
+          <a
+            className='text-primary mt-1 inline-flex max-w-full items-center gap-1 font-semibold break-all underline-offset-4 hover:underline'
+            href={order.explorerUrl}
+            target='_blank'
+            rel='noreferrer'
+          >
+            {txHash ? shortenHash(txHash) : 'Open on explorer'}
+            <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+          </a>
+        </div>
+      ) : null}
+      {order.agentRunId ? (
+        <div className='border-foreground/10 rounded-lg border p-4'>
+          <p className='text-foreground/60 text-xs uppercase'>Agent run</p>
+          <a
+            className='text-primary mt-1 block font-semibold break-all underline-offset-4 hover:underline'
+            href={`/agents/${order.agentRunId}`}
+          >
+            {order.agentRunId}
+          </a>
+        </div>
+      ) : null}
+    </Card>
+  )
+}
+
+function OrderMetadataGrid({ order }: { order: MarketplaceOrder }) {
+  return (
+    <Card className='grid gap-3 p-5 text-sm md:grid-cols-2 xl:grid-cols-3'>
+      {[
+        ['Order ID', order.id],
+        ['Request ID', order.requestId],
+        ['Provider wallet', order.providerWallet ?? ''],
+        ['Buyer wallet', order.buyerWallet],
+        ['Created', new Date(order.createdAt).toLocaleString()],
+        ['Updated', new Date(order.updatedAt).toLocaleString()]
+      ].map(([label, value]) => (
+        <SummaryTile key={label} label={label} value={value} />
+      ))}
+    </Card>
   )
 }
 
@@ -1123,6 +1326,16 @@ function isHexTransactionHash(
   value: string | null | undefined
 ): value is `0x${string}` {
   return /^0x[a-fA-F0-9]{64}$/.test(value ?? '')
+}
+
+function getTransactionHashFromExplorerUrl(value: string | null | undefined) {
+  const match = value?.match(/0x[a-fA-F0-9]{64}/)
+
+  return match?.[0] ?? ''
+}
+
+function shortenHash(value: string) {
+  return `${value.slice(0, 10)}...${value.slice(-8)}`
 }
 
 function formatMusdAmount(amount: bigint) {

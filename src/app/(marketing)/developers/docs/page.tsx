@@ -52,7 +52,11 @@ export default function DeveloperDocsPage() {
         />
         <DocSection
           title='Provider onboarding'
-          body='Providers do not need to rebuild their API around x402. They list their existing HTTPS endpoint, schema, price, receiving wallet, and optional webhook. Tollora handles the 402 payment flow first, then forwards the paid request to the provider adapter or configured endpoint.'
+          body='Providers do not need to rebuild their API around x402. They list their existing HTTPS endpoint, schema, price, receiving wallet, execution mode, settlement model, result delivery model, and optional webhook. Tollora handles the 402 payment flow, then forwards the paid request to the provider adapter or configured endpoint.'
+        />
+        <DocSection
+          title='Long-running API billing'
+          body='Fast APIs use pay-after-successful-response: Tollora calls the provider, then settles MUSD only when the provider returns a successful response. Long-running APIs can use pay-on-job-acceptance when providers incur immediate cost, or pay-to-claim-result when buyers should only pay after completion. Async products return a job ID and are updated through polling or webhooks.'
         />
         <DocSection
           title='Receipt format'
@@ -60,7 +64,7 @@ export default function DeveloperDocsPage() {
         />
         <DocSection
           title='ClipLore provider adapter'
-          body='The ClipLore adapter validates prompt, format, duration, optional script, and source preferences, starts video jobs through the configured ClipLore API, sends Tollora order and receipt metadata as the external reference, and accepts signed webhook status updates.'
+          body='The ClipLore adapter validates prompt, format, duration, optional script, and source preferences, starts video jobs through the configured ClipLore API, sends Tollora order and receipt metadata as the external reference, supports polling through the order provider-status endpoint, and accepts signed webhook status updates.'
         />
         <DocSection
           title='Autonomous agent runs'

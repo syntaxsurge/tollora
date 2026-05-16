@@ -29,9 +29,11 @@ provider dashboards.
   configured facilitator.
 - Public proof pages for autonomous runs with receipt rollups, proof hashes, and
   Mezo explorer links.
-- Provider adapter registry with ClipLore video jobs, prompt enhancement, and
-  data responses behind the same paid gateway contract.
-- ClipLore webhook intake with optional HMAC verification.
+- Provider adapter registry with synchronous responses, async ClipLore video
+  jobs, prompt enhancement, and data responses behind the same paid gateway
+  contract.
+- Async provider job polling plus ClipLore webhook intake with optional HMAC
+  verification.
 - OpenAPI JSON and Scalar API reference for gateway, receipt, provider, and
   webhook routes.
 - Receipt pages with MUSD amount, fee split, payer, provider wallet, transaction

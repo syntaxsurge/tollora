@@ -399,6 +399,9 @@ Before creating a new helper or service file:
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
+- `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
+  long-running job status, updates the order with status/result metadata, and
+  returns the latest provider payload.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
 - `POST /api/credits/accounts` — creates or returns a managed credit account and
   Tollora API key for a wallet.
@@ -480,8 +483,9 @@ Before creating a new helper or service file:
   entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
   schema, copyable reference payload, full endpoint URL, raw 402 inspection
-  curl, standalone x402 buyer integration code, Run with wallet entry point, Use
-  from code anchor, and Use in agent run entry point.
+  curl, standalone x402 buyer integration code, execution mode, settlement
+  model, result delivery model, Run with wallet entry point, Use from code
+  anchor, and Use in agent run entry point.
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, request body, connected buyer wallet, and x402 documentation link
   before a payable API request is created.
@@ -506,10 +510,15 @@ Before creating a new helper or service file:
   MUSD Permit2 allowance transaction when needed, verify MUSD balance before
   asking for payment signatures, retry the product call, display step-by-step
   wallet progress with explorer links for submitted transactions, surface
-  settlement failure guidance from the x402 facilitator, display provider
-  results, keep 402 inspection as a diagnostic action, persist receipt metadata
-  in browser session storage, and link to the settlement receipt and Mezo
-  explorer transaction.
+  settlement failure guidance from the x402 facilitator, separate direct API
+  responses from async provider jobs, poll provider status when an order has an
+  external job ID, keep 402 inspection as a diagnostic action, persist receipt
+  metadata in browser session storage, and link to the settlement receipt and
+  Mezo explorer transaction.
+- Marketplace products declare whether they are synchronous or asynchronous,
+  whether settlement happens after a successful response, after job acceptance,
+  or when a completed result is claimed, and whether results are returned
+  directly, polled/webhooked, or revealed after completion.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.
