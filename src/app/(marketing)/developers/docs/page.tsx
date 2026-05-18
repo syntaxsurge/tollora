@@ -694,7 +694,9 @@ Tollora expects values that can be mapped to processing, ready, completed, faile
     body: `
 Optional dot-path where Tollora reads the final output URL.
 
-Examples: \`resultUrl\`, \`output.url\`, \`data.assets.videoUrl\`.
+Examples: \`resultUrl\`, \`output.url\`, \`data.assets.videoUrl\`, \`result.publicProjectUrl\`, or \`result.cloneUrl\`.
+
+For provider APIs that create editable projects instead of a finished file, return a public handoff or clone URL. Tollora treats that URL as the paid result and can complete the order when the provider status is completed or handoff-ready.
 `
   },
   {
@@ -749,8 +751,12 @@ For async products, include job and status fields. For credit-metered products, 
 \`\`\`json
 {
   "jobId": "string",
-  "status": "queued | processing | completed | failed",
+  "status": "queued | processing | review_required | completed | failed",
   "resultUrl": "string | undefined",
+  "result": {
+    "publicProjectUrl": "string | undefined",
+    "cloneUrl": "string | undefined"
+  },
   "chargedCredits": "number | undefined"
 }
 \`\`\`
@@ -869,6 +875,10 @@ app.get("/api/jobs/:jobId", async (req, res) => {
     status: job.status,
     progress: job.progress,
     resultUrl: job.resultUrl,
+    result: {
+      publicProjectUrl: job.publicProjectUrl,
+      cloneUrl: job.cloneUrl
+    },
     estimatedCredits: job.estimatedCredits,
     chargedCredits: job.chargedCredits,
     refundedCredits: job.refundedCredits,
@@ -878,7 +888,7 @@ app.get("/api/jobs/:jobId", async (req, res) => {
 })
 \`\`\`
 
-The provider API should stay generic. It reports credits and job state. Tollora maps those credits to x402 payments, receipts, refunds, deltas, and proofs.
+The provider API should stay generic. It reports credits, job state, and handoff/result URLs. Tollora maps those credits to x402 payments, receipts, refunds, deltas, and proofs. If a provider returns \`review_required\` without a result URL, Tollora keeps the order processing instead of releasing funds. If the provider returns a cloneable handoff URL, Tollora can complete the order and release escrow even when the final render is handled separately.
 `
   }
 ]

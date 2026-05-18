@@ -500,8 +500,9 @@ Before creating a new helper or service file:
   the generic external HTTP adapter for provider-created listings. The external
   HTTP adapter forwards paid requests to the configured upstream endpoint,
   applies bearer, API-key, query-key, or basic auth server-side, sends
-  idempotency headers, extracts external job IDs and result URLs through
-  configured JSON paths, and polls provider status endpoints for async products.
+  idempotency headers, extracts external job IDs, result URLs, public project
+  handoff URLs, and clone URLs through configured and conventional JSON paths,
+  and polls provider status endpoints for async products.
   Credit-metered async providers always receive
   `billingMode: "external_prepaid"` plus generic external prepaid metadata with
   order, receipt, buyer, requested billing mode, and settlement references so
@@ -569,8 +570,10 @@ Before creating a new helper or service file:
   failure guidance from the x402 facilitator, show payment failures as dedicated
   alert cards with copyable error text, keep long explanations inside
   collapsible details, separate direct API responses from async provider jobs,
-  automatically poll provider status when an order has an external job ID, keep
-  manual polling available, keep 402 inspection as a diagnostic action, persist
+  automatically poll provider status when an order has an external job ID,
+  complete async orders when a provider returns a completed status or cloneable
+  handoff URL, keep manual polling available, keep 402 inspection as a
+  diagnostic action, persist
   receipt metadata in browser session storage, show quote/reservation/final
   usage amounts for credit-metered calls, claim metered deltas through x402
   before revealing locked results, show escrow reserve/release/refund
@@ -605,9 +608,10 @@ Before creating a new helper or service file:
   for marketplace listings and buyer API request records.
 - `/developers` and `/developers/docs` describe provider onboarding, OpenAPI
   import, x402 paid calls, fixed-price provider contracts, credit-metered
-  quote-first provider contracts, external prepaid async job metadata, final
-  usage delta handling, autonomous agent runs, Mezo proof attestations, gateway
-  forwarding, receipt records, external HTTP adapter behavior, OpenAPI JSON, and
+  quote-first provider contracts, external prepaid async job metadata, public
+  handoff and clone URL result contracts, final usage delta handling,
+  autonomous agent runs, Mezo proof attestations, gateway forwarding, receipt
+  records, external HTTP adapter behavior, OpenAPI JSON, and
   the Scalar API reference. The developer docs page renders GitHub-flavored
   Markdown with `react-markdown` and `remark-gfm`, uses a sticky table of
   contents, and exposes stable section and field anchors used by provider form

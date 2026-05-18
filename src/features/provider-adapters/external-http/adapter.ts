@@ -277,6 +277,12 @@ function normalizeResult({
   )?.toLowerCase()
   const resultUrl =
     stringifyPath(data, resultUrlPath) ??
+    stringifyPath(data, 'result.publicProjectUrl') ??
+    stringifyPath(data, 'publicProjectUrl') ??
+    stringifyPath(data, 'result.cloneUrl') ??
+    stringifyPath(data, 'cloneUrl') ??
+    stringifyPath(data, 'previewUrl') ??
+    stringifyPath(data, 'renderUrl') ??
     stringifyPath(data, 'resultUrl') ??
     stringifyPath(data, 'url') ??
     stringifyPath(data, 'outputUrl')
@@ -285,10 +291,19 @@ function normalizeResult({
     stringifyPath(data, 'errorMessage') ??
     stringifyPath(data, 'error')
   const status =
-    rawStatus === 'failed' || rawStatus === 'error'
+    rawStatus === 'failed' ||
+    rawStatus === 'error' ||
+    rawStatus === 'cancelled' ||
+    rawStatus === 'canceled'
       ? 'failed'
+      : resultUrl &&
+          (rawStatus === 'review_required' ||
+            rawStatus === 'awaiting_approval' ||
+            rawStatus === 'preview_ready')
+        ? 'completed'
       : rawStatus === 'completed' ||
           rawStatus === 'complete' ||
+          rawStatus === 'preview_ready' ||
           rawStatus === 'succeeded' ||
           rawStatus === 'success' ||
           (executionMode === 'synchronous' && !externalJobId)

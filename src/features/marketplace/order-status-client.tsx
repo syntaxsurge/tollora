@@ -1118,6 +1118,12 @@ function ProviderResponsePanel({
 }) {
   const hasAsyncJob = Boolean(order.externalJobId)
   const hasResponse = Boolean(order.responsePayload)
+  const hasProjectHandoff =
+    Boolean(order.resultUrl) &&
+    (stringifyPayloadPath(order.responsePayload, 'result.publicProjectUrl') ||
+      stringifyPayloadPath(order.responsePayload, 'publicProjectUrl') ||
+      stringifyPayloadPath(order.responsePayload, 'result.cloneUrl') ||
+      stringifyPayloadPath(order.responsePayload, 'cloneUrl'))
   const needsDeltaPayment =
     order.status === 'delta_payment_required' ||
     order.resultReleaseStatus === 'delta_payment_required'
@@ -1137,7 +1143,9 @@ function ProviderResponsePanel({
             ) : (
               <Circle className='text-foreground/40 h-5 w-5' aria-hidden />
             )}
-            {hasAsyncJob && order.status !== 'completed'
+            {hasProjectHandoff
+              ? 'Project handoff ready'
+              : hasAsyncJob && order.status !== 'completed'
               ? order.status === 'failed'
                 ? 'Provider failed'
                 : 'Async job accepted'
@@ -1167,7 +1175,7 @@ function ProviderResponsePanel({
                 target='_blank'
                 rel='noreferrer'
               >
-                Open result
+                {hasProjectHandoff ? 'Open project handoff' : 'Open result'}
                 <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
               </a>
             ) : (
@@ -1929,6 +1937,18 @@ function getPermit2Requirement(paymentRequired: PaymentRequired) {
 
     return assetTransferMethod === 'permit2'
   })
+}
+
+function stringifyPayloadPath(data: unknown, path: string) {
+  const value = path.split('.').reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== 'object') {
+      return undefined
+    }
+
+    return (current as Record<string, unknown>)[segment]
+  }, data)
+
+  return value === undefined || value === null ? undefined : String(value)
 }
 
 function isHexAddress(value: string): value is `0x${string}` {

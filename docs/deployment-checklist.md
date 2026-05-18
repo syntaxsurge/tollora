@@ -47,6 +47,9 @@ pnpm build
 - Credit-metered async listings return an x402 quote before provider work,
   start provider work only after settlement, and expose
   `POST /api/x402/orders/{orderId}/claim` when final usage requires a delta.
+- Async provider listings that return editable project or workflow handoffs
+  expose a public result URL such as `result.publicProjectUrl` or
+  `result.cloneUrl`; Tollora treats that handoff as the completed paid result.
 - `POST /api/credits/accounts`, `POST /api/credits/top-ups`, and
   `POST /api/credits/products/{published-product-slug}/call` support managed
   API-key credits with pre-call reservation and failed-provider release.

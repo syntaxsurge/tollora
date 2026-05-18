@@ -25,8 +25,9 @@ Mezo.
    wallet has not already approved it, approve the x402 wallet signature, settle
    MUSD, and show the direct provider response or pollable async job.
 8. For credit-metered async products, poll the provider job. If final usage is
-   higher than the prepaid quote, click `Pay delta and reveal` to settle the
-   remaining MUSD through x402 before showing the completed result.
+   lower than, equal to, or higher than the prepaid quote, show the credit-back,
+   released result, or `Pay delta and reveal` flow. If the provider returns a
+   public handoff or clone URL, open it as the completed paid result.
 9. Open the receipt link to show receipt ID, buyer wallet, provider wallet,
    amount, fee split, and Mezo explorer link.
 10. Open `/agents` and show the Launch Pack Agent template, recent runs, spend,
