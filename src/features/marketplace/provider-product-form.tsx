@@ -584,11 +584,13 @@ function OpenApiImportPanel({
         <label className='space-y-2'>
           <HelpLabel
             label='Upload OpenAPI file'
+            required={false}
             help='Use this when the provider spec is local instead of hosted at a URL.'
           />
           <Input
             type='file'
             accept='.json,.yaml,.yml,application/json,text/yaml,application/yaml'
+            className='flex h-16 cursor-pointer items-center py-0 leading-[4rem] file:mr-4 file:h-9 file:rounded-md file:border-0 file:bg-muted file:px-4 file:text-sm file:font-semibold file:text-foreground hover:file:bg-accent/10'
             onChange={event => handleFile(event.target.files?.[0])}
           />
         </label>
@@ -656,7 +658,7 @@ function Field({
 }) {
   return (
     <label className='space-y-2'>
-      <HelpLabel label={label} help={help} />
+      <HelpLabel label={label} help={help} required={required} />
       <Input
         name={name}
         type={type}
@@ -693,7 +695,7 @@ function SelectField({
 }) {
   return (
     <label className='space-y-2'>
-      <HelpLabel label={label} help={help} />
+      <HelpLabel label={label} help={help} required={required} />
       <select
         name={name}
         defaultValue={onChange ? undefined : defaultValue}
@@ -720,10 +722,11 @@ function JsonField({
   name: string
   defaultValue: string
   help: string
+  required?: boolean
 }) {
   return (
     <label className='space-y-2'>
-      <HelpLabel label={label} help={help} />
+      <HelpLabel label={label} help={help} required={false} />
       <textarea
         name={name}
         defaultValue={defaultValue}
@@ -750,7 +753,7 @@ function JsonTextField({
 }) {
   return (
     <label className='space-y-2'>
-      <HelpLabel label={label} help={help} />
+      <HelpLabel label={label} help={help} required={required} />
       <textarea
         name={name}
         defaultValue={defaultValue}
@@ -761,10 +764,23 @@ function JsonTextField({
   )
 }
 
-function HelpLabel({ label, help }: { label: string; help: string }) {
+function HelpLabel({
+  label,
+  help,
+  required = true
+}: {
+  label: string
+  help: string
+  required?: boolean
+}) {
   return (
     <span className='text-foreground/60 flex items-center gap-2 text-xs tracking-[0.16em] uppercase'>
       {label}
+      {required ? (
+        <span className='text-red-500' aria-label='required'>
+          *
+        </span>
+      ) : null}
       <span className='group relative inline-flex'>
         <HelpCircle
           className='text-foreground/45 h-3.5 w-3.5'
