@@ -28,6 +28,7 @@ export const apiProductAuthTypes = [
   'api_key_query',
   'basic'
 ] as const
+export const apiProductPricingModels = ['fixed', 'credit_metered'] as const
 
 export const orderStatuses = [
   'created',
@@ -56,6 +57,20 @@ export const apiProductBaseSchema = z.object({
   category: z.enum(apiProductCategories),
   description: z.string().trim().min(20).max(800),
   priceUsd: z.coerce.number().positive().max(100000),
+  pricingModel: z.enum(apiProductPricingModels).default('fixed'),
+  pricingQuoteEndpointUrl: z.string().trim().url().optional().or(z.literal('')),
+  pricingQuoteMethod: z.enum(['GET', 'POST']).default('POST'),
+  pricingCreditUnitPath: z.string().trim().max(120).optional(),
+  pricingUsageCreditPath: z.string().trim().max(120).optional(),
+  pricingCreditToMusdRate: z.coerce.number().positive().max(100000).default(1),
+  pricingMultiplier: z.coerce.number().positive().max(100000).default(1),
+  pricingMinimumChargeUsd: z.coerce.number().min(0).max(100000).default(0),
+  pricingMaximumChargeUsd: z.coerce
+    .number()
+    .min(0)
+    .max(100000)
+    .optional()
+    .or(z.literal('')),
   endpointUrl: z.string().trim().url(),
   method: z.enum(['GET', 'POST']),
   estimatedLatency: z.string().trim().min(2).max(80).default('Depends on API'),
@@ -172,6 +187,30 @@ export function refineApiProduct(
         code: z.ZodIssueCode.custom,
         path: ['statusPath'],
         message: 'Status path is required for async APIs.'
+      })
+    }
+  }
+
+  if (value.pricingModel === 'credit_metered') {
+    if (!value.pricingCreditUnitPath) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['pricingCreditUnitPath'],
+        message: 'Credit value path is required for credit-metered pricing.'
+      })
+    }
+
+    if (
+      value.pricingMaximumChargeUsd !== '' &&
+      value.pricingMaximumChargeUsd !== undefined &&
+      Number(value.pricingMaximumChargeUsd) > 0 &&
+      Number(value.pricingMaximumChargeUsd) <
+        Number(value.pricingMinimumChargeUsd)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['pricingMaximumChargeUsd'],
+        message: 'Maximum charge must be greater than the minimum charge.'
       })
     }
   }

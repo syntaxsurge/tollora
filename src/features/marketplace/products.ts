@@ -22,6 +22,7 @@ export type ApiProductAuthType =
   | 'api_key_header'
   | 'api_key_query'
   | 'basic'
+export type ApiProductPricingModel = 'fixed' | 'credit_metered'
 
 export type ApiProductProviderAuth = {
   type: ApiProductAuthType
@@ -41,6 +42,18 @@ export type ApiProductPollingConfig = {
   errorMessagePath?: string
 }
 
+export type ApiProductPricingConfig = {
+  model: ApiProductPricingModel
+  quoteEndpointUrl?: string
+  quoteMethod?: 'GET' | 'POST'
+  creditUnitPath?: string
+  usageCreditPath?: string
+  creditToMusdRate?: number
+  multiplier?: number
+  minimumChargeUsd?: number
+  maximumChargeUsd?: number
+}
+
 export type ApiProduct = {
   slug: string
   name: string
@@ -51,6 +64,7 @@ export type ApiProduct = {
   description: string
   priceUsd: number
   priceLabel: string
+  pricing: ApiProductPricingConfig
   method: 'GET' | 'POST'
   endpointPath: string
   providerEndpointUrl?: string
@@ -83,8 +97,7 @@ export const marketplaceProducts: ApiProduct[] = []
 export const providerCreatedProducts =
   globalForMarketplaceProducts.__tolloraProviderProducts ?? []
 
-globalForMarketplaceProducts.__tolloraProviderProducts =
-  providerCreatedProducts
+globalForMarketplaceProducts.__tolloraProviderProducts = providerCreatedProducts
 
 export function getPublishedProducts() {
   return getAllProducts().filter(product => product.status === 'published')

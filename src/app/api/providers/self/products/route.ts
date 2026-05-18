@@ -62,7 +62,24 @@ export async function POST(request: Request) {
     category: payload.category,
     description: payload.description,
     priceUsd: payload.priceUsd,
-    priceLabel: formatMusdAmount(payload.priceUsd),
+    priceLabel:
+      payload.pricingModel === 'credit_metered'
+        ? `Usage based from ${payload.pricingCreditUnitPath}`
+        : formatMusdAmount(payload.priceUsd),
+    pricing: {
+      model: payload.pricingModel,
+      quoteEndpointUrl: payload.pricingQuoteEndpointUrl || undefined,
+      quoteMethod: payload.pricingQuoteMethod,
+      creditUnitPath: payload.pricingCreditUnitPath || undefined,
+      usageCreditPath: payload.pricingUsageCreditPath || undefined,
+      creditToMusdRate: payload.pricingCreditToMusdRate,
+      multiplier: payload.pricingMultiplier,
+      minimumChargeUsd: payload.pricingMinimumChargeUsd,
+      maximumChargeUsd:
+        payload.pricingMaximumChargeUsd === ''
+          ? undefined
+          : payload.pricingMaximumChargeUsd || undefined
+    },
     method: payload.method,
     endpointPath: `/api/x402/products/${payload.slug}/call`,
     providerEndpointUrl: payload.endpointUrl,

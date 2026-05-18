@@ -97,11 +97,13 @@ export function recordManagedCreditTopUp({
 export function debitManagedCredits({
   apiKey,
   productSlug,
-  receiptId
+  receiptId,
+  amountMusd
 }: {
   apiKey: string
   productSlug: string
   receiptId: string
+  amountMusd?: number
 }) {
   const account = getManagedCreditAccountByApiKey(apiKey)
   const product = getProductBySlug(productSlug)
@@ -110,7 +112,9 @@ export function debitManagedCredits({
     return null
   }
 
-  if (account.balanceMusd < product.priceUsd) {
+  const debitAmount = amountMusd ?? product.priceUsd
+
+  if (account.balanceMusd < debitAmount) {
     return { account, product, debit: null }
   }
 
@@ -118,13 +122,13 @@ export function debitManagedCredits({
     id: `debit_${randomBytes(6).toString('hex')}`,
     productSlug,
     productName: product.name,
-    amountMusd: product.priceUsd,
+    amountMusd: debitAmount,
     receiptId,
     createdAt: new Date().toISOString()
   }
 
   account.balanceMusd = Number(
-    (account.balanceMusd - product.priceUsd).toFixed(2)
+    (account.balanceMusd - debitAmount).toFixed(2)
   )
   account.debits.unshift(debit)
   account.updatedAt = debit.createdAt

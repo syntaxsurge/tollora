@@ -13,12 +13,14 @@ import type {
 } from '@/features/marketplace/openapi-import'
 import type {
   ApiProductAuthType,
-  ApiProductExecutionMode
+  ApiProductExecutionMode,
+  ApiProductPricingModel
 } from '@/features/marketplace/products'
 import {
   apiProductAuthTypes,
   apiProductCategories,
   apiProductExecutionModes,
+  apiProductPricingModels,
   apiProductResultDeliveries,
   apiProductSettlementModels,
   providerProductInputSchema
@@ -36,6 +38,8 @@ export function ProviderProductForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authType, setAuthType] = useState<ApiProductAuthType>('bearer')
+  const [pricingModel, setPricingModel] =
+    useState<ApiProductPricingModel>('fixed')
   const [executionMode, setExecutionMode] =
     useState<ApiProductExecutionMode>('synchronous')
   const authSecretIsRequired = [
@@ -47,6 +51,7 @@ export function ProviderProductForm() {
   const isQueryKeyAuth = authType === 'api_key_query'
   const isHeaderAuth = authType === 'bearer' || authType === 'api_key_header'
   const isAsyncProduct = executionMode === 'asynchronous'
+  const isCreditMetered = pricingModel === 'credit_metered'
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -127,6 +132,36 @@ export function ProviderProductForm() {
       'description',
       `${candidate.name} from imported OpenAPI operation ${candidate.label}.`
     )
+    setPricingModel(candidate.pricingModel)
+    setFormValue(form, 'pricingModel', candidate.pricingModel)
+    setFormValue(
+      form,
+      'pricingQuoteEndpointUrl',
+      candidate.pricingQuoteEndpointUrl
+    )
+    setFormValue(form, 'pricingQuoteMethod', candidate.pricingQuoteMethod)
+    setFormValue(form, 'pricingCreditUnitPath', candidate.pricingCreditUnitPath)
+    setFormValue(
+      form,
+      'pricingUsageCreditPath',
+      candidate.pricingUsageCreditPath
+    )
+    setFormValue(
+      form,
+      'pricingCreditToMusdRate',
+      candidate.pricingCreditToMusdRate
+    )
+    setFormValue(form, 'pricingMultiplier', candidate.pricingMultiplier)
+    setFormValue(
+      form,
+      'pricingMinimumChargeUsd',
+      candidate.pricingMinimumChargeUsd
+    )
+    setFormValue(
+      form,
+      'pricingMaximumChargeUsd',
+      candidate.pricingMaximumChargeUsd
+    )
     setFormValue(form, 'endpointUrl', candidate.endpointUrl)
     setFormValue(form, 'method', candidate.method)
     setAuthType(candidate.authType)
@@ -206,15 +241,6 @@ export function ProviderProductForm() {
             ))}
           </SelectField>
           <Field
-            label='Price in MUSD'
-            name='priceUsd'
-            type='number'
-            step='0.01'
-            defaultValue=''
-            error={fieldErrors.priceUsd}
-            help='Amount charged for each successful paid call through x402.'
-          />
-          <Field
             label='Provider endpoint URL'
             name='endpointUrl'
             type='url'
@@ -274,6 +300,130 @@ export function ProviderProductForm() {
           minHeight='min-h-28'
           required
         />
+      </Card>
+
+      <Card className='space-y-5'>
+        <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
+          <div>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Pricing
+            </p>
+            <h2 className='font-display mt-2 text-2xl'>
+              Fixed or usage-based MUSD
+            </h2>
+            <p className='text-foreground/65 mt-2 max-w-3xl text-sm leading-6'>
+              Use fixed pricing for simple APIs. Use credit-metered pricing for
+              providers like ClipLore where the quote or job response contains
+              an estimated credit count that must be converted into MUSD before
+              x402 payment.
+            </p>
+          </div>
+          <span className='border-border bg-background/70 text-foreground/70 inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold'>
+            {isCreditMetered ? 'Dynamic quote' : 'Fixed price'}
+          </span>
+        </div>
+        <div className='grid gap-4 md:grid-cols-2'>
+          <SelectField
+            label='Pricing model'
+            name='pricingModel'
+            defaultValue='fixed'
+            value={pricingModel}
+            onChange={value => setPricingModel(value as ApiProductPricingModel)}
+            error={fieldErrors.pricingModel}
+            help='Fixed charges one MUSD amount per call. Credit-metered reads a credit value and converts it into MUSD.'
+          >
+            {apiProductPricingModels.map(model => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </SelectField>
+          <Field
+            label={isCreditMetered ? 'Fallback price in MUSD' : 'Price in MUSD'}
+            name='priceUsd'
+            type='number'
+            step='0.000001'
+            defaultValue=''
+            error={fieldErrors.priceUsd}
+            help='Fixed charge for fixed pricing. For credit-metered pricing, this is the safe fallback if quote calculation is unavailable.'
+          />
+          <Field
+            label='Quote endpoint URL'
+            name='pricingQuoteEndpointUrl'
+            type='url'
+            defaultValue=''
+            required={false}
+            error={fieldErrors.pricingQuoteEndpointUrl}
+            help='Optional provider quote endpoint Tollora calls before x402 payment to calculate usage-based price from the request payload.'
+          />
+          <SelectField
+            label='Quote method'
+            name='pricingQuoteMethod'
+            defaultValue='POST'
+            required={false}
+            error={fieldErrors.pricingQuoteMethod}
+            help='HTTP method for the quote endpoint.'
+          >
+            <option value='POST'>POST</option>
+            <option value='GET'>GET</option>
+          </SelectField>
+          <Field
+            label='Credit value path'
+            name='pricingCreditUnitPath'
+            defaultValue='estimatedCredits'
+            required={isCreditMetered}
+            error={fieldErrors.pricingCreditUnitPath}
+            help='Dot-path to the numeric credit value in the quote response, provider response, or request payload. ClipLore commonly uses estimatedCredits.'
+          />
+          <Field
+            label='Actual usage path'
+            name='pricingUsageCreditPath'
+            defaultValue='chargedCredits'
+            required={false}
+            error={fieldErrors.pricingUsageCreditPath}
+            help='Optional dot-path for the provider response field that reports final credits used for receipts and audit metadata.'
+          />
+          <Field
+            label='MUSD per credit'
+            name='pricingCreditToMusdRate'
+            type='number'
+            step='0.000001'
+            defaultValue='0.01'
+            required={isCreditMetered}
+            error={fieldErrors.pricingCreditToMusdRate}
+            help='Conversion rate used to turn provider credits into MUSD. Example: 0.01 means 100 credits equals 1 MUSD.'
+          />
+          <Field
+            label='Pricing multiplier'
+            name='pricingMultiplier'
+            type='number'
+            step='0.000001'
+            defaultValue='1'
+            required={isCreditMetered}
+            error={fieldErrors.pricingMultiplier}
+            help='Optional markup or discount multiplier applied after converting credits into MUSD.'
+          />
+          <Field
+            label='Minimum charge MUSD'
+            name='pricingMinimumChargeUsd'
+            type='number'
+            step='0.000001'
+            defaultValue='0'
+            required={false}
+            error={fieldErrors.pricingMinimumChargeUsd}
+            help='Optional floor so tiny usage still covers gateway and provider overhead.'
+          />
+          <Field
+            label='Maximum charge MUSD'
+            name='pricingMaximumChargeUsd'
+            type='number'
+            step='0.000001'
+            defaultValue=''
+            required={false}
+            error={fieldErrors.pricingMaximumChargeUsd}
+            help='Optional cap for buyer safety. Leave blank for no cap.'
+          />
+        </div>
       </Card>
 
       <Card className='space-y-5'>

@@ -15,6 +15,15 @@ export type OpenApiImportCandidate = {
   category: ApiProductCategory
   method: 'GET' | 'POST'
   endpointUrl: string
+  pricingModel: 'fixed' | 'credit_metered'
+  pricingQuoteEndpointUrl: string
+  pricingQuoteMethod: 'GET' | 'POST'
+  pricingCreditUnitPath: string
+  pricingUsageCreditPath: string
+  pricingCreditToMusdRate: string
+  pricingMultiplier: string
+  pricingMinimumChargeUsd: string
+  pricingMaximumChargeUsd: string
   authType: 'none' | 'bearer' | 'api_key_header' | 'api_key_query'
   authRequired: boolean
   authHeaderName: string
@@ -197,6 +206,20 @@ function buildCandidate({
     : []
   const defaultPollingOption = pollingOptions[0]
   const auth = inferAuth(document, operation)
+  const creditUnitPath = pickFirstField(responseFields, [
+    'estimatedCredits',
+    'credits',
+    'creditAmount',
+    'usage.credits',
+    'billing.credits'
+  ])
+  const usageCreditPath = pickFirstField(responseFields, [
+    'chargedCredits',
+    'actualCredits',
+    'usage.chargedCredits',
+    'billing.chargedCredits'
+  ])
+  const quotePath = creditUnitPath ? findQuotePath(document, path) : ''
 
   return {
     operationId: operation.operationId || `${method.toLowerCase()}-${path}`,
@@ -206,6 +229,15 @@ function buildCandidate({
     category: inferCategory(operation, path),
     method,
     endpointUrl: joinUrl(baseUrl, path),
+    pricingModel: creditUnitPath ? 'credit_metered' : 'fixed',
+    pricingQuoteEndpointUrl: quotePath ? joinUrl(baseUrl, quotePath) : '',
+    pricingQuoteMethod: 'POST',
+    pricingCreditUnitPath: creditUnitPath,
+    pricingUsageCreditPath: usageCreditPath,
+    pricingCreditToMusdRate: '0.01',
+    pricingMultiplier: '1',
+    pricingMinimumChargeUsd: '0',
+    pricingMaximumChargeUsd: '',
     authType: auth.type,
     authRequired: auth.required,
     authHeaderName:
@@ -657,6 +689,38 @@ function pickFirstField(fields: Record<string, string>, names: string[]) {
   const keys = Object.keys(fields)
 
   return names.find(name => keys.includes(name)) ?? ''
+}
+
+function findQuotePath(document: OpenApiDocument, createPath: string) {
+  if (!document.paths) {
+    return ''
+  }
+
+  const createTokens = pathTokens(createPath)
+  const quoteCandidates = Object.entries(document.paths)
+    .flatMap(([path, pathItem]) => {
+      const operation = pathItem.post ?? pathItem.get
+
+      if (!operation || !path.toLowerCase().includes('quote')) {
+        return []
+      }
+
+      const quoteTokens = pathTokens(path)
+      const text = `${path} ${operation.summary ?? ''}`.toLowerCase()
+      const score =
+        quoteTokens.filter(token => createTokens.includes(token)).length * 2 +
+        (text.includes('video') && createPath.includes('video') ? 3 : 0) +
+        (text.includes('image') && createPath.includes('image') ? 3 : 0) +
+        (text.includes('render') && createPath.includes('render') ? 3 : 0) +
+        (text.includes('regeneration') && createPath.includes('regenerate')
+          ? 3
+          : 0)
+
+      return [{ path, score }]
+    })
+    .sort((left, right) => right.score - left.score)
+
+  return quoteCandidates[0]?.path ?? ''
 }
 
 function getPathParamName(operation: OpenApiOperation, path: string) {

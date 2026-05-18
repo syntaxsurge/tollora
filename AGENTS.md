@@ -505,14 +505,15 @@ Before creating a new helper or service file:
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
   schemas, upstream endpoint URL, upstream authentication requirements, async
-  polling requirements, runtime model, wallet fields, agent readiness,
-  OpenAPI-imported operation defaults, and visibility before posting to the
-  product API route. The provider form uses the shared product input schema for
-  client-side field errors before submission, and the API route uses the same
-  schema as the server guard. The OpenAPI importer detects operation-level or
-  document-level security schemes and 202 Accepted job operations, links async
-  job-creation operations to matching status endpoints from the imported spec,
-  and marks required provider auth and polling fields accurately.
+  polling requirements, runtime model, fixed or credit-metered MUSD pricing,
+  wallet fields, agent readiness, OpenAPI-imported operation defaults, and
+  visibility before posting to the product API route. The provider form uses the
+  shared product input schema for client-side field errors before submission,
+  and the API route uses the same schema as the server guard. The OpenAPI
+  importer detects operation-level or document-level security schemes, credit
+  fields such as `estimatedCredits`, and 202 Accepted job operations, links
+  async job-creation operations to matching status endpoints from the imported
+  spec, and marks required provider auth and polling fields accurately.
 - `/provider/products/[productId]` shows product operations, payable request
   links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
@@ -533,6 +534,11 @@ Before creating a new helper or service file:
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
   directly, polled/webhooked, or revealed after completion.
+- Marketplace products support fixed per-call MUSD pricing and credit-metered
+  pricing. Credit-metered products can call a provider quote endpoint before
+  x402 settlement, read a numeric credit path such as `estimatedCredits`,
+  convert credits to MUSD with a configured rate and multiplier, and record the
+  resolved charge on orders and receipts.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { HTTPProcessResult } from '@x402/core/server'
 
 import { getProductBySlug } from '@/features/marketplace/products'
+import type { ResolvedProductPrice } from '@/features/marketplace/pricing'
+import { resolveProductPrice } from '@/features/marketplace/pricing'
 import {
   buildExplorerUrl,
   buildReceiptAmounts,
@@ -109,6 +111,10 @@ async function handlePaidProductCall(
     .digest('hex')
     .slice(0, 12)}`
   const providerAdapter = getProviderAdapter(product.slug)
+  const resolvedPrice = await resolveProductPrice({
+    product,
+    requestPayload: payload
+  })
 
   if (!providerAdapter) {
     await processResult.cancellationDispatcher.cancel({
@@ -153,7 +159,8 @@ async function handlePaidProductCall(
     product,
     orderId,
     requestId,
-    adapterResult
+    adapterResult,
+    resolvedPrice
   })
   const responseBody = Buffer.from(JSON.stringify(paidResponse))
   let settlementErrorMessage = ''
@@ -233,8 +240,8 @@ async function handlePaidProductCall(
     providerName: product.providerName,
     buyerWallet: settlement.payer ?? '',
     providerWallet: product.providerWallet,
-    amountMusd: product.priceLabel,
-    ...buildReceiptAmounts(product.priceUsd),
+    amountMusd: resolvedPrice.amountLabel,
+    ...buildReceiptAmounts(resolvedPrice.amountUsd),
     network: x402Network as 'eip155:31611',
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),
@@ -267,7 +274,7 @@ async function handlePaidProductCall(
     buyerWallet:
       settlement.payer ?? extractBuyerWallet(processResult.paymentPayload),
     status: adapterResult.status,
-    amountMusd: product.priceLabel,
+    amountMusd: resolvedPrice.amountLabel,
     requestId,
     requestPayloadJson:
       existingOrder?.requestPayloadJson ?? JSON.stringify(payload, null, 2),
@@ -341,12 +348,14 @@ function buildPaidResponse({
   product,
   orderId,
   requestId,
-  adapterResult
+  adapterResult,
+  resolvedPrice
 }: {
   product: NonNullable<ReturnType<typeof getProductBySlug>>
   orderId: string
   requestId: string
   adapterResult: ProviderAdapterResult
+  resolvedPrice: ResolvedProductPrice
 }) {
   return {
     order: {
@@ -356,10 +365,11 @@ function buildPaidResponse({
       productSlug: product.slug,
       productName: product.name,
       providerName: product.providerName,
-      amountMusd: product.priceLabel,
+      amountMusd: resolvedPrice.amountLabel,
       externalJobId: adapterResult.externalJobId,
       resultUrl: adapterResult.resultUrl
     },
+    pricing: resolvedPrice,
     data: adapterResult.responsePayload ?? {
       status: adapterResult.status,
       requestId,

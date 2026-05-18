@@ -9,6 +9,7 @@ import type { Network } from '@x402/core/types'
 import { registerExactEvmScheme } from '@x402/evm/exact/server'
 
 import { getProductBySlug } from '@/features/marketplace/products'
+import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { x402Network } from '@/lib/config/chains'
 import { envServer } from '@/lib/env/env.server'
 
@@ -37,8 +38,15 @@ const paidCallRoute: RouteConfig = {
     scheme: 'exact',
     network: x402Network as Network,
     payTo: context => requireProductFromContext(context).providerWallet,
-    price: context =>
-      `$${requireProductFromContext(context).priceUsd.toFixed(2)}`,
+    price: async context => {
+      const product = requireProductFromContext(context)
+      const resolvedPrice = await resolveProductPrice({
+        product,
+        requestPayload: getRequestPayload(context)
+      })
+
+      return `$${resolvedPrice.amountUsd.toFixed(6)}`
+    },
     maxTimeoutSeconds: 300
   },
   description:
@@ -46,8 +54,17 @@ const paidCallRoute: RouteConfig = {
   mimeType: 'application/json',
   unpaidResponseBody: context => {
     const product = requireProductFromContext(context)
+    const requestPayload = getRequestPayload(context)
 
-    return {
+    return Promise.resolve(
+      resolveProductPrice({ product, requestPayload }).catch(error => ({
+        amountUsd: product.priceUsd,
+        amountLabel: product.priceLabel,
+        model: product.pricing.model,
+        source: 'fixed' as const,
+        quoteError: error instanceof Error ? error.message : 'Quote failed.'
+      }))
+    ).then(resolvedPrice => ({
       contentType: 'application/json',
       body: {
         error: 'MUSD payment required.',
@@ -55,9 +72,10 @@ const paidCallRoute: RouteConfig = {
           slug: product.slug,
           name: product.name,
           providerName: product.providerName,
-          priceLabel: product.priceLabel,
+          priceLabel: resolvedPrice.amountLabel,
           endpointPath: product.endpointPath
         },
+        pricing: resolvedPrice,
         payment: {
           network: x402Network,
           scheme: 'exact',
@@ -65,7 +83,7 @@ const paidCallRoute: RouteConfig = {
             envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
         }
       }
-    }
+    }))
   },
   settlementFailedResponseBody: (_context, settleResult) => ({
     contentType: 'application/json',
@@ -75,6 +93,10 @@ const paidCallRoute: RouteConfig = {
       message: settleResult.errorMessage
     }
   })
+}
+
+function getRequestPayload(context: HTTPRequestContext) {
+  return context.adapter.getBody?.() ?? context.adapter.getQueryParams?.() ?? {}
 }
 
 export async function getTolloraX402Server() {

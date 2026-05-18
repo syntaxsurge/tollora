@@ -14,6 +14,7 @@ import {
 } from '@/features/marketplace/receipts'
 import { recordMarketplaceOrder } from '@/features/marketplace/orders'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { x402Network } from '@/lib/config/chains'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 
@@ -67,10 +68,15 @@ export async function POST(
   const orderId = `ord_credit_${randomBytes(6).toString('hex')}`
   const requestId = `req_credit_${randomBytes(6).toString('hex')}`
   const receiptId = `rcpt_credit_${randomBytes(6).toString('hex')}`
+  const resolvedPrice = await resolveProductPrice({
+    product,
+    requestPayload: payload
+  })
   const debitResult = debitManagedCredits({
     apiKey,
     productSlug: slug,
-    receiptId
+    receiptId,
+    amountMusd: resolvedPrice.amountUsd
   })
 
   if (!debitResult?.debit) {
@@ -126,8 +132,8 @@ export async function POST(
     providerName: product.providerName,
     buyerWallet: account.wallet,
     providerWallet: product.providerWallet,
-    amountMusd: product.priceLabel,
-    ...buildReceiptAmounts(product.priceUsd),
+    amountMusd: resolvedPrice.amountLabel,
+    ...buildReceiptAmounts(resolvedPrice.amountUsd),
     network: x402Network as 'eip155:31611',
     txHash: latestTopUp.settlementTxHash,
     explorerUrl: buildExplorerUrl(latestTopUp.settlementTxHash),
@@ -142,7 +148,7 @@ export async function POST(
     providerWallet: product.providerWallet,
     buyerWallet: account.wallet,
     status: providerResult.status,
-    amountMusd: product.priceLabel,
+    amountMusd: resolvedPrice.amountLabel,
     requestId,
     requestPayloadJson: JSON.stringify(payload, null, 2),
     receiptId,
@@ -160,6 +166,7 @@ export async function POST(
   return NextResponse.json({
     order,
     receipt,
+    pricing: resolvedPrice,
     data: providerResult.responsePayload,
     creditAccount: toPublicManagedCreditAccount(debitResult.account)
   })
