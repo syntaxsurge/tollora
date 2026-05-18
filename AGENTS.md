@@ -510,7 +510,9 @@ Before creating a new helper or service file:
   provider, connected buyer wallet, and a schema-driven request builder that
   generates validated fields from the product request schema, respects explicit
   required/optional markers from imported OpenAPI schemas, and keeps an advanced
-  JSON preview before a payable API request is created.
+  JSON preview before a payable API request is created. Failed preparation
+  attempts render the complete request/response payload so provider quote,
+  validation, and pricing errors are visible during integration testing.
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.
@@ -563,7 +565,8 @@ Before creating a new helper or service file:
   deterministic credit field before x402 settlement, convert credits to MUSD
   with a configured rate and multiplier, reserve or settle the quoted amount
   before expensive provider work starts, compare final usage against the quote,
-  lock results that need a delta payment, and record quote, paid, actual, and
+  lock results that need a delta payment, include failed quote response status
+  and response body in pricing errors, and record quote, paid, actual, and
   release metadata on orders and receipts.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link

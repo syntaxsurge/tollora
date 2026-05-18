@@ -13,6 +13,20 @@ import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { cn } from '@/lib/utils/cn'
 
 type RequestFieldValue = string | boolean
+type ApiResponseDebug = {
+  request?: {
+    method: string
+    url: string
+    body?: unknown
+  }
+  response?: {
+    ok: boolean
+    status: number
+    statusText: string
+    body: unknown
+  }
+  error?: string
+}
 
 type OrderCreateFormProps = {
   product: Pick<
@@ -60,6 +74,9 @@ function OrderCreateFormFields({
     JSON.stringify(product.referencePayload, null, 2)
   )
   const [error, setError] = useState('')
+  const [responseDebug, setResponseDebug] = useState<ApiResponseDebug | null>(
+    null
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [buyerWallet, setBuyerWallet] = useState(connectedWallet ?? '')
 
@@ -87,12 +104,15 @@ function OrderCreateFormFields({
     setFieldValues(defaultValues)
     setRawPayloadJson(JSON.stringify(product.referencePayload, null, 2))
     setError('')
+    setResponseDebug(null)
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
+    setResponseDebug(null)
     setIsSubmitting(true)
+    let debugPayload: ApiResponseDebug | null = null
 
     try {
       const requestPayload = hasStructuredFields
@@ -101,21 +121,41 @@ function OrderCreateFormFields({
 
       validateBuyerWallet(buyerWallet)
 
+      const requestBody = {
+        productSlug: product.slug,
+        buyerWallet,
+        requestPayloadJson: JSON.stringify(requestPayload)
+      }
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productSlug: product.slug,
-          buyerWallet,
-          requestPayloadJson: JSON.stringify(requestPayload)
-        })
+        body: JSON.stringify(requestBody)
       })
-      const order = (await response.json()) as MarketplaceOrder & {
+      const responseBody = parseResponseBody(await response.text())
+      debugPayload = {
+        request: {
+          method: 'POST',
+          url: '/api/orders',
+          body: requestBody
+        },
+        response: {
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText,
+          body: responseBody
+        }
+      }
+      setResponseDebug(debugPayload)
+
+      const order = responseBody as MarketplaceOrder & {
         error?: string
+        message?: string
       }
 
       if (!response.ok) {
-        throw new Error(order.error ?? 'Unable to prepare the API request.')
+        throw new Error(
+          getResponseErrorMessage(order) ?? 'Unable to prepare the API request.'
+        )
       }
 
       window.sessionStorage.setItem(
@@ -124,11 +164,16 @@ function OrderCreateFormFields({
       )
       router.push(`/orders/${order.id}`)
     } catch (caughtError) {
-      setError(
+      const message =
         caughtError instanceof Error
           ? caughtError.message
           : 'Unable to prepare the API request.'
-      )
+
+      setError(message)
+
+      if (!debugPayload) {
+        setResponseDebug({ error: message })
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -220,6 +265,22 @@ function OrderCreateFormFields({
           </p>
         ) : null}
       </div>
+      {responseDebug ? (
+        <Card className='space-y-3 border-red-500/30 bg-red-500/5'>
+          <div>
+            <p className='text-xs tracking-[0.16em] text-red-600 uppercase dark:text-red-300'>
+              Full request response
+            </p>
+            <p className='text-foreground/65 mt-2 text-sm leading-6'>
+              This is the complete response Tollora received while preparing the
+              payable request.
+            </p>
+          </div>
+          <pre className='bg-background/80 border-border max-h-[32rem] overflow-auto rounded-lg border p-4 text-xs leading-6 whitespace-pre-wrap'>
+            {JSON.stringify(responseDebug, null, 2)}
+          </pre>
+        </Card>
+      ) : null}
     </form>
   )
 }
@@ -421,6 +482,26 @@ function parseRawPayload(value: string) {
   } catch {
     throw new Error('Request JSON must be a valid JSON object.')
   }
+}
+
+function parseResponseBody(value: string) {
+  if (!value) {
+    return null
+  }
+
+  try {
+    return JSON.parse(value) as unknown
+  } catch {
+    return value
+  }
+}
+
+function getResponseErrorMessage(value: { error?: string; message?: string }) {
+  if (value.error && value.message) {
+    return `${value.error} ${value.message}`
+  }
+
+  return value.error ?? value.message
 }
 
 function validateBuyerWallet(value: string) {

@@ -229,7 +229,9 @@ async function fetchQuotePayload({
   const data = await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new Error(`Pricing quote failed with status ${response.status}.`)
+    throw new Error(
+      `Pricing quote failed with status ${response.status} ${response.statusText}. Response body: ${formatUnknown(data)}`
+    )
   }
 
   return data
@@ -277,4 +279,20 @@ function asRecord(value: unknown) {
   return value && typeof value === 'object'
     ? (value as Record<string, unknown>)
     : {}
+}
+
+function formatUnknown(value: unknown) {
+  if (value === null || value === undefined) {
+    return 'empty response'
+  }
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
 }
