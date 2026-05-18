@@ -51,6 +51,8 @@ type ProductCallRouteProps = {
   }>
 }
 
+type ProductForCall = NonNullable<ReturnType<typeof getProductBySlug>>
+
 export async function GET(
   request: NextRequest,
   { params }: ProductCallRouteProps
@@ -75,10 +77,20 @@ async function handlePaidProductCall(
   payload: unknown
 ) {
   const product = getProductBySlug(slug)
+  const requestedOrderId = request.headers.get('x-tollora-order-id')
+  const existingOrder = requestedOrderId
+    ? getMarketplaceOrderById(requestedOrderId)
+    : undefined
 
-  if (!product || product.status !== 'published') {
+  if (!product || !canCallProduct(product, existingOrder)) {
     return NextResponse.json(
-      { error: 'API product was not found.' },
+      {
+        error: 'API product was not found.',
+        message:
+          product?.status === 'draft'
+            ? 'Draft products can only be tested by the provider owner from a matching Tollora order.'
+            : 'The product is not published or available for this request.'
+      },
       { status: 404 }
     )
   }
@@ -109,10 +121,6 @@ async function handlePaidProductCall(
   }
 
   const createdAt = new Date().toISOString()
-  const requestedOrderId = adapter.getHeader('x-tollora-order-id')
-  const existingOrder = requestedOrderId
-    ? getMarketplaceOrderById(requestedOrderId)
-    : undefined
   const payloadHash = createHash('sha256')
     .update(JSON.stringify(payload))
     .update(product.slug)
@@ -300,6 +308,27 @@ async function handlePaidProductCall(
       'X-Tollora-Receipt-Id': receiptId
     }
   })
+}
+
+function canCallProduct(
+  product: ProductForCall,
+  order: ReturnType<typeof getMarketplaceOrderById> | undefined
+) {
+  if (product.status === 'published') {
+    return true
+  }
+
+  if (
+    product.status !== 'draft' ||
+    !order ||
+    order.productSlug !== product.slug
+  ) {
+    return false
+  }
+
+  const ownerWallet = product.ownerWallet ?? product.providerWallet
+
+  return order.buyerWallet.toLowerCase() === ownerWallet.toLowerCase()
 }
 
 async function handlePrepaidAsyncProviderCall({

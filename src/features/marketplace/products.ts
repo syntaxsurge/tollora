@@ -60,6 +60,7 @@ export type ApiProductPricingConfig = {
 export type ApiProduct = {
   slug: string
   name: string
+  ownerWallet?: `0x${string}`
   providerName: string
   providerSlug: string
   providerWallet: `0x${string}`

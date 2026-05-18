@@ -34,6 +34,7 @@ import { useWalletClient } from 'wagmi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import {
   orderStatusDetails,
@@ -364,7 +365,7 @@ function OrderStatusContent({
           ? {
               ...step,
               status: 'error',
-              detail: message
+              detail: summarizeStepError(message)
             }
           : step
       )
@@ -547,7 +548,7 @@ function OrderStatusContent({
           : 'Unable to run the paid API request.'
 
       setPaymentError(message)
-      setStatus(message)
+      setStatus('')
       failActiveWalletStep(message)
     } finally {
       setIsPaying(false)
@@ -844,42 +845,55 @@ function createWalletSteps(activeStep?: WalletStepId): WalletStep[] {
 
 function PaymentStepList({ steps }: { steps: WalletStep[] }) {
   return (
-    <div className='grid gap-2 sm:grid-cols-5'>
-      {steps.map(step => (
-        <div
-          key={step.id}
-          className={cn(
-            'border-foreground/10 bg-background/40 min-h-28 rounded-lg border p-3',
-            step.status === 'active' && 'border-brand-cyan/50 bg-accent/10',
-            step.status === 'complete' && 'border-emerald-500/35',
-            step.status === 'error' && 'border-destructive/50 bg-destructive/10'
-          )}
-        >
-          <div className='flex flex-col gap-2'>
-            <StepIcon id={step.id} status={step.status} />
-            <div>
-              <p className='text-sm font-semibold'>{step.title}</p>
-              <p className='text-foreground/60 mt-1 text-xs leading-5'>
-                {step.detail ?? step.description}
-              </p>
+    <div className='border-border bg-background/35 rounded-xl border p-3'>
+      <div className='grid gap-3 md:grid-cols-5'>
+        {steps.map(step => (
+          <div
+            key={step.id}
+            className={cn(
+              'relative rounded-lg p-3 transition',
+              step.status === 'active' && 'bg-accent/12',
+              step.status === 'complete' && 'bg-emerald-500/10',
+              step.status === 'error' && 'bg-destructive/10'
+            )}
+          >
+            <div className='flex gap-3 md:flex-col'>
+              <div
+                className={cn(
+                  'border-border bg-card flex h-10 w-10 shrink-0 items-center justify-center rounded-full border',
+                  step.status === 'active' && 'border-primary/60 bg-primary/10',
+                  step.status === 'complete' &&
+                    'border-emerald-500/40 bg-emerald-500/10',
+                  step.status === 'error' &&
+                    'border-destructive/50 bg-destructive/10'
+                )}
+              >
+                <StepIcon id={step.id} status={step.status} />
+              </div>
+              <div className='min-w-0'>
+                <p className='text-sm font-semibold'>{step.title}</p>
+                <p className='text-foreground/60 mt-1 text-xs leading-5 break-words'>
+                  {step.detail ?? step.description}
+                </p>
+              </div>
             </div>
+            {step.txHash ? (
+              <a
+                className='text-primary mt-3 inline-flex max-w-full items-center gap-1 text-xs font-semibold break-all underline-offset-4 hover:underline'
+                href={
+                  getExplorerTransactionUrl(step.txHash, defaultAppChain.id) ??
+                  '#'
+                }
+                target='_blank'
+                rel='noreferrer'
+              >
+                View transaction
+                <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+              </a>
+            ) : null}
           </div>
-          {step.txHash ? (
-            <a
-              className='text-primary mt-3 inline-flex max-w-full items-center gap-1 text-xs font-semibold break-all underline-offset-4 hover:underline'
-              href={
-                getExplorerTransactionUrl(step.txHash, defaultAppChain.id) ??
-                '#'
-              }
-              target='_blank'
-              rel='noreferrer'
-            >
-              View transaction
-              <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
-            </a>
-          ) : null}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
@@ -1322,14 +1336,29 @@ function SummaryTile({
 }
 
 function PaymentErrorCard({ message }: { message: string }) {
+  const title = /not found|404/i.test(message)
+    ? 'Product is not available for this request'
+    : 'Payment did not settle'
+
   return (
-    <Card className='border-destructive/45 bg-destructive/10'>
-      <div className='flex gap-3'>
-        <AlertTriangle className='text-destructive mt-0.5 h-5 w-5 shrink-0' />
-        <div>
-          <p className='font-semibold'>Payment did not settle</p>
-          <p className='text-foreground/70 mt-2 text-sm leading-6'>{message}</p>
+    <Card className='border-destructive/45 bg-destructive/10 p-5'>
+      <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+        <div className='flex gap-3'>
+          <div className='bg-destructive/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full'>
+            <AlertTriangle className='text-destructive h-5 w-5' aria-hidden />
+          </div>
+          <div>
+            <p className='font-semibold'>{title}</p>
+            <p className='text-foreground/75 mt-2 text-sm leading-6'>
+              {message}
+            </p>
+          </div>
         </div>
+        <CopyTextButton
+          text={message}
+          label='Copy error'
+          copiedLabel='Copied'
+        />
       </div>
     </Card>
   )
@@ -1439,6 +1468,22 @@ function isPaidApiErrorBody(value: unknown): value is PaidApiErrorBody {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+function summarizeStepError(message: string) {
+  if (/not found|404/i.test(message)) {
+    return 'Product access blocked'
+  }
+
+  if (/balance|allowance|permit2/i.test(message)) {
+    return 'Approval needed'
+  }
+
+  if (/settlement|payment/i.test(message)) {
+    return 'Payment failed'
+  }
+
+  return 'Needs attention'
+}
+
 async function requestPaymentRequirement(order: MarketplaceOrder) {
   const response = await fetch(`/api/x402/products/${order.productSlug}/call`, {
     method: 'POST',
@@ -1450,11 +1495,22 @@ async function requestPaymentRequirement(order: MarketplaceOrder) {
     body: order.requestPayloadJson ?? '{}'
   })
 
+  const body = await readResponseBody(response)
+
   if (response.status !== 402) {
+    if (!response.ok) {
+      throw new Error(
+        buildPaidRequestError(
+          response,
+          isPaidApiErrorBody(body) ? body : {},
+          null
+        )
+      )
+    }
+
     return null
   }
 
-  const body = await readResponseBody(response)
   const paymentRequired = decodePaymentRequiredHeader(response)
 
   if (!paymentRequired) {

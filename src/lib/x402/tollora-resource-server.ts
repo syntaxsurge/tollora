@@ -34,11 +34,35 @@ function requireProductFromContext(context: HTTPRequestContext) {
   const slug = getProductSlugFromPath(context.path)
   const product = slug ? getProductBySlug(slug) : undefined
 
-  if (!product || product.status !== 'published') {
+  if (!product || !canPriceProductFromContext(product, context)) {
     throw new Error('Published API product was not found.')
   }
 
   return product
+}
+
+function canPriceProductFromContext(
+  product: NonNullable<ReturnType<typeof getProductBySlug>>,
+  context: HTTPRequestContext
+) {
+  if (product.status === 'published') {
+    return true
+  }
+
+  if (product.status !== 'draft') {
+    return false
+  }
+
+  const orderId = context.adapter.getHeader?.('x-tollora-order-id')
+  const order = orderId ? getMarketplaceOrderById(orderId) : undefined
+
+  if (!order || order.productSlug !== product.slug) {
+    return false
+  }
+
+  const ownerWallet = product.ownerWallet ?? product.providerWallet
+
+  return order.buyerWallet.toLowerCase() === ownerWallet.toLowerCase()
 }
 
 const paidCallRoute: RouteConfig = {

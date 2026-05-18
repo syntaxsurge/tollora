@@ -56,6 +56,7 @@ export async function POST(request: Request) {
   const product: ApiProduct = {
     slug: payload.slug,
     name: payload.name,
+    ownerWallet: payload.ownerWallet as `0x${string}`,
     providerName: payload.providerDisplayName,
     providerSlug: slugify(payload.providerDisplayName),
     providerWallet: payload.receivingWallet as `0x${string}`,

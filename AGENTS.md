@@ -558,13 +558,15 @@ Before creating a new helper or service file:
   asking for payment signatures, retry the product call, display step-by-step
   wallet progress as a compact icon timeline with explorer links for submitted
   transactions, surface settlement failure guidance from the x402 facilitator,
-  keep long explanations inside collapsible details, separate direct API
-  responses from async provider jobs, poll provider status when an order has an
-  external job ID, keep 402 inspection as a diagnostic action, persist receipt
-  metadata in browser session storage, show quote/reservation/final usage
-  amounts for credit-metered calls, claim metered deltas through x402 before
-  revealing locked results, and link to the settlement receipt and Mezo explorer
-  transaction.
+  show payment failures as dedicated alert cards with copyable error text, keep
+  long explanations inside collapsible details, separate direct API responses
+  from async provider jobs, poll provider status when an order has an external
+  job ID, keep 402 inspection as a diagnostic action, persist receipt metadata
+  in browser session storage, show quote/reservation/final usage amounts for
+  credit-metered calls, claim metered deltas through x402 before revealing
+  locked results, and link to the settlement receipt and Mezo explorer
+  transaction. Draft products stay hidden from public marketplace usage but can
+  be tested through matching provider-owner order records.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
