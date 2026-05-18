@@ -24,7 +24,10 @@ export const externalHttpAdapter: ProviderAdapter = {
       method: product.method,
       auth: product.providerAuth,
       idempotencyHeader: product.idempotencyHeader,
-      requestPayload: input.requestPayload,
+      requestPayload: buildProviderRequestPayload({
+        product,
+        input
+      }),
       orderId: input.orderId,
       timeoutSeconds: product.timeoutSeconds,
       executionMode: product.executionMode,
@@ -61,6 +64,34 @@ export const externalHttpAdapter: ProviderAdapter = {
       resultUrlPath: product.polling.resultUrlPath,
       errorMessagePath: product.polling.errorMessagePath
     })
+  }
+}
+
+function buildProviderRequestPayload({
+  product,
+  input
+}: {
+  product: NonNullable<ReturnType<typeof getProductBySlug>>
+  input: ProviderAdapterInput
+}) {
+  if (
+    product.pricing.model !== 'credit_metered' ||
+    product.executionMode !== 'asynchronous' ||
+    !isRecord(input.requestPayload)
+  ) {
+    return input.requestPayload
+  }
+
+  return {
+    ...input.requestPayload,
+    billingMode: input.requestPayload.billingMode ?? 'external_prepaid',
+    externalReference: {
+      ...asRecord(input.requestPayload.externalReference),
+      orderId: input.orderId,
+      receiptId: input.receiptId,
+      buyerReference: input.buyerWallet,
+      settlementReference: input.receiptId
+    }
   }
 }
 
@@ -293,4 +324,8 @@ function asRecord(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
