@@ -42,4 +42,5 @@ export type MarketplaceOrder = {
   resultUrl?: string
   lockedResultUrl?: string
   agentRunId?: string
+  isProviderTest?: boolean
 }

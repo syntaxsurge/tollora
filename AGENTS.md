@@ -570,9 +570,9 @@ Before creating a new helper or service file:
   credit-metered calls, claim metered deltas through x402 before revealing
   locked results, and link to the settlement receipt and Mezo explorer
   transaction. Draft products stay hidden from public marketplace usage but can
-  be tested through matching provider-owner order records; locally persisted
-  draft listings created before owner metadata exists can still be tested
-  through matching order records.
+  be tested through provider management by creating provider-test order records;
+  locally persisted draft listings created before owner metadata exists can
+  still be tested through matching order records.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned

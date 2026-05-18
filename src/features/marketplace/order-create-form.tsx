@@ -35,9 +35,14 @@ type OrderCreateFormProps = {
     'slug' | 'name' | 'referencePayload' | 'requestSchema'
   >
   compact?: boolean
+  providerDraftTest?: boolean
 }
 
-export function OrderCreateForm({ product, compact }: OrderCreateFormProps) {
+export function OrderCreateForm({
+  product,
+  compact,
+  providerDraftTest
+}: OrderCreateFormProps) {
   return (
     <WalletAddressConsumer>
       {({ address }) => (
@@ -45,6 +50,7 @@ export function OrderCreateForm({ product, compact }: OrderCreateFormProps) {
           product={product}
           connectedWallet={address}
           compact={compact}
+          providerDraftTest={providerDraftTest}
         />
       )}
     </WalletAddressConsumer>
@@ -54,7 +60,8 @@ export function OrderCreateForm({ product, compact }: OrderCreateFormProps) {
 function OrderCreateFormFields({
   product,
   connectedWallet,
-  compact = false
+  compact = false,
+  providerDraftTest = false
 }: OrderCreateFormProps & {
   connectedWallet: string | null
 }) {
@@ -128,7 +135,8 @@ function OrderCreateFormFields({
       const requestBody = {
         productSlug: product.slug,
         buyerWallet,
-        requestPayloadJson: JSON.stringify(requestPayload)
+        requestPayloadJson: JSON.stringify(requestPayload),
+        allowDraftTest: Boolean(providerDraftTest)
       }
       const response = await fetch('/api/orders', {
         method: 'POST',

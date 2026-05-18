@@ -60,6 +60,10 @@ function canPriceProductFromContext(
     return false
   }
 
+  if (order.isProviderTest) {
+    return true
+  }
+
   if (!product.ownerWallet) {
     return true
   }

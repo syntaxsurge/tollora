@@ -163,6 +163,7 @@ export default async function ProviderProductPage({
 
       <OrderCreateForm
         compact
+        providerDraftTest
         product={{
           slug: product.slug,
           name: product.name,

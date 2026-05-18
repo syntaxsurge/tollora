@@ -265,7 +265,8 @@ function addJsonObjectIssue(
 export const createOrderSchema = z.object({
   productSlug: z.string().trim().min(3),
   buyerWallet: z.string().trim().min(10),
-  requestPayloadJson: z.string().trim().min(2)
+  requestPayloadJson: z.string().trim().min(2),
+  allowDraftTest: z.coerce.boolean().optional().default(false)
 })
 
 export type ApiProductFormValues = z.infer<typeof apiProductSchema>

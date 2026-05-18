@@ -32,7 +32,9 @@ export async function POST(request: Request) {
   if (
     product.status === 'draft' &&
     product.ownerWallet &&
-    parsed.data.buyerWallet.toLowerCase() !== product.ownerWallet.toLowerCase()
+    parsed.data.buyerWallet.toLowerCase() !==
+      product.ownerWallet.toLowerCase() &&
+    !parsed.data.allowDraftTest
   ) {
     return NextResponse.json(
       {
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
       product.pricing.model === 'credit_metered'
         ? 'reserved'
         : 'not_applicable',
+    isProviderTest: product.status === 'draft' && parsed.data.allowDraftTest,
     requestId,
     requestPayloadJson: parsed.data.requestPayloadJson,
     createdAt,
