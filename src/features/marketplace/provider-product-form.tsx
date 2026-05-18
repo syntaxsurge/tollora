@@ -770,7 +770,7 @@ function HelpLabel({ label, help }: { label: string; help: string }) {
           className='text-foreground/45 h-3.5 w-3.5'
           aria-hidden
         />
-        <span className='bg-popover text-popover-foreground border-foreground/10 pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border p-3 text-xs leading-5 normal-case tracking-normal shadow-lg group-hover:block group-focus-within:block'>
+        <span className='bg-card text-card-foreground border-border pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-72 -translate-x-1/2 rounded-lg border p-3 text-xs leading-5 normal-case tracking-normal opacity-100 shadow-xl shadow-black/30 ring-1 ring-foreground/10 group-hover:block group-focus-within:block dark:bg-slate-950 dark:text-white dark:ring-white/10'>
           {help}
         </span>
       </span>
