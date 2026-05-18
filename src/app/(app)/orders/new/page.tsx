@@ -25,11 +25,13 @@ export default async function NewOrderPage({
 
   return (
     <div className='space-y-8'>
-      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-6'>
+      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-6 shadow-sm'>
         <Badge>Paid API request</Badge>
-        <div className='mt-4 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end'>
+        <div className='mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end'>
           <div className='space-y-3'>
-            <h1 className='font-display text-4xl'>{product.name}</h1>
+            <h1 className='font-display max-w-4xl text-4xl leading-tight break-words'>
+              {product.name}
+            </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
               Create a payable request record for this API. No MUSD is charged
               on this page; the paid response is returned after an x402 buyer
@@ -48,13 +50,13 @@ export default async function NewOrderPage({
         </div>
       </section>
 
-      <section className='grid gap-5 xl:grid-cols-[0.8fr_1.2fr]'>
-        <Card className='space-y-4'>
+      <section className='space-y-5'>
+        <Card className='grid gap-5 p-5 md:grid-cols-3'>
           <div>
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Gateway endpoint
             </p>
-            <p className='mt-2 font-mono text-sm font-semibold break-words'>
+            <p className='mt-2 font-mono text-sm font-semibold break-all'>
               {product.endpointPath}
             </p>
           </div>

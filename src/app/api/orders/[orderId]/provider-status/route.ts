@@ -16,6 +16,7 @@ import {
   refundEscrowPayment,
   releaseEscrowPayment
 } from '@/lib/contracts/api-payment-escrow'
+import { omitIndexedCharacterMaps } from '@/lib/utils/json-payload'
 
 type OrderProviderStatusRouteProps = {
   params: Promise<{
@@ -121,7 +122,9 @@ export async function GET(
             'Final usage exceeded the prepaid quote. Pay the delta before Tollora reveals the provider result.',
           externalJobId: providerResult.externalJobId ?? order.externalJobId
         }
-      : (providerResult.responsePayload ?? order.responsePayload)
+      : omitIndexedCharacterMaps(
+          providerResult.responsePayload ?? order.responsePayload
+        )
   const shouldRefundEscrow =
     providerResult.status === 'failed' &&
     !shouldHoldRetryableFailure &&
@@ -176,7 +179,7 @@ export async function GET(
     responsePayload,
     lockedResponsePayload:
       resultReleaseStatus === 'delta_payment_required'
-        ? providerResult.responsePayload
+        ? omitIndexedCharacterMaps(providerResult.responsePayload)
         : order.lockedResponsePayload,
     resultUrl:
       resultReleaseStatus === 'delta_payment_required'

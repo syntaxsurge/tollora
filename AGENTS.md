@@ -589,7 +589,10 @@ Before creating a new helper or service file:
   hidden from public marketplace usage but can be tested through provider
   management by creating provider-test order records; locally persisted draft
   listings created before owner metadata exists can still be tested through
-  matching order records.
+  matching order records. Browser session order snapshots use compact
+  session-safe storage so large provider payloads cannot block the visible order
+  state, and provider payload normalization removes malformed indexed-character
+  maps while preserving handoff URLs and billing metadata.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned

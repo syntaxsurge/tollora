@@ -6,6 +6,7 @@ import type {
   ProviderAdapterInput,
   ProviderAdapterResult
 } from '@/features/provider-adapters/types'
+import { omitIndexedCharacterMaps } from '@/lib/utils/json-payload'
 
 export const externalHttpAdapter: ProviderAdapter = {
   id: 'external-http',
@@ -314,7 +315,7 @@ function normalizeResult({
     status,
     externalJobId,
     resultUrl,
-    responsePayload: data,
+    responsePayload: omitIndexedCharacterMaps(data),
     errorMessage
   }
 }

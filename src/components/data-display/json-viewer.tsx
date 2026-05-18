@@ -7,6 +7,7 @@ import { Braces, Check, Copy } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
+import { omitIndexedCharacterMaps } from '@/lib/utils/json-payload'
 
 type JsonViewerProps = {
   value: unknown
@@ -94,9 +95,9 @@ export function formatJsonDisplayValue(
     normalizeEscapedStrings = true
   }: { normalizeEscapedStrings?: boolean } = {}
 ) {
-  const displayValue = normalizeEscapedStrings
-    ? normalizeJsonDisplayValue(value)
-    : value
+  const displayValue = omitIndexedCharacterMaps(
+    normalizeEscapedStrings ? normalizeJsonDisplayValue(value) : value
+  )
 
   if (typeof displayValue === 'string') {
     return displayValue

@@ -36,6 +36,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
+import {
+  storeMarketplaceOrderSnapshot,
+  storeMarketplaceReceiptSnapshot
+} from '@/features/marketplace/order-session-storage'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import {
   orderStatusDetails,
@@ -369,16 +373,10 @@ function OrderStatusContent({
         updatedAt: new Date().toISOString()
       }
 
-      window.sessionStorage.setItem(
-        `tollora:order:${order.id}`,
-        JSON.stringify(nextOrder)
-      )
+      storeMarketplaceOrderSnapshot(nextOrder)
 
       if (receipt) {
-        window.sessionStorage.setItem(
-          `tollora:receipt:${receipt.id}`,
-          JSON.stringify(receipt)
-        )
+        storeMarketplaceReceiptSnapshot(receipt)
       }
 
       setOrder(nextOrder)
@@ -615,16 +613,10 @@ function OrderStatusContent({
             : 'Provider response and receipt were saved.'
       })
 
-      window.sessionStorage.setItem(
-        `tollora:order:${order.id}`,
-        JSON.stringify(nextOrder)
-      )
+      storeMarketplaceOrderSnapshot(nextOrder)
 
       if (receipt) {
-        window.sessionStorage.setItem(
-          `tollora:receipt:${receipt.id}`,
-          JSON.stringify(receipt)
-        )
+        storeMarketplaceReceiptSnapshot(receipt)
       }
 
       setOrder(nextOrder)
@@ -701,10 +693,7 @@ function OrderStatusContent({
       }
 
       setOrder(body.order)
-      window.sessionStorage.setItem(
-        `tollora:order:${body.order.id}`,
-        JSON.stringify(body.order)
-      )
+      storeMarketplaceOrderSnapshot(body.order)
       setStatus(
         body.order.status === 'completed'
           ? 'Provider job completed. The API response is ready.'
@@ -804,16 +793,10 @@ function OrderStatusContent({
         updatedAt: new Date().toISOString()
       }
 
-      window.sessionStorage.setItem(
-        `tollora:order:${order.id}`,
-        JSON.stringify(nextOrder)
-      )
+      storeMarketplaceOrderSnapshot(nextOrder)
 
       if (receipt) {
-        window.sessionStorage.setItem(
-          `tollora:receipt:${receipt.id}`,
-          JSON.stringify(receipt)
-        )
+        storeMarketplaceReceiptSnapshot(receipt)
       }
 
       setOrder(nextOrder)

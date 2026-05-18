@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from 'react'
 
+import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
 import { JsonViewer } from '@/components/data-display/json-viewer'
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { storeMarketplaceOrderSnapshot } from '@/features/marketplace/order-session-storage'
 import type { ApiProduct } from '@/features/marketplace/products'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { cn } from '@/lib/utils/cn'
@@ -175,10 +177,7 @@ function OrderCreateFormFields({
 
       setResponseDebug(null)
       setSuccess('Payable request created. Opening the Run & Pay page...')
-      window.sessionStorage.setItem(
-        `tollora:order:${order.id}`,
-        JSON.stringify(order)
-      )
+      storeMarketplaceOrderSnapshot(order)
       router.push(`/orders/${order.id}`)
     } catch (caughtError) {
       const message =
@@ -197,14 +196,14 @@ function OrderCreateFormFields({
   }
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-5'>
-      <Card className={cn('space-y-6', compact && 'p-5')}>
+    <form onSubmit={handleSubmit} className='min-w-0 space-y-5'>
+      <Card className={cn('min-w-0 overflow-hidden', compact ? 'p-5' : 'p-0')}>
         <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-          <div>
+          <div className={cn('space-y-2', !compact && 'p-6 pb-0')}>
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Test request
             </p>
-            <h2 className='mt-2 text-2xl font-semibold'>
+            <h2 className='text-2xl font-semibold'>
               Build a payable API call
             </h2>
             <p className='text-foreground/65 mt-2 max-w-2xl text-sm leading-6'>
@@ -213,11 +212,15 @@ function OrderCreateFormFields({
               Run & Pay page before the provider receives the request.
             </p>
           </div>
-          <Button type='button' variant='outline' onClick={resetSamplePayload}>
-            Use sample payload
-          </Button>
+          <div className={cn(!compact && 'px-6 pt-6')}>
+            <Button type='button' variant='outline' onClick={resetSamplePayload}>
+              <RotateCcw className='h-4 w-4' aria-hidden />
+              Use sample payload
+            </Button>
+          </div>
         </div>
 
+        <div className={cn('space-y-6', !compact && 'p-6')}>
         <label className='space-y-2'>
           <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             Buyer wallet <span className='text-red-500'>*</span>
@@ -269,22 +272,37 @@ function OrderCreateFormFields({
           maxHeightClassName='max-h-80'
           copyLabel='Copy request JSON'
         />
+        </div>
       </Card>
 
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+      <div className='flex flex-col gap-3 rounded-xl border border-border/80 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between'>
         <Button type='submit' disabled={isSubmitting}>
           {isSubmitting ? 'Preparing request' : 'Create payable test run'}
         </Button>
-        {error ? (
-          <p className='text-sm font-semibold text-red-600' role='alert'>
-            Request failed. Open the response details below.
-          </p>
-        ) : null}
-        {success ? (
-          <p className='text-sm font-semibold text-emerald-600' role='status'>
-            {success}
-          </p>
-        ) : null}
+        <div className='min-w-0 flex-1'>
+          {error ? (
+            <p
+              className='text-sm font-semibold text-red-600 break-words dark:text-red-300'
+              role='alert'
+            >
+              Request failed. Review the summary below.
+            </p>
+          ) : null}
+          {success ? (
+            <p
+              className='text-sm font-semibold text-emerald-600 break-words'
+              role='status'
+            >
+              {success}
+            </p>
+          ) : null}
+          {!error && !success ? (
+            <p className='text-foreground/60 text-sm'>
+              The provider is contacted only to price the request. Payment
+              happens on the next page.
+            </p>
+          ) : null}
+        </div>
       </div>
       {error && responseDebug ? (
         <RequestFailurePanel debug={responseDebug} message={error} />
@@ -305,16 +323,19 @@ function RequestFailurePanel({
     : 'Client validation'
   const providerMessage = getReadableDebugMessage(debug, message)
   return (
-    <Card className='space-y-4 border-red-500/30 bg-red-500/5'>
-      <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
-        <div className='space-y-2'>
+    <Card className='min-w-0 overflow-hidden border-red-500/30 bg-red-500/5 p-0'>
+      <div className='grid gap-4 p-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start'>
+        <div className='flex h-11 w-11 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300'>
+          <AlertTriangle className='h-5 w-5' aria-hidden />
+        </div>
+        <div className='min-w-0 space-y-2'>
           <p className='text-xs tracking-[0.16em] text-red-600 uppercase dark:text-red-300'>
             Request failed
           </p>
-          <h3 className='text-xl font-semibold'>
+          <h3 className='text-xl font-semibold break-words'>
             Pricing request was rejected
           </h3>
-          <p className='text-foreground/75 max-w-4xl text-sm leading-6'>
+          <p className='text-foreground/75 max-h-40 overflow-auto text-sm leading-6 break-words whitespace-pre-wrap [overflow-wrap:anywhere]'>
             {providerMessage}
           </p>
         </div>
@@ -327,6 +348,8 @@ function RequestFailurePanel({
         title='View full request and response JSON'
         value={debug}
         defaultOpen={false}
+        className='m-5 mt-0'
+        maxHeightClassName='max-h-[28rem]'
         copyLabel='Copy error JSON'
         copiedLabel='Copied error'
       />
@@ -603,7 +626,8 @@ function extractProviderMessage(value: string) {
     const body = JSON.parse(bodyText) as unknown
 
     if (body && typeof body === 'object') {
-      const error = (body as Record<string, unknown>).error
+      const record = body as Record<string, unknown>
+      const error = record.error
 
       if (error && typeof error === 'object') {
         const message = (error as Record<string, unknown>).message
@@ -611,6 +635,25 @@ function extractProviderMessage(value: string) {
         if (typeof message === 'string') {
           return message
         }
+      }
+
+      const title = typeof record.title === 'string' ? record.title : ''
+      const detail = typeof record.detail === 'string' ? record.detail : ''
+      const retryAfter =
+        typeof record.retry_after === 'number'
+          ? ` Retry after ${record.retry_after} seconds.`
+          : ''
+
+      if (title && detail) {
+        return `${title}. ${detail}${retryAfter}`
+      }
+
+      if (detail) {
+        return `${detail}${retryAfter}`
+      }
+
+      if (title) {
+        return `${title}${retryAfter}`
       }
     }
   } catch {
