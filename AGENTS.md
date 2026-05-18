@@ -434,10 +434,9 @@ Before creating a new helper or service file:
   settle signed MUSD payments through the configured facilitator, start
   credit-metered async provider work only after settlement, return paid provider
   responses or pollable job records, and attach receipt metadata.
-- `POST /api/x402/orders/[orderId]/claim` — protects metered result release
-  with x402 when final provider usage exceeds the prepaid quote, settles the
-  delta in MUSD, unlocks the stored provider result, and records a delta
-  receipt.
+- `POST /api/x402/orders/[orderId]/claim` — protects metered result release with
+  x402 when final provider usage exceeds the prepaid quote, settles the delta in
+  MUSD, unlocks the stored provider result, and records a delta receipt.
 - `POST /api/providers/openapi/preview` — imports a hosted or uploaded OpenAPI
   JSON/YAML document and returns paid-listing candidates with inferred endpoint
   URL, method, auth type, schemas, reference payload, async polling paths, and
@@ -563,9 +562,11 @@ Before creating a new helper or service file:
 - `/admin/products` and `/admin/orders` provide allowlisted operational review
   for marketplace listings and buyer API request records.
 - `/developers` and `/developers/docs` describe provider onboarding, OpenAPI
-  import, x402 paid calls, autonomous agent runs, Mezo proof attestations,
-  gateway forwarding, receipt records, external HTTP adapter behavior, OpenAPI
-  JSON, and the Scalar API reference.
+  import, x402 paid calls, fixed-price provider contracts, credit-metered
+  quote-first provider contracts, external prepaid async job metadata, final
+  usage delta handling, autonomous agent runs, Mezo proof attestations, gateway
+  forwarding, receipt records, external HTTP adapter behavior, OpenAPI JSON, and
+  the Scalar API reference.
 - Admin routes use `src/components/layout/admin-sidebar.tsx`; the users table is
   server-rendered from URL search, filter, sort, and pagination parameters.
 - Admin user row actions use three-dot menus with reusable responsive dialogs

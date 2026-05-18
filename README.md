@@ -81,7 +81,7 @@ After publishing a provider product, set `AGENT_SPENDER_PRIVATE_KEY` or
 `EVM_PRIVATE_KEY` to a Mezo-funded MUSD wallet and run the hosted product slug:
 
 ```bash
-pnpm x402:call cliplore-video-job-api
+pnpm x402:call media-launch-job-api
 ```
 
 The command uses `@x402/fetch` to sign the payment, retry the request, and print

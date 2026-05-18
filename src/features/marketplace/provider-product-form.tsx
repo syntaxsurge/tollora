@@ -1,8 +1,9 @@
 'use client'
 
-import { HelpCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { FormEvent, type ReactNode, useRef, useState } from 'react'
+
+import { HelpCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -313,9 +314,8 @@ export function ProviderProductForm() {
             </h2>
             <p className='text-foreground/65 mt-2 max-w-3xl text-sm leading-6'>
               Use fixed pricing for simple APIs. Use credit-metered pricing for
-              providers like ClipLore where the quote or job response contains
-              an estimated credit count that must be converted into MUSD before
-              x402 payment.
+              variable-cost APIs where a quote or job response returns a numeric
+              usage value that Tollora converts into MUSD before x402 payment.
             </p>
           </div>
           <span className='border-border bg-background/70 text-foreground/70 inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold'>
@@ -373,7 +373,7 @@ export function ProviderProductForm() {
             defaultValue='estimatedCredits'
             required={isCreditMetered}
             error={fieldErrors.pricingCreditUnitPath}
-            help='Dot-path to the numeric credit value in the quote response, provider response, or request payload. ClipLore commonly uses estimatedCredits.'
+            help='Dot-path to the numeric usage value in the quote response, provider response, or request payload. Common examples are estimatedCredits, usage.estimatedCredits, or billing.estimatedCredits.'
           />
           <Field
             label='Actual usage path'
@@ -585,9 +585,10 @@ export function ProviderProductForm() {
           <h2 className='font-display mt-2 text-2xl'>Job status mapping</h2>
           <p className='text-foreground/65 mt-2 text-sm leading-6'>
             Fill this only for async APIs that return a provider job ID. For
-            ClipLore video or media jobs, import OpenAPI and Tollora fills the
-            likely polling URL and JSON paths. Fast quote/read endpoints can
-            stay synchronous and leave this section blank.
+            long-running generation, rendering, data export, or enrichment jobs,
+            import OpenAPI and Tollora fills the likely polling URL and JSON
+            paths. Fast quote/read endpoints can stay synchronous and leave this
+            section blank.
           </p>
         </div>
         <div className='grid gap-4 md:grid-cols-2'>
