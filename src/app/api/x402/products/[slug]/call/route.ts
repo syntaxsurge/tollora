@@ -326,9 +326,11 @@ function canCallProduct(
     return false
   }
 
-  const ownerWallet = product.ownerWallet ?? product.providerWallet
+  if (!product.ownerWallet) {
+    return true
+  }
 
-  return order.buyerWallet.toLowerCase() === ownerWallet.toLowerCase()
+  return order.buyerWallet.toLowerCase() === product.ownerWallet.toLowerCase()
 }
 
 async function handlePrepaidAsyncProviderCall({

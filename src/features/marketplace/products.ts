@@ -159,6 +159,21 @@ export function updateProviderProductStatus(
   })
 }
 
+export function deleteProviderProduct(slug: string) {
+  const existingIndex = providerCreatedProducts.findIndex(
+    product => product.slug === slug
+  )
+
+  if (existingIndex < 0) {
+    return null
+  }
+
+  const [deletedProduct] = providerCreatedProducts.splice(existingIndex, 1)
+  persistProviderProducts(providerCreatedProducts)
+
+  return deletedProduct
+}
+
 export function getMarketplaceMetrics() {
   const products = getPublishedProducts()
   const totalCalls = products.reduce((sum, product) => sum + product.calls, 0)

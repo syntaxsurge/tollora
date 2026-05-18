@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { DeleteProductButton } from '@/features/marketplace/delete-product-button'
 import {
   type ApiProductStatus,
   getAllProducts
@@ -86,6 +87,10 @@ export default function ProviderProductsPage() {
               >
                 View listing
               </Link>
+              <DeleteProductButton
+                productSlug={product.slug}
+                productName={product.name}
+              />
             </div>
           </Card>
         ))}

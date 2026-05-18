@@ -401,6 +401,9 @@ Before creating a new helper or service file:
 - `PATCH /api/providers/self/products/[slug]/status` — updates a provider
   product lifecycle state between draft, published, and paused for management
   workflows.
+- `DELETE /api/providers/self/products/[slug]` — deletes a provider-created API
+  product from the local provider catalog and removes it from provider
+  management and marketplace discovery.
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
@@ -525,8 +528,8 @@ Before creating a new helper or service file:
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.
 - `/provider/products` lists provider API products with status context, price,
-  call volume, gateway path, listing links, and next-step management actions for
-  drafts, paused listings, and live products.
+  call volume, gateway path, listing links, deletion controls, and next-step
+  management actions for drafts, paused listings, and live products.
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
@@ -547,7 +550,8 @@ Before creating a new helper or service file:
 - `/provider/products/[productId]` is the provider API management workspace. It
   shows lifecycle controls for publishing, pausing, and returning products to
   draft, a launch checklist, payable schema-driven test runs, gateway endpoint
-  copy support, provider contract details, and request/response schema details.
+  copy support, product deletion, provider contract details, and
+  request/response schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
   request IDs, and status labels.
 - `/orders` and `/orders/[orderId]` show buyer request lifecycle state using
@@ -566,7 +570,9 @@ Before creating a new helper or service file:
   credit-metered calls, claim metered deltas through x402 before revealing
   locked results, and link to the settlement receipt and Mezo explorer
   transaction. Draft products stay hidden from public marketplace usage but can
-  be tested through matching provider-owner order records.
+  be tested through matching provider-owner order records; locally persisted
+  draft listings created before owner metadata exists can still be tested
+  through matching order records.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned

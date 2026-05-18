@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CopyEndpointButton } from '@/features/marketplace/copy-endpoint-button'
+import { DeleteProductButton } from '@/features/marketplace/delete-product-button'
 import { OrderCreateForm } from '@/features/marketplace/order-create-form'
 import { ProductLifecycleControls } from '@/features/marketplace/product-lifecycle-controls'
 import {
@@ -72,6 +73,11 @@ export default async function ProviderProductPage({
               <ExternalLink className='h-4 w-4' aria-hidden='true' />
               View listing
             </Link>
+            <DeleteProductButton
+              productSlug={product.slug}
+              productName={product.name}
+              redirectTo='/provider/products'
+            />
           </div>
         </div>
       </section>

@@ -29,6 +29,21 @@ export async function POST(request: Request) {
     )
   }
 
+  if (
+    product.status === 'draft' &&
+    product.ownerWallet &&
+    parsed.data.buyerWallet.toLowerCase() !== product.ownerWallet.toLowerCase()
+  ) {
+    return NextResponse.json(
+      {
+        error: 'Draft product is private.',
+        message:
+          'Only the provider owner wallet can create payable test orders for a draft listing.'
+      },
+      { status: 403 }
+    )
+  }
+
   let requestPayload: unknown
 
   try {

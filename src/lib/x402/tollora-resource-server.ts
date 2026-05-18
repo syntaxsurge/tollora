@@ -60,9 +60,11 @@ function canPriceProductFromContext(
     return false
   }
 
-  const ownerWallet = product.ownerWallet ?? product.providerWallet
+  if (!product.ownerWallet) {
+    return true
+  }
 
-  return order.buyerWallet.toLowerCase() === ownerWallet.toLowerCase()
+  return order.buyerWallet.toLowerCase() === product.ownerWallet.toLowerCase()
 }
 
 const paidCallRoute: RouteConfig = {
