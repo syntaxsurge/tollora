@@ -517,7 +517,10 @@ Before creating a new helper or service file:
   advanced JSON preview before a payable API request is created. Failed
   preparation attempts show a compact readable error plus an expandable complete
   request/response payload so provider quote, validation, and pricing errors are
-  visible during integration testing without cluttering the page.
+  visible and copyable during integration testing without cluttering the page.
+  Successful preparation clears failure debug state, shows a short success
+  status, stores the order in browser session storage, and redirects to the Run
+  & Pay order page.
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.

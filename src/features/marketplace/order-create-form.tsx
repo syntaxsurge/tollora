@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
 import type { ApiProduct } from '@/features/marketplace/products'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { cn } from '@/lib/utils/cn'
@@ -74,6 +75,7 @@ function OrderCreateFormFields({
     JSON.stringify(product.referencePayload, null, 2)
   )
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [responseDebug, setResponseDebug] = useState<ApiResponseDebug | null>(
     null
   )
@@ -104,12 +106,14 @@ function OrderCreateFormFields({
     setFieldValues(defaultValues)
     setRawPayloadJson(JSON.stringify(product.referencePayload, null, 2))
     setError('')
+    setSuccess('')
     setResponseDebug(null)
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
+    setSuccess('')
     setResponseDebug(null)
     setIsSubmitting(true)
     let debugPayload: ApiResponseDebug | null = null
@@ -148,7 +152,6 @@ function OrderCreateFormFields({
           body: responseBody
         }
       }
-      setResponseDebug(debugPayload)
 
       const order = responseBody as MarketplaceOrder & {
         error?: string
@@ -156,11 +159,14 @@ function OrderCreateFormFields({
       }
 
       if (!response.ok) {
+        setResponseDebug(debugPayload)
         throw new Error(
           getResponseErrorMessage(order) ?? 'Unable to prepare the API request.'
         )
       }
 
+      setResponseDebug(null)
+      setSuccess('Payable request created. Opening the Run & Pay page...')
       window.sessionStorage.setItem(
         `tollora:order:${order.id}`,
         JSON.stringify(order)
@@ -267,8 +273,13 @@ function OrderCreateFormFields({
             Request failed. Open the response details below.
           </p>
         ) : null}
+        {success ? (
+          <p className='text-sm font-semibold text-emerald-600' role='status'>
+            {success}
+          </p>
+        ) : null}
       </div>
-      {responseDebug ? (
+      {error && responseDebug ? (
         <RequestFailurePanel debug={responseDebug} message={error} />
       ) : null}
     </form>
@@ -286,6 +297,7 @@ function RequestFailurePanel({
     ? `${debug.response.status} ${debug.response.statusText || ''}`.trim()
     : 'Client validation'
   const providerMessage = getReadableDebugMessage(debug, message)
+  const debugJson = JSON.stringify(debug, null, 2)
 
   return (
     <Card className='space-y-4 border-red-500/30 bg-red-500/5'>
@@ -310,8 +322,15 @@ function RequestFailurePanel({
         <summary className='cursor-pointer text-sm font-semibold'>
           View full request and response JSON
         </summary>
+        <div className='mt-4 flex justify-end'>
+          <CopyTextButton
+            text={debugJson}
+            label='Copy error JSON'
+            copiedLabel='Copied error'
+          />
+        </div>
         <pre className='bg-muted mt-4 max-h-96 overflow-auto rounded-lg p-4 text-xs leading-6 whitespace-pre-wrap'>
-          {JSON.stringify(debug, null, 2)}
+          {debugJson}
         </pre>
       </details>
     </Card>
