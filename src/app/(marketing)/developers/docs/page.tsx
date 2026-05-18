@@ -889,6 +889,8 @@ app.get("/api/jobs/:jobId", async (req, res) => {
 \`\`\`
 
 The provider API should stay generic. It reports credits, job state, and handoff/result URLs. Tollora maps those credits to x402 payments, receipts, refunds, deltas, and proofs. If a provider returns \`review_required\` without a result URL, Tollora keeps the order processing instead of releasing funds. If the provider returns a cloneable handoff URL, Tollora can complete the order and release escrow even when the final render is handled separately.
+
+For temporary provider outages, return a normal error payload with \`retryable: true\`, an HTTP 408/429/5xx status, or a \`retry_after\` value. Tollora keeps escrow reserved, retries the provider call or status check, and refunds only when the 24-hour retry window expires without a valid provider result.
 `
   }
 ]

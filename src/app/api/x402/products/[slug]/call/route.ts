@@ -24,6 +24,7 @@ import {
   recordMarketplaceReceipt
 } from '@/features/marketplace/receipts'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
+import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
 import { x402Network } from '@/lib/config/chains'
 import {
@@ -466,6 +467,73 @@ async function handlePrepaidAsyncProviderCall({
   })
 
   if (adapterResult.status === 'failed') {
+    const failurePolicy = classifyProviderFailure({
+      providerResult: adapterResult,
+      order: existingOrder
+        ? {
+            providerRetry: existingOrder.providerRetry
+          }
+        : undefined
+    })
+
+    if (failurePolicy.retryable && !failurePolicy.expired) {
+      const retryingOrder = updateMarketplaceOrder(orderId, {
+        status: 'processing',
+        responsePayload: adapterResult.responsePayload,
+        resultReleaseStatus: 'provider_retrying',
+        escrowStatus: escrowContext ? 'reserved' : 'not_applicable',
+        providerRetry: {
+          retryable: true,
+          reason: failurePolicy.reason,
+          firstFailureAt:
+            existingOrder?.providerRetry?.firstFailureAt ??
+            new Date().toISOString(),
+          lastFailureAt: new Date().toISOString(),
+          retryAfterSeconds: failurePolicy.retryAfterSeconds,
+          retryUntil: failurePolicy.retryUntil,
+          attempts: failurePolicy.attempts
+        },
+        updatedAt: new Date().toISOString()
+      })
+
+      return NextResponse.json(
+        {
+          ...reservationResponse,
+          error:
+            adapterResult.errorMessage ??
+            'Provider returned a temporary error.',
+          message:
+            'The provider returned a retryable temporary error after payment. Tollora kept the payment reserved in escrow and will retry status checks until the retry window expires.',
+          order: retryingOrder ?? {
+            ...baseOrder,
+            status: 'processing' as const,
+            responsePayload: adapterResult.responsePayload,
+            resultReleaseStatus: 'provider_retrying' as const
+          },
+          receipt,
+          provider: {
+            id: providerAdapter.id,
+            retryable: true,
+            retryUntil: failurePolicy.retryUntil,
+            retryAfterSeconds: failurePolicy.retryAfterSeconds,
+            attempts: failurePolicy.attempts,
+            error: adapterResult.errorMessage ?? 'Provider request failed.',
+            response: adapterResult.responsePayload
+          },
+          x402: {
+            network: settlement.network,
+            transaction: settlement.transaction
+          }
+        },
+        {
+          headers: {
+            ...settlement.headers,
+            'X-Tollora-Receipt-Id': receiptId
+          }
+        }
+      )
+    }
+
     const refund = escrowContext
       ? await refundEscrowPayment(escrowContext.paymentId).catch(error => ({
           error: describeUnknownError(error)

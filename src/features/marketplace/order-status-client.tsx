@@ -277,17 +277,33 @@ function OrderStatusContent({
   }, [order, orderId])
 
   useEffect(() => {
-    if (!order?.externalJobId || asyncJobTerminalStatuses.has(order.status)) {
+    const providerRetrying = order?.resultReleaseStatus === 'provider_retrying'
+    if (
+      (!order?.externalJobId && !providerRetrying) ||
+      asyncJobTerminalStatuses.has(order.status)
+    ) {
       return
     }
 
     void pollProviderStatus()
+    const pollIntervalMs = providerRetrying
+      ? Math.max(
+          ASYNC_JOB_POLL_INTERVAL_MS,
+          (order.providerRetry?.retryAfterSeconds ?? 60) * 1000
+        )
+      : ASYNC_JOB_POLL_INTERVAL_MS
     const interval = window.setInterval(() => {
       void pollProviderStatus()
-    }, ASYNC_JOB_POLL_INTERVAL_MS)
+    }, pollIntervalMs)
 
     return () => window.clearInterval(interval)
-  }, [order?.externalJobId, order?.id, order?.status])
+  }, [
+    order?.externalJobId,
+    order?.id,
+    order?.providerRetry?.retryAfterSeconds,
+    order?.resultReleaseStatus,
+    order?.status
+  ])
 
   async function inspectPaymentRequirement() {
     if (!order) {
@@ -582,12 +598,20 @@ function OrderStatusContent({
         updatedAt: new Date().toISOString()
       }
       const providerFailed = nextOrder.status === 'failed'
+      const providerRetrying =
+        nextOrder.resultReleaseStatus === 'provider_retrying'
 
       updateWalletStep('result', {
-        status: providerFailed ? 'error' : 'complete',
+        status: providerFailed
+          ? 'error'
+          : providerRetrying
+            ? 'active'
+            : 'complete',
         detail: providerFailed
           ? 'Provider failed after payment settlement. Review refund and provider response details below.'
-          : 'Provider response and receipt were saved.'
+          : providerRetrying
+            ? 'Provider returned a temporary error. Payment remains reserved in escrow while Tollora retries.'
+            : 'Provider response and receipt were saved.'
       })
 
       window.sessionStorage.setItem(
@@ -604,13 +628,16 @@ function OrderStatusContent({
 
       setOrder(nextOrder)
       setStatus(
-        providerFailed
+        providerRetrying
           ? body.message ||
-              body.error ||
-              'Payment settled, but the provider request failed.'
-          : settlementTxHash
-            ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
-            : 'MUSD payment settled and provider response returned.'
+              'Payment settled, and Tollora is holding escrow while retrying the provider.'
+          : providerFailed
+            ? body.message ||
+                body.error ||
+                'Payment settled, but the provider request failed.'
+            : settlementTxHash
+              ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
+              : 'MUSD payment settled and provider response returned.'
       )
       setPaymentError(
         providerFailed
@@ -642,7 +669,10 @@ function OrderStatusContent({
   }
 
   async function pollProviderStatus() {
-    if (!order?.externalJobId) {
+    if (
+      !order?.externalJobId &&
+      order?.resultReleaseStatus !== 'provider_retrying'
+    ) {
       return
     }
 
@@ -677,6 +707,8 @@ function OrderStatusContent({
       setStatus(
         body.order.status === 'completed'
           ? 'Provider job completed. The API response is ready.'
+          : body.order.resultReleaseStatus === 'provider_retrying'
+            ? 'Provider returned a temporary error. Escrow is still reserved and Tollora will retry.'
           : `Provider job is ${orderStatusLabels[body.order.status].toLowerCase()}.`
       )
     } catch (caughtError) {
@@ -1116,7 +1148,10 @@ function ProviderResponsePanel({
   isClaiming: boolean
   onClaim: () => Promise<void>
 }) {
-  const hasAsyncJob = Boolean(order.externalJobId)
+  const isProviderRetrying =
+    order.resultReleaseStatus === 'provider_retrying' ||
+    Boolean(order.providerRetry?.retryable && order.status === 'processing')
+  const hasAsyncJob = Boolean(order.externalJobId) || isProviderRetrying
   const hasResponse = Boolean(order.responsePayload)
   const hasProjectHandoff =
     Boolean(order.resultUrl) &&
@@ -1145,6 +1180,8 @@ function ProviderResponsePanel({
             )}
             {hasProjectHandoff
               ? 'Project handoff ready'
+              : isProviderRetrying
+                ? 'Provider retrying'
               : hasAsyncJob && order.status !== 'completed'
               ? order.status === 'failed'
                 ? 'Provider failed'
@@ -1203,8 +1240,14 @@ function ProviderResponsePanel({
             )}
           </Button>
           <p className='text-foreground/60 text-sm'>
-            Auto-refreshes every {ASYNC_JOB_POLL_INTERVAL_MS / 1000}s until the
-            job finishes.
+            {isProviderRetrying
+              ? `Auto-refreshes every ${Math.max(
+                  ASYNC_JOB_POLL_INTERVAL_MS / 1000,
+                  order.providerRetry?.retryAfterSeconds ?? 60
+                )}s while the temporary provider outage is retryable.`
+              : `Auto-refreshes every ${
+                  ASYNC_JOB_POLL_INTERVAL_MS / 1000
+                }s until the job finishes.`}
           </p>
         </div>
       ) : null}
@@ -1229,6 +1272,25 @@ function ProviderResponsePanel({
               'Pay delta and reveal'
             )}
           </Button>
+        </div>
+      ) : null}
+
+      {isProviderRetrying ? (
+        <div className='border-primary/30 bg-primary/10 rounded-lg border p-4'>
+          <p className='font-semibold'>Temporary provider outage</p>
+          <p className='text-foreground/70 mt-1 text-sm leading-6'>
+            Tollora kept the payment reserved in escrow instead of refunding
+            immediately. Polling will retry until{' '}
+            {order.providerRetry?.retryUntil
+              ? new Date(order.providerRetry.retryUntil).toLocaleString()
+              : 'the retry window expires'}
+            .
+          </p>
+          {order.providerRetry?.reason ? (
+            <p className='text-foreground/65 mt-2 text-sm leading-6'>
+              Last provider response: {order.providerRetry.reason}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -1370,6 +1432,16 @@ function OrderMetadataGrid({ order }: { order: MarketplaceOrder }) {
         ['Pricing source', order.pricingSource ?? 'fixed'],
         ['Result release', order.resultReleaseStatus ?? 'not_applicable'],
         ['Escrow state', order.escrowStatus ?? 'not_applicable'],
+        [
+          'Retry until',
+          order.providerRetry?.retryUntil
+            ? new Date(order.providerRetry.retryUntil).toLocaleString()
+            : ''
+        ],
+        [
+          'Retry attempts',
+          order.providerRetry?.attempts ? String(order.providerRetry.attempts) : ''
+        ],
         ['Refund amount', order.refundAmountMusd ?? ''],
         ['Created', new Date(order.createdAt).toLocaleString()],
         ['Updated', new Date(order.updatedAt).toLocaleString()]

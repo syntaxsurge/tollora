@@ -28,6 +28,10 @@ Mezo.
    lower than, equal to, or higher than the prepaid quote, show the credit-back,
    released result, or `Pay delta and reveal` flow. If the provider returns a
    public handoff or clone URL, open it as the completed paid result.
+   If the provider returns a retryable outage such as a temporary 5xx,
+   Cloudflare, timeout, rate-limit, or `retryable: true` response, show that the
+   payment remains reserved in escrow while Tollora retries for up to 24 hours
+   before refunding.
 9. Open the receipt link to show receipt ID, buyer wallet, provider wallet,
    amount, fee split, and Mezo explorer link.
 10. Open `/agents` and show the Launch Pack Agent template, recent runs, spend,

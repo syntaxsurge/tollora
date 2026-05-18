@@ -29,7 +29,8 @@ export const orderStatusDetails: Record<OrderStatus, string> = {
     'Tollora priced the request before any expensive provider work starts.',
   paid: 'Payment metadata has been accepted for this request.',
   forwarding: 'Tollora is forwarding the paid request to the provider.',
-  processing: 'The provider accepted the request and is processing the result.',
+  processing:
+    'The provider accepted the request and is processing the result, or Tollora is holding escrow while retrying a temporary provider outage.',
   ready:
     'The provider finished processing. The result can be released to the buyer.',
   delta_payment_required:

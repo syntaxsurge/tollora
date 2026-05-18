@@ -50,6 +50,9 @@ pnpm build
 - Async provider listings that return editable project or workflow handoffs
   expose a public result URL such as `result.publicProjectUrl` or
   `result.cloneUrl`; Tollora treats that handoff as the completed paid result.
+- Retryable provider outages such as temporary 5xx, Cloudflare, timeout,
+  rate-limit, or provider-marked `retryable: true` responses keep escrow
+  reserved and retry for up to 24 hours before refunding.
 - `POST /api/credits/accounts`, `POST /api/credits/top-ups`, and
   `POST /api/credits/products/{published-product-slug}/call` support managed
   API-key credits with pre-call reservation and failed-provider release.

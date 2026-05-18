@@ -27,6 +27,7 @@ export type MarketplaceOrder = {
     | 'not_applicable'
     | 'reserved'
     | 'released'
+    | 'provider_retrying'
     | 'delta_payment_required'
     | 'credit_due'
     | 'refundable'
@@ -53,6 +54,15 @@ export type MarketplaceOrder = {
   externalJobId?: string
   responsePayload?: unknown
   lockedResponsePayload?: unknown
+  providerRetry?: {
+    retryable: boolean
+    reason: string
+    firstFailureAt: string
+    lastFailureAt: string
+    retryAfterSeconds?: number
+    retryUntil: string
+    attempts: number
+  }
   createdAt: string
   updatedAt: string
   resultUrl?: string

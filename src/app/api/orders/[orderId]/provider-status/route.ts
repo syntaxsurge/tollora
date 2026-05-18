@@ -11,6 +11,7 @@ import {
   recordMarketplaceReceipt
 } from '@/features/marketplace/receipts'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
+import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import {
   refundEscrowPayment,
   releaseEscrowPayment
@@ -33,29 +34,48 @@ export async function GET(
     return NextResponse.json({ error: 'Order was not found.' }, { status: 404 })
   }
 
-  if (!order.externalJobId) {
+  const isRetryingProviderCall =
+    order.resultReleaseStatus === 'provider_retrying'
+
+  const adapter = getProviderAdapter(order.productSlug)
+
+  if (!order.externalJobId && !isRetryingProviderCall) {
     return NextResponse.json(
       { error: 'This order does not have an async provider job.' },
       { status: 400 }
     )
   }
 
-  const adapter = getProviderAdapter(order.productSlug)
-
-  if (!adapter?.getStatus) {
+  if (!adapter) {
     return NextResponse.json(
-      { error: 'This provider does not expose a status polling adapter.' },
+      { error: 'This provider adapter is not configured.' },
       { status: 400 }
     )
   }
 
-  const providerResult = await adapter.getStatus(
-    order.externalJobId,
-    order.productSlug
-  )
   const product = getProductBySlug(order.productSlug)
   const paidAmountUsd = parseMusdLabel(order.paidAmountMusd ?? order.amountMusd)
   const requestPayload = parseJsonOrEmpty(order.requestPayloadJson)
+  const providerResult =
+    order.externalJobId && adapter.getStatus
+      ? await adapter.getStatus(order.externalJobId, order.productSlug)
+      : isRetryingProviderCall && order.receiptId
+        ? await adapter.call({
+            productSlug: order.productSlug,
+            orderId: order.id,
+            requestId: order.requestId,
+            requestPayload,
+            buyerWallet: order.buyerWallet,
+            receiptId: order.receiptId
+          })
+        : null
+
+  if (!providerResult) {
+    return NextResponse.json(
+      { error: 'This provider does not expose a retryable status adapter.' },
+      { status: 400 }
+    )
+  }
   const usageDelta =
     product && providerResult.status === 'completed'
       ? await resolveFinalUsageDelta({
@@ -65,8 +85,16 @@ export async function GET(
           paidAmountUsd
         }).catch(() => null)
       : null
-  const resultReleaseStatus =
+  const failurePolicy =
     providerResult.status === 'failed'
+      ? classifyProviderFailure({ providerResult, order })
+      : null
+  const shouldHoldRetryableFailure =
+    failurePolicy?.retryable === true && !failurePolicy.expired
+  const resultReleaseStatus =
+    shouldHoldRetryableFailure
+      ? 'provider_retrying'
+      : providerResult.status === 'failed'
       ? order.escrowStatus === 'reserved'
         ? 'refunded'
         : 'refundable'
@@ -76,10 +104,14 @@ export async function GET(
           ? 'credit_due'
           : providerResult.status === 'completed'
             ? 'released'
+            : providerResult.status === 'processing'
+              ? 'reserved'
             : order.resultReleaseStatus
   const nextStatus =
     resultReleaseStatus === 'delta_payment_required'
       ? ('delta_payment_required' as const)
+      : shouldHoldRetryableFailure
+        ? ('processing' as const)
       : providerResult.status
   const responsePayload =
     resultReleaseStatus === 'delta_payment_required'
@@ -92,6 +124,7 @@ export async function GET(
       : (providerResult.responsePayload ?? order.responsePayload)
   const shouldRefundEscrow =
     providerResult.status === 'failed' &&
+    !shouldHoldRetryableFailure &&
     order.escrowStatus === 'reserved' &&
     isHexBytes32(order.escrowPaymentId)
   const shouldReleaseEscrow =
@@ -161,6 +194,23 @@ export async function GET(
         ? usageDelta.deltaLabel
         : order.deltaAmountMusd,
     resultReleaseStatus,
+    providerRetry:
+      failurePolicy?.retryable === true
+        ? {
+            retryable: true,
+            reason: failurePolicy.reason,
+            firstFailureAt:
+              order.providerRetry?.firstFailureAt ?? new Date().toISOString(),
+            lastFailureAt: new Date().toISOString(),
+            retryAfterSeconds: failurePolicy.retryAfterSeconds,
+            retryUntil: failurePolicy.retryUntil,
+            attempts: failurePolicy.attempts
+          }
+        : providerResult.status === 'completed'
+          ? undefined
+          : providerResult.status === 'processing'
+            ? undefined
+          : order.providerRetry,
     escrowStatus: shouldRefundEscrow
       ? refundedEscrow
         ? 'refunded'
@@ -193,6 +243,24 @@ export async function GET(
             errorMessage:
               'Final usage exceeded the prepaid quote. The result is locked until the delta is paid.'
           }
+        : shouldHoldRetryableFailure
+          ? {
+              ...providerResult,
+              status: 'processing',
+              retryable: true,
+              retryUntil:
+                failurePolicy?.retryable === true
+                  ? failurePolicy.retryUntil
+                  : undefined,
+              retryAfterSeconds:
+                failurePolicy?.retryable === true
+                  ? failurePolicy.retryAfterSeconds
+                  : undefined,
+              errorMessage:
+                failurePolicy?.retryable === true
+                  ? failurePolicy.reason
+                  : providerResult.errorMessage
+            }
         : providerResult,
     pricing: {
       actual: usageDelta?.actualPrice ?? null,

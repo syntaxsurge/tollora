@@ -570,7 +570,10 @@ Before creating a new helper or service file:
   failure guidance from the x402 facilitator, show payment failures as dedicated
   alert cards with copyable error text, keep long explanations inside
   collapsible details, separate direct API responses from async provider jobs,
-  automatically poll provider status when an order has an external job ID,
+  automatically poll provider status when an order has an external job ID or a
+  retryable provider outage, keep escrow reserved for retryable provider
+  failures such as temporary 5xx, Cloudflare, timeout, rate-limit, or
+  provider-marked retryable responses until the 24-hour retry window expires,
   complete async orders when a provider returns a completed status or cloneable
   handoff URL, keep manual polling available, keep 402 inspection as a
   diagnostic action, persist
