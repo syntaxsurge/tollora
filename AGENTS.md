@@ -507,7 +507,9 @@ Before creating a new helper or service file:
   schemas, upstream endpoint URL, upstream authentication requirements, async
   polling requirements, runtime model, wallet fields, agent readiness,
   OpenAPI-imported operation defaults, and visibility before posting to the
-  product API route. The OpenAPI importer detects operation-level or
+  product API route. The provider form uses the shared product input schema for
+  client-side field errors before submission, and the API route uses the same
+  schema as the server guard. The OpenAPI importer detects operation-level or
   document-level security schemes and 202 Accepted job operations, links async
   job-creation operations to matching status endpoints from the imported spec,
   and marks required provider auth and polling fields accurately.

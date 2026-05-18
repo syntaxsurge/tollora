@@ -20,16 +20,20 @@ import {
   apiProductCategories,
   apiProductExecutionModes,
   apiProductResultDeliveries,
-  apiProductSettlementModels
+  apiProductSettlementModels,
+  providerProductInputSchema
 } from '@/features/marketplace/schemas'
+import { cn } from '@/lib/utils/cn'
 
 const emptyJsonObject = JSON.stringify({}, null, 2)
+type FieldErrors = Record<string, string>
 
 export function ProviderProductForm() {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authType, setAuthType] = useState<ApiProductAuthType>('bearer')
   const [executionMode, setExecutionMode] =
@@ -48,30 +52,49 @@ export function ProviderProductForm() {
     event.preventDefault()
     setStatus('')
     setError('')
-    setIsSubmitting(true)
+    setFieldErrors({})
 
     const formData = new FormData(event.currentTarget)
     const payload = Object.fromEntries(formData.entries())
     const isAgentReady = formData.get('isAgentReady') === 'on'
+    const requestBody = {
+      ...payload,
+      priceUsd: Number(payload.priceUsd),
+      timeoutSeconds: Number(payload.timeoutSeconds),
+      isX402Protected: true,
+      isAgentReady
+    }
+    const validated = providerProductInputSchema.safeParse(requestBody)
+
+    if (!validated.success) {
+      setFieldErrors(flattenFieldErrors(validated.error.flatten().fieldErrors))
+      setError('Fix the highlighted fields before saving this API product.')
+      focusFirstInvalidField(
+        event.currentTarget,
+        Object.keys(validated.error.flatten().fieldErrors)
+      )
+      return
+    }
+
+    setIsSubmitting(true)
 
     try {
       const response = await fetch('/api/providers/self/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...payload,
-          priceUsd: Number(payload.priceUsd),
-          timeoutSeconds: Number(payload.timeoutSeconds),
-          isX402Protected: true,
-          isAgentReady
-        })
+        body: JSON.stringify(validated.data)
       })
       const data = (await response.json()) as {
         error?: string
         slug?: string
+        issues?: Record<string, string[]>
       }
 
       if (!response.ok) {
+        if (data.issues) {
+          setFieldErrors(flattenFieldErrors(data.issues))
+        }
+
         throw new Error(data.error ?? 'Unable to create the API product.')
       }
 
@@ -139,7 +162,12 @@ export function ProviderProductForm() {
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className='space-y-6'>
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className='space-y-6'
+      noValidate
+    >
       <OpenApiImportPanel onApply={applyOpenApiCandidate} />
 
       <Card className='space-y-5'>
@@ -154,18 +182,21 @@ export function ProviderProductForm() {
             label='Product name'
             name='name'
             defaultValue=''
+            error={fieldErrors.name}
             help='The buyer-facing name shown in the marketplace and receipts.'
           />
           <Field
             label='Slug'
             name='slug'
             defaultValue=''
+            error={fieldErrors.slug}
             help='Stable URL identifier for the Tollora endpoint. Use lowercase letters, numbers, and hyphens.'
           />
           <SelectField
             label='Category'
             name='category'
             defaultValue='media'
+            error={fieldErrors.category}
             help='Marketplace grouping used for discovery and filtering.'
           >
             {apiProductCategories.map(category => (
@@ -180,6 +211,7 @@ export function ProviderProductForm() {
             type='number'
             step='0.01'
             defaultValue=''
+            error={fieldErrors.priceUsd}
             help='Amount charged for each successful paid call through x402.'
           />
           <Field
@@ -187,12 +219,14 @@ export function ProviderProductForm() {
             name='endpointUrl'
             type='url'
             defaultValue=''
+            error={fieldErrors.endpointUrl}
             help='The real upstream URL Tollora forwards paid requests to after settlement.'
           />
           <SelectField
             label='HTTP method'
             name='method'
             defaultValue='POST'
+            error={fieldErrors.method}
             help='The upstream method for this product operation.'
           >
             <option value='POST'>POST</option>
@@ -202,24 +236,28 @@ export function ProviderProductForm() {
             label='Owner wallet'
             name='ownerWallet'
             defaultValue=''
+            error={fieldErrors.ownerWallet}
             help='Wallet that manages this provider listing in Tollora.'
           />
           <Field
             label='Receiving wallet'
             name='receivingWallet'
             defaultValue=''
+            error={fieldErrors.receivingWallet}
             help='Wallet that receives MUSD payments for this API product.'
           />
           <Field
             label='Provider display name'
             name='providerDisplayName'
             defaultValue=''
+            error={fieldErrors.providerDisplayName}
             help='Provider name shown on marketplace, order, and receipt pages.'
           />
           <SelectField
             label='Visibility'
             name='status'
             defaultValue='draft'
+            error={fieldErrors.status}
             help='Draft keeps the listing private; published makes it available to buyers and agents.'
           >
             <option value='draft'>Draft</option>
@@ -231,6 +269,7 @@ export function ProviderProductForm() {
           label='Description'
           name='description'
           defaultValue=''
+          error={fieldErrors.description}
           help='Short explanation of what buyers receive from this API operation.'
           minHeight='min-h-28'
           required
@@ -255,6 +294,7 @@ export function ProviderProductForm() {
             defaultValue='bearer'
             value={authType}
             onChange={value => setAuthType(value as ApiProductAuthType)}
+            error={fieldErrors.authType}
             help='How Tollora authenticates to the upstream provider API.'
           >
             {apiProductAuthTypes.map(type => (
@@ -269,6 +309,7 @@ export function ProviderProductForm() {
             type='password'
             defaultValue=''
             required={authSecretIsRequired}
+            error={fieldErrors.authSecret}
             help='Provider API key or token. Imported OpenAPI operations that declare bearer or API-key security require this secret before Tollora can forward paid calls.'
           />
           <Field
@@ -276,6 +317,7 @@ export function ProviderProductForm() {
             name='authHeaderName'
             defaultValue='Authorization'
             required={isHeaderAuth}
+            error={fieldErrors.authHeaderName}
             help='Header used for bearer or API-key-header auth.'
           />
           <Field
@@ -283,6 +325,7 @@ export function ProviderProductForm() {
             name='authQueryParam'
             defaultValue=''
             required={isQueryKeyAuth}
+            error={fieldErrors.authQueryParam}
             help='Query parameter used when auth type is api_key_query.'
           />
           <Field
@@ -290,6 +333,7 @@ export function ProviderProductForm() {
             name='authUsername'
             defaultValue=''
             required={isBasicAuth}
+            error={fieldErrors.authUsername}
             help='Username used only when auth type is basic.'
           />
           <Field
@@ -298,6 +342,7 @@ export function ProviderProductForm() {
             type='password'
             defaultValue=''
             required={isBasicAuth}
+            error={fieldErrors.authPassword}
             help='Password used only when auth type is basic.'
           />
         </div>
@@ -321,6 +366,7 @@ export function ProviderProductForm() {
             onChange={value =>
               setExecutionMode(value as ApiProductExecutionMode)
             }
+            error={fieldErrors.executionMode}
             help='Synchronous APIs return the final result immediately; asynchronous APIs return a job ID.'
           >
             {apiProductExecutionModes.map(mode => (
@@ -333,6 +379,7 @@ export function ProviderProductForm() {
             label='Settlement model'
             name='settlementModel'
             defaultValue='pay_on_successful_response'
+            error={fieldErrors.settlementModel}
             help='Defines when the buyer should pay relative to provider success or job acceptance.'
           >
             {apiProductSettlementModels.map(model => (
@@ -345,6 +392,7 @@ export function ProviderProductForm() {
             label='Result delivery'
             name='resultDelivery'
             defaultValue='direct_response'
+            error={fieldErrors.resultDelivery}
             help='How buyers retrieve the usable result after the paid call.'
           >
             {apiProductResultDeliveries.map(delivery => (
@@ -357,6 +405,7 @@ export function ProviderProductForm() {
             label='Estimated latency'
             name='estimatedLatency'
             defaultValue='Depends on provider'
+            error={fieldErrors.estimatedLatency}
             help='Human-readable time estimate shown on product pages.'
           />
           <Field
@@ -364,6 +413,7 @@ export function ProviderProductForm() {
             name='timeoutSeconds'
             type='number'
             defaultValue='60'
+            error={fieldErrors.timeoutSeconds}
             help='Maximum time Tollora waits for the upstream provider response.'
           />
           <Field
@@ -371,6 +421,7 @@ export function ProviderProductForm() {
             name='idempotencyHeader'
             defaultValue='Idempotency-Key'
             required={false}
+            error={fieldErrors.idempotencyHeader}
             help='Optional upstream header Tollora sends to avoid duplicate provider jobs.'
           />
         </div>
@@ -396,6 +447,7 @@ export function ProviderProductForm() {
             type='url'
             defaultValue=''
             required={isAsyncProduct}
+            error={fieldErrors.statusEndpointUrl}
             help='Polling URL for async jobs. Use {externalJobId} where the job ID belongs.'
           />
           <SelectField
@@ -403,6 +455,7 @@ export function ProviderProductForm() {
             name='statusMethod'
             defaultValue='GET'
             required={isAsyncProduct}
+            error={fieldErrors.statusMethod}
             help='HTTP method Tollora uses to poll the upstream job status.'
           >
             <option value='GET'>GET</option>
@@ -413,6 +466,7 @@ export function ProviderProductForm() {
             name='externalJobIdPath'
             defaultValue='jobId'
             required={isAsyncProduct}
+            error={fieldErrors.externalJobIdPath}
             help='Dot-path where Tollora finds the provider job ID in the first response.'
           />
           <Field
@@ -420,6 +474,7 @@ export function ProviderProductForm() {
             name='statusPath'
             defaultValue='status'
             required={isAsyncProduct}
+            error={fieldErrors.statusPath}
             help='Dot-path where Tollora reads completed, processing, or failed status.'
           />
           <Field
@@ -427,6 +482,7 @@ export function ProviderProductForm() {
             name='resultUrlPath'
             defaultValue='resultUrl'
             required={false}
+            error={fieldErrors.resultUrlPath}
             help='Dot-path where Tollora reads the final output URL when available.'
           />
           <Field
@@ -434,6 +490,7 @@ export function ProviderProductForm() {
             name='errorMessagePath'
             defaultValue='errorMessage'
             required={false}
+            error={fieldErrors.errorMessagePath}
             help='Dot-path where Tollora reads provider error details.'
           />
         </div>
@@ -444,18 +501,21 @@ export function ProviderProductForm() {
           label='Request schema'
           name='requestSchemaJson'
           defaultValue={emptyJsonObject}
+          error={fieldErrors.requestSchemaJson}
           help='JSON object mapping request field names to simple type descriptions.'
         />
         <JsonField
           label='Response schema'
           name='responseSchemaJson'
           defaultValue={emptyJsonObject}
+          error={fieldErrors.responseSchemaJson}
           help='JSON object mapping response field names to simple type descriptions.'
         />
         <JsonField
           label='Reference payload'
           name='referencePayloadJson'
           defaultValue={emptyJsonObject}
+          error={fieldErrors.referencePayloadJson}
           help='Example JSON request shown to buyers and used by agent runs as a starting payload.'
         />
       </Card>
@@ -466,6 +526,7 @@ export function ProviderProductForm() {
         type='url'
         defaultValue=''
         required={false}
+        error={fieldErrors.webhookUrl}
         help='Optional provider callback URL for future webhook coordination.'
       />
 
@@ -579,46 +640,68 @@ function OpenApiImportPanel({
   }
 
   return (
-    <Card className='space-y-5'>
-      <div>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Fast setup
-        </p>
-        <h2 className='font-display mt-2 text-2xl'>Import OpenAPI</h2>
-        <p className='text-foreground/65 mt-2 text-sm leading-6'>
-          Paste an OpenAPI JSON/YAML URL or upload a spec file. Tollora reads
-          the operations, detects auth and async jobs, links job-creation
-          endpoints to status endpoints, then fills the listing fields for the
-          selected endpoint.
-        </p>
+    <Card className='space-y-6'>
+      <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+        <div className='max-w-4xl'>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Fast setup
+          </p>
+          <h2 className='font-display mt-2 text-2xl'>Import OpenAPI</h2>
+          <p className='text-foreground/65 mt-2 text-sm leading-6'>
+            Paste an OpenAPI JSON/YAML URL or upload a spec file. Tollora reads
+            the operations, detects auth and async jobs, links job-creation
+            endpoints to status endpoints, then fills the listing fields for the
+            selected endpoint.
+          </p>
+        </div>
+        <span className='border-border bg-background/70 text-foreground/70 inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold'>
+          OpenAPI autofill
+        </span>
       </div>
-      <div className='grid gap-4 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end'>
-        <Field
-          label='OpenAPI URL'
-          name='openApiUrlPreview'
-          type='url'
-          defaultValue=''
-          required={false}
-          help='Public URL to the provider OpenAPI JSON or YAML document.'
-          value={specUrl}
-          onChange={setSpecUrl}
-        />
-        <Field
-          label='Override server URL'
-          name='openApiBaseUrlPreview'
-          type='url'
-          defaultValue=''
-          required={false}
-          help='Optional base URL when the OpenAPI servers value is relative or points to staging.'
-          value={baseUrl}
-          onChange={setBaseUrl}
-        />
-        <Button type='button' onClick={handleImport} disabled={isImporting}>
-          {isImporting ? 'Importing' : 'Import spec'}
-        </Button>
-      </div>
-      <div className='grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end'>
-        <label className='space-y-2'>
+
+      <div className='border-border/70 bg-background/40 space-y-4 rounded-lg border p-4'>
+        <div className='flex items-center gap-3'>
+          <span className='bg-primary text-primary-foreground inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold'>
+            1
+          </span>
+          <div>
+            <h3 className='font-semibold'>Import source</h3>
+            <p className='text-foreground/60 text-sm'>
+              Use a hosted spec URL or upload a local OpenAPI file.
+            </p>
+          </div>
+        </div>
+        <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end'>
+          <Field
+            label='OpenAPI URL'
+            name='openApiUrlPreview'
+            type='url'
+            defaultValue=''
+            required={false}
+            help='Public URL to the provider OpenAPI JSON or YAML document.'
+            value={specUrl}
+            onChange={setSpecUrl}
+          />
+          <Field
+            label='Override server URL'
+            name='openApiBaseUrlPreview'
+            type='url'
+            defaultValue=''
+            required={false}
+            help='Optional base URL when the OpenAPI servers value is relative or points to staging.'
+            value={baseUrl}
+            onChange={setBaseUrl}
+          />
+          <Button
+            type='button'
+            className='w-full lg:w-auto'
+            onClick={handleImport}
+            disabled={isImporting}
+          >
+            {isImporting ? 'Importing' : 'Import spec'}
+          </Button>
+        </div>
+        <label className='block max-w-2xl space-y-2'>
           <HelpLabel
             label='Upload OpenAPI file'
             required={false}
@@ -631,62 +714,91 @@ function OpenApiImportPanel({
             onChange={event => handleFile(event.target.files?.[0])}
           />
         </label>
-        <SelectField
-          label='Imported operation'
-          name='openApiOperationPreview'
-          defaultValue={selectedOperationId}
-          required={false}
-          help='Choose which imported endpoint should become this paid marketplace listing.'
-          value={selectedOperationId}
-          onChange={value => {
-            setSelectedOperationId(value)
-            const nextCandidate = candidates.find(
-              candidate => candidate.operationId === value
-            )
-            setSelectedPollingId(nextCandidate?.pollingOptions[0]?.id ?? '')
-          }}
-        >
-          {candidates.length === 0 ? (
-            <option value=''>Import a spec first</option>
+      </div>
+
+      <div className='border-border/70 bg-background/40 space-y-4 rounded-lg border p-4'>
+        <div className='flex items-center gap-3'>
+          <span className='bg-primary text-primary-foreground inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold'>
+            2
+          </span>
+          <div>
+            <h3 className='font-semibold'>Choose operation mapping</h3>
+            <p className='text-foreground/60 text-sm'>
+              Select the paid endpoint, then select the status endpoint for
+              async jobs.
+            </p>
+          </div>
+        </div>
+        <div className='grid min-w-0 gap-4 xl:grid-cols-2'>
+          <SelectField
+            label='Imported operation'
+            name='openApiOperationPreview'
+            defaultValue={selectedOperationId}
+            required={false}
+            help='Choose which imported endpoint should become this paid marketplace listing.'
+            value={selectedOperationId}
+            onChange={value => {
+              setSelectedOperationId(value)
+              const nextCandidate = candidates.find(
+                candidate => candidate.operationId === value
+              )
+              setSelectedPollingId(nextCandidate?.pollingOptions[0]?.id ?? '')
+            }}
+          >
+            {candidates.length === 0 ? (
+              <option value=''>Import a spec first</option>
+            ) : null}
+            {candidates.map(candidate => (
+              <option key={candidate.operationId} value={candidate.operationId}>
+                {candidate.label} - {candidate.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label='Job status endpoint'
+            name='openApiPollingPreview'
+            defaultValue={selectedPollingCandidate?.id ?? ''}
+            required={false}
+            disabled={!selectedCandidate?.pollingOptions.length}
+            help='For async operations, choose the imported OpenAPI endpoint Tollora should poll with the job ID returned by the selected operation.'
+            value={selectedPollingCandidate?.id ?? ''}
+            onChange={setSelectedPollingId}
+          >
+            {selectedCandidate?.pollingOptions.length ? null : (
+              <option value=''>No status endpoint detected</option>
+            )}
+            {selectedCandidate?.pollingOptions.map(pollingOption => (
+              <option key={pollingOption.id} value={pollingOption.id}>
+                {pollingOption.label}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+          <Button
+            type='button'
+            variant='outline'
+            className='w-full sm:w-auto'
+            disabled={!selectedCandidate}
+            onClick={() =>
+              selectedCandidate &&
+              onApply(
+                withSelectedPolling(selectedCandidate, selectedPollingCandidate)
+              )
+            }
+          >
+            Fill listing
+          </Button>
+          {selectedPollingCandidate ? (
+            <p className='text-foreground/60 min-w-0 text-sm'>
+              Polls{' '}
+              <span className='text-foreground font-mono break-all'>
+                {selectedPollingCandidate.method}{' '}
+                {selectedPollingCandidate.path}
+              </span>
+            </p>
           ) : null}
-          {candidates.map(candidate => (
-            <option key={candidate.operationId} value={candidate.operationId}>
-              {candidate.label} - {candidate.name}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField
-          label='Job status endpoint'
-          name='openApiPollingPreview'
-          defaultValue={selectedPollingCandidate?.id ?? ''}
-          required={false}
-          disabled={!selectedCandidate?.pollingOptions.length}
-          help='For async operations, choose the imported OpenAPI endpoint Tollora should poll with the job ID returned by the selected operation.'
-          value={selectedPollingCandidate?.id ?? ''}
-          onChange={setSelectedPollingId}
-        >
-          {selectedCandidate?.pollingOptions.length ? null : (
-            <option value=''>No status endpoint detected</option>
-          )}
-          {selectedCandidate?.pollingOptions.map(pollingOption => (
-            <option key={pollingOption.id} value={pollingOption.id}>
-              {pollingOption.label}
-            </option>
-          ))}
-        </SelectField>
-        <Button
-          type='button'
-          variant='outline'
-          disabled={!selectedCandidate}
-          onClick={() =>
-            selectedCandidate &&
-            onApply(
-              withSelectedPolling(selectedCandidate, selectedPollingCandidate)
-            )
-          }
-        >
-          Fill listing
-        </Button>
+        </div>
       </div>
       {status ? (
         <p className='text-foreground/65 text-sm' role='status'>
@@ -728,6 +840,7 @@ function Field({
   step,
   required = true,
   help,
+  error,
   value,
   onChange
 }: {
@@ -738,9 +851,12 @@ function Field({
   step?: string
   required?: boolean
   help: string
+  error?: string
   value?: string
   onChange?: (value: string) => void
 }) {
+  const errorId = `${name}-error`
+
   return (
     <label className='space-y-2'>
       <HelpLabel label={label} help={help} required={required} />
@@ -754,7 +870,15 @@ function Field({
           onChange ? event => onChange(event.currentTarget.value) : undefined
         }
         required={required}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+        className={cn(error && 'border-red-500 focus-visible:ring-red-500')}
       />
+      {error ? (
+        <p id={errorId} className='text-sm font-medium text-red-500'>
+          {error}
+        </p>
+      ) : null}
     </label>
   )
 }
@@ -767,6 +891,7 @@ function SelectField({
   help,
   required = true,
   disabled = false,
+  error,
   value,
   onChange
 }: {
@@ -777,9 +902,12 @@ function SelectField({
   help: string
   required?: boolean
   disabled?: boolean
+  error?: string
   value?: string
   onChange?: (value: string) => void
 }) {
+  const errorId = `${name}-error`
+
   return (
     <label className='space-y-2'>
       <HelpLabel label={label} help={help} required={required} />
@@ -792,10 +920,20 @@ function SelectField({
         }
         required={required}
         disabled={disabled}
-        className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 h-11 w-full rounded-2xl border px-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+        className={cn(
+          'border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 h-11 w-full min-w-0 rounded-2xl border px-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60',
+          error && 'border-red-500 focus-visible:ring-red-500'
+        )}
       >
         {children}
       </select>
+      {error ? (
+        <p id={errorId} className='text-sm font-medium text-red-500'>
+          {error}
+        </p>
+      ) : null}
     </label>
   )
 }
@@ -804,22 +942,35 @@ function JsonField({
   label,
   name,
   defaultValue,
-  help
+  help,
+  error
 }: {
   label: string
   name: string
   defaultValue: string
   help: string
-  required?: boolean
+  error?: string
 }) {
+  const errorId = `${name}-error`
+
   return (
     <label className='space-y-2'>
       <HelpLabel label={label} help={help} required={false} />
       <textarea
         name={name}
         defaultValue={defaultValue}
-        className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 min-h-56 w-full rounded-2xl border px-4 py-3 font-mono text-xs leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+        className={cn(
+          'border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 min-h-56 w-full rounded-2xl border px-4 py-3 font-mono text-xs leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+          error && 'border-red-500 focus-visible:ring-red-500'
+        )}
       />
+      {error ? (
+        <p id={errorId} className='text-sm font-medium text-red-500'>
+          {error}
+        </p>
+      ) : null}
     </label>
   )
 }
@@ -830,7 +981,8 @@ function JsonTextField({
   defaultValue,
   help,
   minHeight,
-  required = false
+  required = false,
+  error
 }: {
   label: string
   name: string
@@ -838,7 +990,10 @@ function JsonTextField({
   help: string
   minHeight: string
   required?: boolean
+  error?: string
 }) {
+  const errorId = `${name}-error`
+
   return (
     <label className='space-y-2'>
       <HelpLabel label={label} help={help} required={required} />
@@ -846,8 +1001,19 @@ function JsonTextField({
         name={name}
         defaultValue={defaultValue}
         required={required}
-        className={`border-foreground/15 bg-background text-foreground placeholder:text-foreground/50 focus-visible:ring-foreground/30 w-full rounded-2xl border px-4 py-3 text-sm leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${minHeight}`}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+        className={cn(
+          'border-foreground/15 bg-background text-foreground placeholder:text-foreground/50 focus-visible:ring-foreground/30 w-full rounded-2xl border px-4 py-3 text-sm leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+          minHeight,
+          error && 'border-red-500 focus-visible:ring-red-500'
+        )}
       />
+      {error ? (
+        <p id={errorId} className='text-sm font-medium text-red-500'>
+          {error}
+        </p>
+      ) : null}
     </label>
   )
 }
@@ -890,5 +1056,36 @@ function setFormValue(form: HTMLFormElement, name: string, value: string) {
     field.value = value
     field.dispatchEvent(new Event('input', { bubbles: true }))
     field.dispatchEvent(new Event('change', { bubbles: true }))
+  }
+}
+
+function flattenFieldErrors(fieldErrors: Record<string, string[] | undefined>) {
+  return Object.fromEntries(
+    Object.entries(fieldErrors)
+      .map(([name, errors]) => [name, errors?.[0] ?? ''])
+      .filter(([, message]) => message)
+  ) as FieldErrors
+}
+
+function focusFirstInvalidField(form: HTMLFormElement, fieldNames: string[]) {
+  const firstInvalidField = fieldNames
+    .map(name => form.elements.namedItem(name))
+    .find(
+      field =>
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement ||
+        field instanceof HTMLSelectElement
+    )
+
+  if (
+    firstInvalidField instanceof HTMLInputElement ||
+    firstInvalidField instanceof HTMLTextAreaElement ||
+    firstInvalidField instanceof HTMLSelectElement
+  ) {
+    firstInvalidField.focus()
+    firstInvalidField.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    })
   }
 }

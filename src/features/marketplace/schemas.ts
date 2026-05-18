@@ -40,6 +40,11 @@ export const orderStatuses = [
   'expired'
 ] as const
 
+const walletAddressSchema = z
+  .string()
+  .trim()
+  .regex(/^0x[a-fA-F0-9]{40}$/, 'Enter a valid 0x wallet address.')
+
 export const apiProductBaseSchema = z.object({
   name: z.string().trim().min(3).max(90),
   slug: z
@@ -76,7 +81,7 @@ export const apiProductBaseSchema = z.object({
   requestSchemaJson: z.string().trim().min(2),
   responseSchemaJson: z.string().trim().min(2),
   referencePayloadJson: z.string().trim().optional(),
-  receivingWallet: z.string().trim().min(10),
+  receivingWallet: walletAddressSchema,
   status: z.enum(apiProductStatuses).default('draft'),
   isX402Protected: z.coerce.boolean().default(true),
   isAgentReady: z.coerce.boolean().default(true),
@@ -85,6 +90,13 @@ export const apiProductBaseSchema = z.object({
 
 export const apiProductSchema =
   apiProductBaseSchema.superRefine(refineApiProduct)
+
+export const providerProductInputSchema = apiProductBaseSchema
+  .extend({
+    ownerWallet: walletAddressSchema,
+    providerDisplayName: apiProductBaseSchema.shape.name
+  })
+  .superRefine((value, context) => refineApiProduct(value, context))
 
 export function refineApiProduct(
   value: z.infer<typeof apiProductBaseSchema>,
@@ -162,6 +174,49 @@ export function refineApiProduct(
         message: 'Status path is required for async APIs.'
       })
     }
+  }
+
+  addJsonObjectIssue(
+    context,
+    value.requestSchemaJson,
+    'requestSchemaJson',
+    'Request schema must be a valid JSON object.'
+  )
+  addJsonObjectIssue(
+    context,
+    value.responseSchemaJson,
+    'responseSchemaJson',
+    'Response schema must be a valid JSON object.'
+  )
+
+  if (value.referencePayloadJson) {
+    addJsonObjectIssue(
+      context,
+      value.referencePayloadJson,
+      'referencePayloadJson',
+      'Reference payload must be a valid JSON object.'
+    )
+  }
+}
+
+function addJsonObjectIssue(
+  context: z.RefinementCtx,
+  value: string,
+  path: string,
+  message: string
+) {
+  try {
+    const parsed = JSON.parse(value) as unknown
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error(message)
+    }
+  } catch {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [path],
+      message
+    })
   }
 }
 
