@@ -5,19 +5,12 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
-import {
-  getProductBySlug,
-  marketplaceProducts
-} from '@/features/marketplace/products'
+import { getProductBySlug } from '@/features/marketplace/products'
 
 type ProductPageProps = {
   params: Promise<{
     slug: string
   }>
-}
-
-export function generateStaticParams() {
-  return marketplaceProducts.map(product => ({ slug: product.slug }))
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
@@ -148,6 +141,12 @@ console.log({ body, payment });`
               ['Settlement', settlementLabel],
               ['Processing', product.estimatedLatency],
               ['Result delivery', resultDeliveryLabel],
+              [
+                'Provider auth',
+                product.providerAuth?.type === 'none'
+                  ? 'No upstream credential'
+                  : `${product.providerAuth?.type ?? 'none'} configured`
+              ],
               ['Endpoint', endpointUrl]
             ].map(([label, value]) => (
               <div key={label}>

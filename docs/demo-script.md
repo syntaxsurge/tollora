@@ -10,36 +10,41 @@ Mezo.
 
 1. Open `/` and introduce Tollora as autonomous API commerce for MUSD payments
    and Mezo proof pages.
-2. Open `/agents` and show the Launch Pack Agent template, recent runs, spend,
-   and proof counts.
-3. Open `/agents/new`, enter a goal, budget cap, owner wallet, max paid actions,
-   allowed tools, and signer mode.
-4. Open `/agents/[runId]`, run paid actions, show the action timeline, receipts,
-   deliverables, and proof controls.
-5. Attest the completed run and open `/proofs/[proofId]` to show the public
-   proof hash, receipt IDs, total spend, attestation transaction, and Mezo
-   explorer link.
-6. Open `/marketplace` and show the product catalog with x402 and agent-ready
-   badges.
-7. Open `/marketplace/cliplore-ai-video-generator` and show the ClipLore API
-   listing, request schema, response schema, price, and endpoint.
-8. Create a payable request from the product page and open the Run & Pay
+2. Open `/provider/products/new`, add a real external API endpoint, upstream API
+   credential, request schema, response schema, price, async polling mappings,
+   and publish it as agent-ready.
+3. Open `/marketplace` and show the published provider-created product catalog
+   with x402 and agent-ready badges.
+4. Open `/marketplace/[slug]` and show the request schema, response schema,
+   price, settlement model, hosted Tollora endpoint, and code integration.
+5. Create a payable request from the product page and open the Run & Pay
    playground.
-9. Click `Run with wallet`, approve the one-time MUSD Permit2 allowance if the
+6. Click `Run with wallet`, approve the one-time MUSD Permit2 allowance if the
    wallet has not already approved it, approve the x402 wallet signature, settle
    MUSD, and show the provider response.
-10. Open the receipt link to show receipt ID, buyer wallet, provider wallet,
-    amount, fee split, and Mezo explorer link.
-11. Open `/billing`, create a managed credit API key, and explain that credits
+7. Open the receipt link to show receipt ID, buyer wallet, provider wallet,
+   amount, fee split, and Mezo explorer link.
+8. Open `/agents` and show the Launch Pack Agent template, recent runs, spend,
+   and proof counts.
+9. Open `/agents/new`, enter a goal, budget cap, owner wallet, max paid actions,
+   select the published API tools or click `Let agent choose tools`, and choose
+   signer mode.
+10. Open `/agents/[runId]`, run paid actions, show the action timeline,
+    receipts, deliverables, and proof controls.
+11. Attest the completed run and open `/proofs/[proofId]` to show the public
+   proof hash, receipt IDs, total spend, attestation transaction, and Mezo
+   explorer link.
+12. Open `/billing`, create a managed credit API key, and explain that credits
     are an optional API-key layer after MUSD top-up records.
-12. Open `/receipts/[receiptId]` and explain buyer wallet, provider wallet, MUSD
+13. Open `/receipts/[receiptId]` and explain buyer wallet, provider wallet, MUSD
     amount, fee split, network, and transaction hash.
-13. Open `/provider` to show provider earnings, request activity, listing
+14. Open `/provider` to show provider earnings, request activity, listing
     health, and the 95% provider share.
-14. Open `/developers/docs` and `/api/reference` to show agent-ready integration
+15. Open `/developers/docs` and `/api/reference` to show agent-ready integration
     docs and OpenAPI coverage.
-15. Open `/admin/operations` to show gateway readiness for x402, agent signers,
-    ClipLore, wallet onboarding, receipts, proof pages, and provider adapters.
+16. Open `/admin/operations` to show gateway readiness for x402, agent signers,
+    external API forwarding, wallet onboarding, receipts, proof pages, and
+    provider adapters.
 
 ## Judge-Facing Notes
 
@@ -49,7 +54,7 @@ Mezo.
   settlement.
 - Launch Pack Agent proves autonomous task execution by linking paid actions,
   receipts, deliverables, proof hash, and a Mezo attestation transaction.
-- ClipLore proves Tollora can sell premium AI workflows through the same generic
-  provider adapter interface used by lightweight API products.
+- Provider-created listings prove Tollora can sell premium AI workflows and
+  ordinary HTTP APIs through the same generic external adapter.
 - Tollora records the platform fee and provider amount for every successful paid
   request.

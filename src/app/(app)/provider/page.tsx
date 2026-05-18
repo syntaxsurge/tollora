@@ -52,10 +52,13 @@ export default function ProviderPage() {
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Top product
             </p>
-            <p className='mt-2 text-xl font-semibold'>{topProduct.name}</p>
+            <p className='mt-2 text-xl font-semibold'>
+              {topProduct?.name ?? 'No published APIs'}
+            </p>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              {topProduct.revenueMusd} MUSD recorded across {topProduct.calls}{' '}
-              calls.
+              {topProduct
+                ? `${topProduct.revenueMusd} MUSD recorded across ${topProduct.calls} calls.`
+                : 'Create and publish an API product to start earning MUSD from paid requests.'}
             </p>
           </Card>
         </div>
@@ -89,6 +92,15 @@ export default function ProviderPage() {
             </h2>
           </div>
           <div className='grid gap-3'>
+            {products.length === 0 ? (
+              <div className='bg-muted rounded-lg p-4'>
+                <p className='font-semibold'>No API listings yet</p>
+                <p className='text-foreground/65 mt-2 text-sm leading-6'>
+                  Add an external API from product management to make it
+                  discoverable in the marketplace.
+                </p>
+              </div>
+            ) : null}
             {products.map(product => (
               <Link
                 key={product.slug}

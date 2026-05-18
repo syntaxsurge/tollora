@@ -18,5 +18,8 @@ export type ProviderAdapterResult = {
 export interface ProviderAdapter {
   id: string
   call(input: ProviderAdapterInput): Promise<ProviderAdapterResult>
-  getStatus?(externalJobId: string): Promise<ProviderAdapterResult>
+  getStatus?(
+    externalJobId: string,
+    productSlug?: string
+  ): Promise<ProviderAdapterResult>
 }

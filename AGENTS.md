@@ -391,11 +391,13 @@ Before creating a new helper or service file:
 
 - `POST /api/auth` — auth route stub (returns 501)
 - `GET /api/health` — returns Tollora readiness checks for Mezo, x402, wallet
-  onboarding, ClipLore, marketplace listings, and receipts.
+  onboarding, external API forwarding, marketplace listings, and receipts.
 - `POST /api/webhooks` — webhook intake stub
 - `POST /api/providers/self/products` — validates provider API product input,
-  schema JSON, wallet fields, endpoint URL, price, and visibility, then returns
-  an accepted product response for provider workflow feedback.
+  schema JSON, wallet fields, upstream endpoint URL, upstream auth, async
+  polling mappings, runtime model, price, agent readiness, and visibility, then
+  records a provider-created marketplace listing and returns the accepted
+  product response.
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
@@ -460,27 +462,32 @@ Before creating a new helper or service file:
   `public/images/tollora-logo.png`.
 - Authenticated app routes use `src/components/layout/app-sidebar.tsx` for
   dashboard, marketplace, provider, profile, billing, and settings navigation.
-- Tollora marketplace product catalog, product schemas, prices, x402 flags, and
-  dashboard metrics live in `src/features/marketplace/products.ts`; reusable
-  marketplace cards live in `src/features/marketplace/product-card.tsx`.
+- Tollora marketplace product registry, provider-created listings, product
+  schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
+  and dashboard metrics live in `src/features/marketplace/products.ts`;
+  reusable marketplace cards live in
+  `src/features/marketplace/product-card.tsx`.
 - Autonomous Launch Pack Agent models, run storage, paid action execution, proof
   hashing, status labels, and UI clients live in `src/features/agents`.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
   failed work; `/agents/new` configures objective, source context, owner wallet,
   budget cap, max paid actions, allowed paid tools, and local/production signer
-  mode; `/agents/[runId]` executes paid actions, shows receipts and
-  deliverables, and writes Mezo proof attestations.
+  mode with all marketplace tools deselected until the user selects them or lets
+  the agent choose from published agent-ready listings; `/agents/[runId]`
+  executes paid actions, shows receipts and deliverables, and writes Mezo proof
+  attestations.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, total MUSD spend, attestation transaction,
   and Mezo explorer link.
-- Provider adapters live in `src/features/provider-adapters`; the registry maps
-  product slugs to ClipLore, prompt, and data adapters. The ClipLore adapter
-  validates video request payloads, starts provider jobs with idempotency keys,
-  passes Tollora order and receipt metadata as external references, and reads
-  job status when configured with ClipLore credentials.
-- `/marketplace` lists published MUSD-paid API products with category filters,
-  price badges, provider names, x402 protection badges, agent-ready badges, and
-  entry points for autonomous agent runs.
+- Provider adapters live in `src/features/provider-adapters`; the registry uses
+  the generic external HTTP adapter for provider-created listings. The external
+  HTTP adapter forwards paid requests to the configured upstream endpoint,
+  applies bearer, API-key, query-key, or basic auth server-side, sends
+  idempotency headers, extracts external job IDs and result URLs through
+  configured JSON paths, and polls provider status endpoints for async products.
+- `/marketplace` lists published provider-created MUSD-paid API products with
+  category filters, price badges, provider names, x402 protection badges,
+  agent-ready badges, and entry points for autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
   schema, copyable reference payload, full endpoint URL, raw 402 inspection
   curl, standalone x402 buyer integration code, execution mode, settlement
@@ -497,8 +504,9 @@ Before creating a new helper or service file:
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
-  schemas, endpoint URL, wallet fields, and visibility before posting to the
-  product API route.
+  schemas, upstream endpoint URL, upstream authentication, async polling JSON
+  paths, runtime model, wallet fields, agent readiness, and visibility before
+  posting to the product API route.
 - `/provider/products/[productId]` shows product operations, payable request
   links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,

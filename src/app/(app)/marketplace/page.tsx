@@ -1,6 +1,8 @@
 import { Search } from 'lucide-react'
+import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
+import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ProductCard } from '@/features/marketplace/product-card'
 import {
@@ -63,6 +65,24 @@ export default function MarketplacePage() {
       </section>
 
       <section className='grid gap-5 xl:grid-cols-2'>
+        {products.length === 0 ? (
+          <Card className='space-y-3 xl:col-span-2'>
+            <h2 className='text-xl font-semibold'>
+              No published API listings yet
+            </h2>
+            <p className='text-foreground/65 max-w-2xl text-sm leading-6'>
+              Providers add real external APIs from the provider workspace. Once
+              a product is published, buyers can run it with wallet payment and
+              agents can select it as a paid tool.
+            </p>
+            <Link
+              href='/provider/products/new'
+              className={buttonClasses({ size: 'sm' })}
+            >
+              Add an API listing
+            </Link>
+          </Card>
+        ) : null}
         {products.map(product => (
           <ProductCard key={product.slug} product={product} />
         ))}

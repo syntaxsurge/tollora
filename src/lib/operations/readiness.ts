@@ -15,9 +15,6 @@ export type ReadinessItem = {
 
 export function getOperationalReadiness() {
   const products = getPublishedProducts()
-  const cliploreConfigured = Boolean(
-    envServer.CLIPLORE_API_URL && envServer.CLIPLORE_API_KEY
-  )
   const facilitatorUrl =
     envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
 
@@ -44,11 +41,11 @@ export function getOperationalReadiness() {
         'WalletConnect project configuration enables the production wallet modal.'
     },
     {
-      label: 'ClipLore adapter',
-      value: cliploreConfigured ? 'Configured' : 'Credentials required',
-      state: cliploreConfigured ? 'ready' : 'attention',
+      label: 'External HTTP adapter',
+      value: 'Configured per listing',
+      state: 'ready',
       detail:
-        'ClipLore API URL and API key are required to start premium video jobs.'
+        'Provider-created listings store upstream endpoint, auth, and polling mappings for paid forwarding.'
     },
     {
       label: 'ClipLore webhook',

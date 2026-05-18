@@ -55,11 +55,12 @@ export default function DashboardPage() {
               Featured API
             </p>
             <p className='mt-2 text-xl font-semibold'>
-              {featuredProduct?.name}
+              {featuredProduct?.name ?? 'No published APIs'}
             </p>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              {featuredProduct?.priceLabel} per request through a MUSD-protected
-              Tollora endpoint.
+              {featuredProduct
+                ? `${featuredProduct.priceLabel} per request through a MUSD-protected Tollora endpoint.`
+                : 'Create and publish a provider product to make it available for buyers and agents.'}
             </p>
           </Card>
         </div>

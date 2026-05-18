@@ -6,19 +6,22 @@ import { FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { agentToolSlugs } from '@/features/agents/schemas'
 import type { AgentRun, AgentToolSlug } from '@/features/agents/types'
-import { getProductBySlug } from '@/features/marketplace/products'
+import type { ApiProduct } from '@/features/marketplace/products'
 
-export function AgentRunCreateForm() {
+export function AgentRunCreateForm({
+  products
+}: {
+  products: Pick<
+    ApiProduct,
+    'slug' | 'name' | 'priceLabel' | 'providerName' | 'category' | 'isAgentReady'
+  >[]
+}) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedTools, setSelectedTools] = useState<AgentToolSlug[]>([
-    'prompt-enhancer-api',
-    'document-summary-api',
-    'market-snapshot-api'
-  ])
+  const agentReadyProducts = products.filter(product => product.isAgentReady)
+  const [selectedTools, setSelectedTools] = useState<AgentToolSlug[]>([])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -68,6 +71,12 @@ export function AgentRunCreateForm() {
       current.includes(tool)
         ? current.filter(item => item !== tool)
         : [...current, tool]
+    )
+  }
+
+  function letAgentChoose(maxActions: number) {
+    setSelectedTools(
+      agentReadyProducts.slice(0, maxActions).map(product => product.slug)
     )
   }
 
@@ -145,30 +154,43 @@ export function AgentRunCreateForm() {
           </p>
         </div>
         <div className='grid gap-3 md:grid-cols-2'>
-          {agentToolSlugs.map(tool => {
-            const product = getProductBySlug(tool)
-
-            return (
+          {agentReadyProducts.length === 0 ? (
+            <div className='border-foreground/10 rounded-lg border p-4 md:col-span-2'>
+              <p className='font-semibold'>No agent-ready APIs yet</p>
+              <p className='text-foreground/65 mt-1 text-sm leading-6'>
+                Publish a provider product with agent access enabled before
+                creating an autonomous run.
+              </p>
+            </div>
+          ) : null}
+          {agentReadyProducts.map(product => (
               <label
-                key={tool}
+                key={product.slug}
                 className='border-foreground/10 flex cursor-pointer gap-3 rounded-lg border p-4'
               >
                 <input
                   type='checkbox'
-                  checked={selectedTools.includes(tool)}
-                  onChange={() => toggleTool(tool)}
+                  checked={selectedTools.includes(product.slug)}
+                  onChange={() => toggleTool(product.slug)}
                   className='mt-1'
                 />
                 <span>
                   <span className='block font-semibold'>{product?.name}</span>
                   <span className='text-foreground/60 mt-1 block text-sm'>
-                    {product?.priceLabel} - {product?.providerName}
+                    {product.priceLabel} - {product.providerName}
                   </span>
                 </span>
               </label>
-            )
-          })}
+          ))}
         </div>
+        <Button
+          type='button'
+          variant='outline'
+          disabled={agentReadyProducts.length === 0}
+          onClick={() => letAgentChoose(3)}
+        >
+          Let agent choose tools
+        </Button>
         <fieldset className='flex flex-wrap gap-3'>
           <legend className='sr-only'>Agent execution mode</legend>
           {[

@@ -4,8 +4,18 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { AgentRunCreateForm } from '@/features/agents/agent-run-create-form'
+import { getPublishedProducts } from '@/features/marketplace/products'
 
 export default function NewAgentRunPage() {
+  const products = getPublishedProducts().map(product => ({
+    slug: product.slug,
+    name: product.name,
+    priceLabel: product.priceLabel,
+    providerName: product.providerName,
+    category: product.category,
+    isAgentReady: product.isAgentReady
+  }))
+
   return (
     <div className='space-y-8'>
       <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-6'>
@@ -33,7 +43,7 @@ export default function NewAgentRunPage() {
           </Card>
         </div>
       </section>
-      <AgentRunCreateForm />
+      <AgentRunCreateForm products={products} />
       <Link
         href='/agents'
         className={buttonClasses({ variant: 'outline', size: 'sm' })}

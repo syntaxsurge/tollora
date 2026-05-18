@@ -3,11 +3,11 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { getPublishedProducts } from '@/features/marketplace/products'
+import { getAllProducts } from '@/features/marketplace/products'
 import { productStatusLabels } from '@/features/marketplace/status'
 
 export default function ProviderProductsPage() {
-  const products = getPublishedProducts()
+  const products = getAllProducts()
 
   return (
     <div className='space-y-8'>
@@ -31,6 +31,22 @@ export default function ProviderProductsPage() {
       </section>
 
       <section className='grid gap-4'>
+        {products.length === 0 ? (
+          <Card className='space-y-3'>
+            <h2 className='text-xl font-semibold'>No API products yet</h2>
+            <p className='text-foreground/65 text-sm leading-6'>
+              Create a product to expose an external API through Tollora,
+              attach private provider credentials, set a MUSD price, and make
+              it available in the marketplace.
+            </p>
+            <Link
+              href='/provider/products/new'
+              className={buttonClasses({ size: 'sm' })}
+            >
+              Create product
+            </Link>
+          </Card>
+        ) : null}
         {products.map(product => (
           <Card
             key={product.slug}

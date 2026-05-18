@@ -5,20 +5,13 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CopyEndpointButton } from '@/features/marketplace/copy-endpoint-button'
-import {
-  getProductBySlug,
-  marketplaceProducts
-} from '@/features/marketplace/products'
+import { getProductBySlug } from '@/features/marketplace/products'
 import { productStatusLabels } from '@/features/marketplace/status'
 
 type ProviderProductPageProps = {
   params: Promise<{
     productId: string
   }>
-}
-
-export function generateStaticParams() {
-  return marketplaceProducts.map(product => ({ productId: product.slug }))
 }
 
 export default async function ProviderProductPage({
@@ -76,6 +69,11 @@ export default async function ProviderProductPage({
           <p className='font-mono text-sm break-words'>
             {product.endpointPath}
           </p>
+          {product.providerEndpointUrl ? (
+            <p className='text-foreground/65 text-sm break-words'>
+              Upstream: {product.providerEndpointUrl}
+            </p>
+          ) : null}
           <div className='grid gap-3 md:grid-cols-3'>
             <Link
               href={`/orders/new?product=${product.slug}`}

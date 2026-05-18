@@ -11,7 +11,7 @@ import type { ApiProduct } from '@/features/marketplace/products'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 
 type OrderCreateFormProps = {
-  product: ApiProduct
+  product: Pick<ApiProduct, 'slug' | 'referencePayload'>
 }
 
 export function OrderCreateForm({ product }: OrderCreateFormProps) {

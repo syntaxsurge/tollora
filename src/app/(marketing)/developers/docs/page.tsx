@@ -93,7 +93,7 @@ Content-Type: application/json
   "ownerWallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
   "budgetCapMusd": 20,
   "maxPaidActions": 3,
-  "allowedTools": ["prompt-enhancer-api", "document-summary-api", "market-snapshot-api"],
+  "allowedTools": ["cliplore-video-job-api"],
   "mode": "local"
 }`}
         </pre>
@@ -123,14 +123,14 @@ registerExactEvmScheme(client, { signer });
 
 const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 const response = await fetchWithPayment(
-  "https://your-tollora-domain.com/api/x402/products/prompt-enhancer-api/call",
+  "https://tollora.vercel.app/api/x402/products/cliplore-video-job-api/call",
   {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      prompt: "Write a launch post for Tollora.",
-      audience: "developers",
-      outputStyle: "concise"
+      prompt: "Create a product launch video.",
+      format: "portrait",
+      durationSeconds: 30
     })
   }
 );
@@ -158,14 +158,14 @@ Content-Type: application/json
   "settlementTxHash": "0x1111111111111111111111111111111111111111111111111111111111111111"
 }
 
-POST /api/credits/products/prompt-enhancer-api/call
+POST /api/credits/products/cliplore-video-job-api/call
 Authorization: Bearer tlr_your_api_key
 Content-Type: application/json
 
 {
-  "prompt": "Write a launch post for Tollora.",
-  "audience": "developers",
-  "outputStyle": "concise"
+  "prompt": "Create a product launch video.",
+  "format": "portrait",
+  "durationSeconds": 30
 }`}
         </pre>
       </Card>
@@ -179,16 +179,27 @@ Content-Type: application/json
 Content-Type: application/json
 
 {
-  "name": "Mezo Repository Metadata API",
-  "slug": "mezo-repository-metadata-api",
-  "category": "developer",
-  "priceUsd": 0.12,
-  "method": "GET",
-  "endpointUrl": "https://api.github.com/repos/mezo-org/mezod",
+  "name": "ClipLore Video Job API",
+  "slug": "cliplore-video-job-api",
+  "category": "media",
+  "priceUsd": 18,
+  "method": "POST",
+  "endpointUrl": "https://cliplore.ai/api/v1/video/jobs",
+  "authType": "bearer",
+  "authSecret": "provider_api_key",
+  "executionMode": "asynchronous",
+  "settlementModel": "pay_on_job_acceptance",
+  "resultDelivery": "poll_or_webhook",
+  "statusEndpointUrl": "https://cliplore.ai/api/v1/video/jobs/{externalJobId}",
+  "externalJobIdPath": "jobId",
+  "statusPath": "status",
+  "resultUrlPath": "resultUrl",
   "receivingWallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
-  "requestSchemaJson": "{\\"owner\\":\\"string\\",\\"repo\\":\\"string\\"}",
-  "responseSchemaJson": "{\\"fullName\\":\\"string\\",\\"stars\\":\\"number\\"}",
-  "status": "draft"
+  "requestSchemaJson": "{\\"prompt\\":\\"string\\",\\"format\\":\\"portrait | landscape | square\\"}",
+  "responseSchemaJson": "{\\"jobId\\":\\"string\\",\\"status\\":\\"string\\",\\"resultUrl\\":\\"string | undefined\\"}",
+  "referencePayloadJson": "{\\"prompt\\":\\"Create a product launch video.\\",\\"format\\":\\"portrait\\",\\"durationSeconds\\":30}",
+  "status": "published",
+  "isAgentReady": true
 }`}
         </pre>
       </Card>

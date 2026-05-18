@@ -42,6 +42,44 @@ export default defineSchema({
     priceLabel: v.string(),
     endpointUrl: v.string(),
     method: v.union(v.literal('GET'), v.literal('POST')),
+    estimatedLatency: v.optional(v.string()),
+    executionMode: v.optional(
+      v.union(v.literal('synchronous'), v.literal('asynchronous'))
+    ),
+    settlementModel: v.optional(
+      v.union(
+        v.literal('pay_on_successful_response'),
+        v.literal('pay_on_job_acceptance'),
+        v.literal('pay_to_claim_result')
+      )
+    ),
+    resultDelivery: v.optional(
+      v.union(
+        v.literal('direct_response'),
+        v.literal('poll_or_webhook'),
+        v.literal('claim_after_completion')
+      )
+    ),
+    authType: v.optional(
+      v.union(
+        v.literal('none'),
+        v.literal('bearer'),
+        v.literal('api_key_header'),
+        v.literal('api_key_query'),
+        v.literal('basic')
+      )
+    ),
+    authHeaderName: v.optional(v.string()),
+    authQueryParam: v.optional(v.string()),
+    authSecretName: v.optional(v.string()),
+    statusEndpointUrl: v.optional(v.string()),
+    statusMethod: v.optional(v.union(v.literal('GET'), v.literal('POST'))),
+    externalJobIdPath: v.optional(v.string()),
+    statusPath: v.optional(v.string()),
+    resultUrlPath: v.optional(v.string()),
+    errorMessagePath: v.optional(v.string()),
+    timeoutSeconds: v.optional(v.number()),
+    idempotencyHeader: v.optional(v.string()),
     requestSchemaJson: v.string(),
     responseSchemaJson: v.string(),
     demoPayloadJson: v.optional(v.string()),

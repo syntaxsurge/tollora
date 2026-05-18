@@ -71,7 +71,12 @@ export default async function NewOrderPage({
             <p className='mt-2 font-semibold'>{product.providerName}</p>
           </div>
         </Card>
-        <OrderCreateForm product={product} />
+        <OrderCreateForm
+          product={{
+            slug: product.slug,
+            referencePayload: product.referencePayload
+          }}
+        />
       </section>
 
       <div className='flex flex-col gap-3 sm:flex-row'>

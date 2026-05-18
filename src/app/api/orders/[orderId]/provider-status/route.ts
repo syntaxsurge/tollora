@@ -39,7 +39,10 @@ export async function GET(
     )
   }
 
-  const providerResult = await adapter.getStatus(order.externalJobId)
+  const providerResult = await adapter.getStatus(
+    order.externalJobId,
+    order.productSlug
+  )
   const nextOrder = updateMarketplaceOrder(order.id, {
     status: providerResult.status,
     externalJobId: providerResult.externalJobId ?? order.externalJobId,

@@ -18,11 +18,7 @@ export type AgentActionStatus =
 
 export type AgentRunMode = 'local' | 'production'
 
-export type AgentToolSlug =
-  | 'prompt-enhancer-api'
-  | 'document-summary-api'
-  | 'market-snapshot-api'
-  | 'cliplore-ai-video-generator'
+export type AgentToolSlug = string
 
 export type AgentAction = {
   id: string

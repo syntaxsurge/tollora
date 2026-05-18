@@ -43,13 +43,13 @@ pnpm build
 - `POST /api/agents/runs/[runId]/attest` returns a proof with a Mezo explorer
   link.
 - `GET /api/proofs/[proofId]` returns the public proof package.
-- `POST /api/x402/products/prompt-enhancer-api/call` without `X-PAYMENT` returns
-  HTTP 402 and a `payment-required` header.
+- `POST /api/x402/products/{published-product-slug}/call` without `X-PAYMENT`
+  returns HTTP 402 and a `payment-required` header.
 - Browser Run & Pay signs a marketplace request from a connected wallet and
   returns a receipt after settlement.
 - `POST /api/credits/accounts`, `POST /api/credits/top-ups`, and
-  `POST /api/credits/products/prompt-enhancer-api/call` support managed API-key
-  credits.
+  `POST /api/credits/products/{published-product-slug}/call` support managed
+  API-key credits.
 - `POST /api/provider-webhooks/cliplore` accepts a valid ClipLore job status
   payload.
 - `/marketplace` shows published API products.

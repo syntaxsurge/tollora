@@ -77,11 +77,11 @@ need to clone this repository to use Tollora APIs; they install the x402 buyer
 SDK in their own backend, CLI, or agent and call the hosted Tollora product
 endpoint.
 
-For local repository smoke tests, set `AGENT_SPENDER_PRIVATE_KEY` or
-`EVM_PRIVATE_KEY` to a Mezo-funded MUSD wallet and run:
+After publishing a provider product, set `AGENT_SPENDER_PRIVATE_KEY` or
+`EVM_PRIVATE_KEY` to a Mezo-funded MUSD wallet and run the hosted product slug:
 
 ```bash
-pnpm x402:call prompt-enhancer-api
+pnpm x402:call cliplore-video-job-api
 ```
 
 The command uses `@x402/fetch` to sign the payment, retry the request, and print
