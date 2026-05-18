@@ -33,7 +33,7 @@ export function AppSidebar() {
                 className={cn(
                   'rounded-md px-3 py-3 transition duration-200',
                   isActive
-                    ? 'brand-gradient text-primary-foreground shadow-sm'
+                    ? 'border border-primary/25 bg-primary text-primary-foreground shadow-sm'
                     : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >
@@ -43,7 +43,9 @@ export function AppSidebar() {
                 <span
                   className={cn(
                     'mt-1 block text-xs leading-5',
-                    isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                    isActive
+                      ? 'text-primary-foreground/85'
+                      : 'text-muted-foreground'
                   )}
                 >
                   {item.description}

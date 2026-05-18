@@ -36,7 +36,7 @@ function WalletCheckingButton({
       className={buttonClasses({
         variant,
         size: 'md',
-        className: `brand-flame-gradient shadow-brand-orange/25 min-w-[11rem] px-5 whitespace-nowrap text-slate-950 shadow-sm ${className ?? ''}`
+        className: `border-accent/40 bg-accent text-accent-foreground shadow-brand-cyan/20 min-w-[11rem] px-5 whitespace-nowrap shadow-sm hover:bg-accent/90 ${className ?? ''}`
       })}
       disabled
     >

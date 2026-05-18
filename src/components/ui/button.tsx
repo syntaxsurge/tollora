@@ -16,7 +16,7 @@ const baseStyles =
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'button-primary-gradient shadow-sm shadow-brand-blue/20 hover:translate-y-[-1px] hover:shadow-md hover:shadow-brand-orange/25 active:translate-y-0 active:shadow-sm',
+    'bg-primary text-primary-foreground shadow-sm shadow-brand-blue/20 hover:bg-primary/90 hover:translate-y-[-1px] hover:shadow-md hover:shadow-brand-blue/25 active:translate-y-0 active:shadow-sm',
   outline:
     'border border-border bg-card/80 text-foreground shadow-sm hover:border-brand-cyan/70 hover:bg-accent/10',
   ghost: 'text-foreground hover:bg-accent/10 hover:text-primary'
