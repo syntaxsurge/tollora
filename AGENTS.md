@@ -508,8 +508,9 @@ Before creating a new helper or service file:
   anchor, and Use in agent run entry point.
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, connected buyer wallet, and a schema-driven request builder that
-  generates validated fields from the product request schema while keeping an
-  advanced JSON preview before a payable API request is created.
+  generates validated fields from the product request schema, respects explicit
+  required/optional markers from imported OpenAPI schemas, and keeps an advanced
+  JSON preview before a payable API request is created.
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.
@@ -531,7 +532,8 @@ Before creating a new helper or service file:
   detects operation-level or document-level security schemes, credit fields such
   as `estimatedCredits`, and 202 Accepted job operations, links async
   job-creation operations to matching status endpoints from the imported spec,
-  and marks required provider auth and polling fields accurately.
+  marks required provider auth and polling fields accurately, and preserves
+  OpenAPI request-body required/optional field metadata for provider test runs.
 - `/provider/products/[productId]` is the provider API management workspace. It
   shows lifecycle controls for publishing, pausing, and returning products to
   draft, a launch checklist, payable schema-driven test runs, gateway endpoint

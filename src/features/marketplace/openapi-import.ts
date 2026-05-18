@@ -573,18 +573,22 @@ function schemaToFieldMap(schema: unknown) {
     return {}
   }
 
-  return flattenSchemaFields(properties)
+  return flattenSchemaFields(properties, '', readRequiredFields(schema))
 }
 
 function flattenSchemaFields(
   properties: Record<string, unknown>,
-  prefix = ''
+  prefix = '',
+  requiredFields = new Set<string>()
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(properties).flatMap(([key, value]) => {
       const path = prefix ? `${prefix}.${key}` : key
       const nestedProperties = readSchemaProperties(value)
-      const field = [[path, describeSchemaField(value)]]
+      const nestedRequiredFields = readRequiredFields(value)
+      const field = [
+        [path, describeSchemaField(value, requiredFields.has(key))]
+      ]
 
       if (!nestedProperties) {
         return field
@@ -592,7 +596,9 @@ function flattenSchemaFields(
 
       return [
         ...field,
-        ...Object.entries(flattenSchemaFields(nestedProperties, path))
+        ...Object.entries(
+          flattenSchemaFields(nestedProperties, path, nestedRequiredFields)
+        )
       ]
     })
   )
@@ -621,9 +627,25 @@ function readSchemaProperties(schema: unknown) {
   return (schema as { properties?: Record<string, unknown> }).properties ?? null
 }
 
-function describeSchemaField(schema: unknown): string {
+function readRequiredFields(schema: unknown) {
   if (!schema || typeof schema !== 'object') {
-    return 'unknown'
+    return new Set<string>()
+  }
+
+  const required = (schema as { required?: unknown }).required
+
+  if (!Array.isArray(required)) {
+    return new Set<string>()
+  }
+
+  return new Set(
+    required.filter((field): field is string => typeof field === 'string')
+  )
+}
+
+function describeSchemaField(schema: unknown, required: boolean): string {
+  if (!schema || typeof schema !== 'object') {
+    return required ? 'unknown (required)' : 'unknown (optional)'
   }
 
   const field = schema as {
@@ -634,15 +656,17 @@ function describeSchemaField(schema: unknown): string {
     nullable?: boolean
   }
 
+  const requirement = required ? 'required' : 'optional'
+
   if (field.enum?.length) {
-    return field.enum.map(item => JSON.stringify(item)).join(' | ')
+    return `${field.enum.map(item => JSON.stringify(item)).join(' | ')} (${requirement})`
   }
 
   if (field.type === 'array') {
-    return `${field.items?.type ?? 'unknown'}[]`
+    return `${field.items?.type ?? 'unknown'}[] (${requirement})`
   }
 
-  return [field.type ?? 'object', field.format].filter(Boolean).join(':')
+  return `${[field.type ?? 'object', field.format].filter(Boolean).join(':')} (${requirement})`
 }
 
 function exampleValueForSchema(schema: unknown): unknown {

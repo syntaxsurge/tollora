@@ -430,7 +430,11 @@ function validateBuyerWallet(value: string) {
 }
 
 function isRequiredField(typeLabel: string) {
-  return !/undefined|optional|null/i.test(typeLabel)
+  if (/undefined|optional|null/i.test(typeLabel)) {
+    return false
+  }
+
+  return /\brequired\b/i.test(typeLabel)
 }
 
 function getUnionOptions(typeLabel: string) {
@@ -438,10 +442,14 @@ function getUnionOptions(typeLabel: string) {
     return []
   }
 
-  return typeLabel
+  return stripRequirementLabel(typeLabel)
     .split('|')
     .map(option => option.trim().replace(/^['"]|['"]$/g, ''))
     .filter(option => !/undefined|optional|null/i.test(option))
+}
+
+function stripRequirementLabel(typeLabel: string) {
+  return typeLabel.replace(/\s*\((required|optional)\)\s*$/i, '')
 }
 
 function humanizeFieldName(value: string) {
