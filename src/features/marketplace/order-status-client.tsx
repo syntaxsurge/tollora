@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { decodePaymentRequiredHeader as decodeX402PaymentRequiredHeader } from '@x402/core/http'
 import {
@@ -142,6 +142,13 @@ const musdBalanceAbi = parseAbi([
   'function balanceOf(address owner) view returns (uint256)'
 ])
 const MUSD_DECIMALS = 18
+const ASYNC_JOB_POLL_INTERVAL_MS = 8000
+const asyncJobTerminalStatuses = new Set<MarketplaceOrder['status']>([
+  'completed',
+  'failed',
+  'expired',
+  'delta_payment_required'
+])
 
 const mezoPublicClient = createPublicClient({
   chain: defaultAppChain.viemChain,
@@ -255,6 +262,7 @@ function OrderStatusContent({
   const [isPaying, setIsPaying] = useState(false)
   const [isPolling, setIsPolling] = useState(false)
   const [isClaiming, setIsClaiming] = useState(false)
+  const pollInFlightRef = useRef(false)
 
   useEffect(() => {
     if (order) {
@@ -267,6 +275,19 @@ function OrderStatusContent({
       setOrder(JSON.parse(saved) as MarketplaceOrder)
     }
   }, [order, orderId])
+
+  useEffect(() => {
+    if (!order?.externalJobId || asyncJobTerminalStatuses.has(order.status)) {
+      return
+    }
+
+    void pollProviderStatus()
+    const interval = window.setInterval(() => {
+      void pollProviderStatus()
+    }, ASYNC_JOB_POLL_INTERVAL_MS)
+
+    return () => window.clearInterval(interval)
+  }, [order?.externalJobId, order?.id, order?.status])
 
   async function inspectPaymentRequirement() {
     if (!order) {
@@ -625,6 +646,11 @@ function OrderStatusContent({
       return
     }
 
+    if (pollInFlightRef.current) {
+      return
+    }
+
+    pollInFlightRef.current = true
     setIsPolling(true)
     setStatus('Checking provider job status.')
 
@@ -660,6 +686,7 @@ function OrderStatusContent({
           : 'Unable to refresh provider job status.'
       )
     } finally {
+      pollInFlightRef.current = false
       setIsPolling(false)
     }
   }
@@ -1167,7 +1194,10 @@ function ProviderResponsePanel({
               </>
             )}
           </Button>
-          <p className='text-foreground/60 text-sm'>Refresh async job state.</p>
+          <p className='text-foreground/60 text-sm'>
+            Auto-refreshes every {ASYNC_JOB_POLL_INTERVAL_MS / 1000}s until the
+            job finishes.
+          </p>
         </div>
       ) : null}
 

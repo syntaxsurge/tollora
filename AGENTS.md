@@ -569,16 +569,17 @@ Before creating a new helper or service file:
   failure guidance from the x402 facilitator, show payment failures as dedicated
   alert cards with copyable error text, keep long explanations inside
   collapsible details, separate direct API responses from async provider jobs,
-  poll provider status when an order has an external job ID, keep 402 inspection
-  as a diagnostic action, persist receipt metadata in browser session storage,
-  show quote/reservation/final usage amounts for credit-metered calls, claim
-  metered deltas through x402 before revealing locked results, show escrow
-  reserve/release/refund transaction links when a credit-metered async payment
-  uses escrow, and link to the settlement receipt and Mezo explorer transaction.
-  Draft products stay hidden from public marketplace usage but can be tested
-  through provider management by creating provider-test order records; locally
-  persisted draft listings created before owner metadata exists can still be
-  tested through matching order records.
+  automatically poll provider status when an order has an external job ID, keep
+  manual polling available, keep 402 inspection as a diagnostic action, persist
+  receipt metadata in browser session storage, show quote/reservation/final
+  usage amounts for credit-metered calls, claim metered deltas through x402
+  before revealing locked results, show escrow reserve/release/refund
+  transaction links when a credit-metered async payment uses escrow, and link to
+  the settlement receipt and Mezo explorer transaction. Draft products stay
+  hidden from public marketplace usage but can be tested through provider
+  management by creating provider-test order records; locally persisted draft
+  listings created before owner metadata exists can still be tested through
+  matching order records.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
