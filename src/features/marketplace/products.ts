@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
 export type ApiProductCategory =
   | 'ai'
   | 'data'
@@ -91,11 +94,17 @@ export type ApiProduct = {
 const globalForMarketplaceProducts = globalThis as typeof globalThis & {
   __tolloraProviderProducts?: ApiProduct[]
 }
+const providerProductsStorePath = join(
+  process.cwd(),
+  '.tollora',
+  'provider-products.json'
+)
 
 export const marketplaceProducts: ApiProduct[] = []
 
 export const providerCreatedProducts =
-  globalForMarketplaceProducts.__tolloraProviderProducts ?? []
+  globalForMarketplaceProducts.__tolloraProviderProducts ??
+  readProviderProducts()
 
 globalForMarketplaceProducts.__tolloraProviderProducts = providerCreatedProducts
 
@@ -122,10 +131,12 @@ export function recordProviderProduct(product: ApiProduct) {
 
   if (existingIndex >= 0) {
     providerCreatedProducts[existingIndex] = product
+    persistProviderProducts(providerCreatedProducts)
     return product
   }
 
   providerCreatedProducts.unshift(product)
+  persistProviderProducts(providerCreatedProducts)
 
   return product
 }
@@ -162,4 +173,53 @@ export function getMarketplaceMetrics() {
     platformFeeBps: 500,
     providerShareBps: 9500
   }
+}
+
+function readProviderProducts() {
+  if (!existsSync(providerProductsStorePath)) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(
+      readFileSync(providerProductsStorePath, 'utf8')
+    ) as unknown
+
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter(isApiProduct)
+  } catch {
+    return []
+  }
+}
+
+function persistProviderProducts(products: ApiProduct[]) {
+  try {
+    mkdirSync(dirname(providerProductsStorePath), { recursive: true })
+    writeFileSync(
+      providerProductsStorePath,
+      `${JSON.stringify(products, null, 2)}\n`
+    )
+  } catch {
+    // Runtime persistence is best-effort for local demos; the in-memory catalog
+    // remains available for the current process if the filesystem is read-only.
+  }
+}
+
+function isApiProduct(value: unknown): value is ApiProduct {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const product = value as Partial<ApiProduct>
+
+  return (
+    typeof product.slug === 'string' &&
+    typeof product.name === 'string' &&
+    typeof product.providerName === 'string' &&
+    typeof product.endpointPath === 'string' &&
+    ['draft', 'published', 'paused'].includes(String(product.status))
+  )
 }

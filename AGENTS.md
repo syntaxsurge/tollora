@@ -476,6 +476,9 @@ Before creating a new helper or service file:
   schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
   and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
+  Provider-created listings are persisted to the workspace-local
+  `.tollora/provider-products.json` catalog so draft, paused, and published
+  products remain manageable across local server restarts.
 - Autonomous Launch Pack Agent models, run storage, paid action execution, proof
   hashing, status labels, and UI clients live in `src/features/agents`.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
