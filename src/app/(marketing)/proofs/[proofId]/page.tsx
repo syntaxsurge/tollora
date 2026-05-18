@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -107,9 +108,12 @@ export default async function ProofPage({ params }: ProofPageProps) {
           <p className='text-foreground/70 mt-3 text-sm leading-6'>
             {run.summary}
           </p>
-          <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-            {JSON.stringify(run.deliverables, null, 2)}
-          </pre>
+          <JsonViewer
+            title='Public deliverables JSON'
+            value={run.deliverables}
+            className='mt-4'
+            copyLabel='Copy deliverables'
+          />
         </Card>
       ) : null}
     </div>

@@ -31,6 +31,7 @@ import { useActiveAccount } from 'thirdweb/react'
 import { createPublicClient, formatUnits, http, parseAbi } from 'viem'
 import { useWalletClient } from 'wagmi'
 
+import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -1308,14 +1309,12 @@ function ProviderResponsePanel({
       ) : null}
 
       {hasResponse ? (
-        <details open className='border-foreground/10 rounded-lg border p-4'>
-          <summary className='cursor-pointer text-sm font-semibold'>
-            Response JSON
-          </summary>
-          <pre className='bg-muted mt-4 max-h-[32rem] overflow-auto rounded-lg p-4 text-sm leading-6 whitespace-pre-wrap'>
-            {JSON.stringify(order.responsePayload, null, 2)}
-          </pre>
-        </details>
+        <JsonViewer
+          title='Response JSON'
+          value={order.responsePayload}
+          maxHeightClassName='max-h-[32rem]'
+          copyLabel='Copy response'
+        />
       ) : (
         <div className='border-foreground/10 bg-background/40 flex items-center gap-3 rounded-lg border p-4 text-sm'>
           <FileJson className='text-foreground/45 h-5 w-5' aria-hidden />
@@ -1548,14 +1547,13 @@ function PaymentRequirementCard({
           <SummaryTile label='Pay to' value={requirement.payTo} />
         </div>
       ) : null}
-      <details className='border-foreground/10 rounded-lg border p-4'>
-        <summary className='cursor-pointer text-sm font-semibold'>
-          Raw x402 requirement JSON
-        </summary>
-        <pre className='bg-muted mt-4 max-h-80 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {JSON.stringify(inspection, null, 2)}
-        </pre>
-      </details>
+      <JsonViewer
+        title='Raw x402 requirement JSON'
+        value={inspection}
+        defaultOpen={false}
+        maxHeightClassName='max-h-80'
+        copyLabel='Copy x402 JSON'
+      />
     </Card>
   )
 }

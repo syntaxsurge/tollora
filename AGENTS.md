@@ -467,6 +467,10 @@ Before creating a new helper or service file:
   escrow deploy script prints `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`.
 - Shared UI primitives in `src/components/ui` and layout shells in
   `src/components/layout`.
+- Shared JSON rendering lives in `src/components/data-display/json-viewer.tsx`
+  with default copy support, collapsible diagnostics, and nested JSON string
+  normalization for provider responses, request previews, agent deliverables,
+  and public proof payloads.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, marketplace search, profile
   access, theme controls, wallet controls, and public navigation. The header

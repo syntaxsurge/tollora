@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -204,15 +205,11 @@ console.log({ body, payment });`
 
       <section className='grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
         <Card className='min-w-0'>
-          <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Reference request body
-            </p>
-            <CopyTextButton text={requestPayload} label='Copy JSON' />
-          </div>
-          <pre className='bg-muted mt-4 max-w-full overflow-x-auto rounded-lg p-4 text-xs leading-6 break-words whitespace-pre-wrap'>
-            {requestPayload}
-          </pre>
+          <JsonViewer
+            title='Reference request body'
+            value={product.referencePayload}
+            copyLabel='Copy JSON'
+          />
         </Card>
         <Card id='use-from-code' className='min-w-0 scroll-mt-28 space-y-5'>
           <div className='space-y-2'>

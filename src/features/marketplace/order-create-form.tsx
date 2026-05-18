@@ -4,11 +4,11 @@ import { FormEvent, useMemo, useState } from 'react'
 
 import { useRouter } from 'nextjs-toploader/app'
 
+import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
-import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
 import type { ApiProduct } from '@/features/marketplace/products'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { cn } from '@/lib/utils/cn'
@@ -262,14 +262,13 @@ function OrderCreateFormFields({
           </label>
         )}
 
-        <details className='border-border/80 bg-background/40 rounded-lg border p-4'>
-          <summary className='cursor-pointer text-sm font-semibold'>
-            JSON request preview
-          </summary>
-          <pre className='bg-muted mt-4 max-h-80 overflow-auto rounded-lg p-4 text-xs leading-6 whitespace-pre-wrap'>
-            {requestPayloadJson}
-          </pre>
-        </details>
+        <JsonViewer
+          title='JSON request preview'
+          value={requestPayloadJson}
+          defaultOpen={false}
+          maxHeightClassName='max-h-80'
+          copyLabel='Copy request JSON'
+        />
       </Card>
 
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
@@ -305,8 +304,6 @@ function RequestFailurePanel({
     ? `${debug.response.status} ${debug.response.statusText || ''}`.trim()
     : 'Client validation'
   const providerMessage = getReadableDebugMessage(debug, message)
-  const debugJson = JSON.stringify(debug, null, 2)
-
   return (
     <Card className='space-y-4 border-red-500/30 bg-red-500/5'>
       <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
@@ -326,21 +323,13 @@ function RequestFailurePanel({
         </span>
       </div>
 
-      <details className='border-border/80 bg-background/70 rounded-lg border p-4'>
-        <summary className='cursor-pointer text-sm font-semibold'>
-          View full request and response JSON
-        </summary>
-        <div className='mt-4 flex justify-end'>
-          <CopyTextButton
-            text={debugJson}
-            label='Copy error JSON'
-            copiedLabel='Copied error'
-          />
-        </div>
-        <pre className='bg-muted mt-4 max-h-96 overflow-auto rounded-lg p-4 text-xs leading-6 whitespace-pre-wrap'>
-          {debugJson}
-        </pre>
-      </details>
+      <JsonViewer
+        title='View full request and response JSON'
+        value={debug}
+        defaultOpen={false}
+        copyLabel='Copy error JSON'
+        copiedLabel='Copied error'
+      />
     </Card>
   )
 }

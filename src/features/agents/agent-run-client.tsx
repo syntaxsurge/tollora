@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
+import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -230,12 +231,11 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
         ))}
       </section>
       <Card className='space-y-4'>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Deliverables
-        </p>
-        <pre className='bg-muted overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {JSON.stringify(run.deliverables, null, 2)}
-        </pre>
+        <JsonViewer
+          title='Deliverables'
+          value={run.deliverables}
+          copyLabel='Copy deliverables'
+        />
       </Card>
     </div>
   )
