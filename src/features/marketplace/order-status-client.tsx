@@ -128,6 +128,16 @@ type PaidApiErrorBody = {
   }
 }
 
+type PaidProductCallBody = PaidApiErrorBody & {
+  data?: unknown
+  order?: Partial<MarketplaceOrder>
+  receipt?: MarketplaceReceipt
+  x402?: {
+    transaction?: string
+    network?: string
+  }
+}
+
 const musdBalanceAbi = parseAbi([
   'function balanceOf(address owner) view returns (uint256)'
 ])
@@ -423,35 +433,66 @@ function OrderStatusContent({
       })
       const httpClient = new x402HTTPClient(client)
       const fetchWithPayment = wrapFetchWithPayment(fetch, httpClient)
-      const response = await fetchWithPayment(
-        `/api/x402/products/${order.productSlug}/call`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-Tollora-Order-Id': order.id
-          },
-          body: order.requestPayloadJson ?? '{}'
+      let response: Response | null = null
+      let paymentResult: x402PaymentResult | null = null
+      let body: PaidProductCallBody | null = null
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        updateWalletStep('signature', {
+          status: 'active',
+          detail:
+            attempt === 0
+              ? 'Confirm the x402 MUSD payment signature in your wallet.'
+              : 'Retrying after approval confirmation.'
+        })
+
+        response = await fetchWithPayment(
+          `/api/x402/products/${order.productSlug}/call`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              'X-Tollora-Order-Id': order.id
+            },
+            body: order.requestPayloadJson ?? '{}'
+          }
+        )
+        paymentResult = await httpClient
+          .processResponse(response.clone())
+          .catch(() => null)
+        body = (await readResponseBody(response)) as PaidProductCallBody
+
+        if (
+          attempt === 0 &&
+          isPermit2AllowanceError(response, body, paymentResult)
+        ) {
+          const refreshedRequirement =
+            decodePaymentRequiredHeader(response) ??
+            initialRequirement?.paymentRequired
+
+          if (!refreshedRequirement) {
+            break
+          }
+
+          setStatus(
+            'MUSD approval is confirmed, but the payment retry still needs a refreshed allowance check.'
+          )
+          await sleep(2500)
+          await ensurePermit2Allowance(
+            refreshedRequirement,
+            walletControls,
+            message => setStatus(message),
+            updateWalletStep
+          )
+          continue
         }
-      )
-      const paymentResult = await httpClient
-        .processResponse(response.clone())
-        .catch(() => null)
-      const body = (await readResponseBody(response)) as {
-        error?: string
-        message?: string
-        reason?: string
-        guidance?: string
-        details?: unknown
-        settlement?: PaidApiErrorBody['settlement']
-        data?: unknown
-        order?: Partial<MarketplaceOrder>
-        receipt?: MarketplaceReceipt
-        x402?: {
-          transaction?: string
-          network?: string
-        }
+
+        break
+      }
+
+      if (!response || !body) {
+        throw new Error('Unable to run the paid API request.')
       }
 
       if (response.status === 402) {
@@ -1468,6 +1509,33 @@ function isPaidApiErrorBody(value: unknown): value is PaidApiErrorBody {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+function isPermit2AllowanceError(
+  response: Response,
+  body: PaidApiErrorBody,
+  paymentResult: x402PaymentResult | null
+) {
+  const paymentRequired = decodePaymentRequiredHeader(response)
+  const text = [
+    body.error,
+    body.message,
+    body.reason,
+    paymentRequired?.error,
+    paymentResult?.kind === 'payment_required'
+      ? paymentResult.paymentRequired.error
+      : undefined
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  return (
+    response.status === 412 ||
+    paymentRequired?.error === 'permit2_allowance_required' ||
+    text.includes('permit2') ||
+    text.includes('allowance')
+  )
+}
+
 function summarizeStepError(message: string) {
   if (/not found|404/i.test(message)) {
     return 'Product access blocked'
@@ -1482,6 +1550,10 @@ function summarizeStepError(message: string) {
   }
 
   return 'Needs attention'
+}
+
+function sleep(milliseconds: number) {
+  return new Promise(resolve => window.setTimeout(resolve, milliseconds))
 }
 
 async function requestPaymentRequirement(order: MarketplaceOrder) {
@@ -1651,10 +1723,52 @@ async function ensurePermit2Allowance(
   }
 
   onStep('allowance', {
+    status: 'active',
+    detail: 'Waiting for MUSD allowance to update.',
+    txHash: transactionHash
+  })
+  onStatus('Confirming the new MUSD Permit2 allowance is readable.')
+
+  await waitForPermit2Allowance({
+    tokenAddress,
+    ownerAddress: walletControls.signer.address,
+    requiredAmount
+  })
+
+  onStep('allowance', {
     status: 'complete',
     detail: 'MUSD Permit2 approval confirmed on Mezo.',
     txHash: transactionHash
   })
+}
+
+async function waitForPermit2Allowance({
+  tokenAddress,
+  ownerAddress,
+  requiredAmount
+}: {
+  tokenAddress: `0x${string}`
+  ownerAddress: `0x${string}`
+  requiredAmount: bigint
+}) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const allowance = await mezoPublicClient.readContract(
+      getPermit2AllowanceReadParams({
+        tokenAddress,
+        ownerAddress
+      })
+    )
+
+    if (allowance >= requiredAmount) {
+      return
+    }
+
+    await sleep(1500)
+  }
+
+  throw new Error(
+    'MUSD Permit2 approval was submitted, but the updated allowance is not readable yet. Wait a moment, then run with wallet again.'
+  )
 }
 
 function getPermit2Requirement(paymentRequired: PaymentRequired) {

@@ -559,20 +559,22 @@ Before creating a new helper or service file:
   `src/features/marketplace/status.ts`; order detail pages sign x402 MUSD
   payments with the connected browser wallet, check and submit the required Mezo
   MUSD Permit2 allowance transaction when needed, verify MUSD balance before
-  asking for payment signatures, retry the product call, display step-by-step
-  wallet progress as a compact icon timeline with explorer links for submitted
-  transactions, surface settlement failure guidance from the x402 facilitator,
-  show payment failures as dedicated alert cards with copyable error text, keep
-  long explanations inside collapsible details, separate direct API responses
-  from async provider jobs, poll provider status when an order has an external
-  job ID, keep 402 inspection as a diagnostic action, persist receipt metadata
-  in browser session storage, show quote/reservation/final usage amounts for
-  credit-metered calls, claim metered deltas through x402 before revealing
-  locked results, and link to the settlement receipt and Mezo explorer
-  transaction. Draft products stay hidden from public marketplace usage but can
-  be tested through provider management by creating provider-test order records;
-  locally persisted draft listings created before owner metadata exists can
-  still be tested through matching order records.
+  asking for payment signatures, wait for the approval receipt and readable
+  allowance, retry once when x402 still reports an allowance precondition, retry
+  the product call, display step-by-step wallet progress as a compact icon
+  timeline with explorer links for submitted transactions, surface settlement
+  failure guidance from the x402 facilitator, show payment failures as dedicated
+  alert cards with copyable error text, keep long explanations inside
+  collapsible details, separate direct API responses from async provider jobs,
+  poll provider status when an order has an external job ID, keep 402 inspection
+  as a diagnostic action, persist receipt metadata in browser session storage,
+  show quote/reservation/final usage amounts for credit-metered calls, claim
+  metered deltas through x402 before revealing locked results, and link to the
+  settlement receipt and Mezo explorer transaction. Draft products stay hidden
+  from public marketplace usage but can be tested through provider management by
+  creating provider-test order records; locally persisted draft listings created
+  before owner metadata exists can still be tested through matching order
+  records.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
