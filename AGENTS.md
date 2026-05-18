@@ -509,10 +509,12 @@ Before creating a new helper or service file:
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, connected buyer wallet, and a schema-driven request builder that
   generates validated fields from the product request schema, respects explicit
-  required/optional markers from imported OpenAPI schemas, and keeps an advanced
-  JSON preview before a payable API request is created. Failed preparation
-  attempts render the complete request/response payload so provider quote,
-  validation, and pricing errors are visible during integration testing.
+  required/optional markers from imported OpenAPI schemas, coerces arrays,
+  objects, numbers, booleans, and URLs before quote requests, and keeps an
+  advanced JSON preview before a payable API request is created. Failed
+  preparation attempts show a compact readable error plus an expandable complete
+  request/response payload so provider quote, validation, and pricing errors are
+  visible during integration testing without cluttering the page.
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.

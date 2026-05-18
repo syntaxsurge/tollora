@@ -136,7 +136,10 @@ function OrderCreateFormFields({
         request: {
           method: 'POST',
           url: '/api/orders',
-          body: requestBody
+          body: {
+            ...requestBody,
+            parsedRequestPayload: requestPayload
+          }
         },
         response: {
           ok: response.ok,
@@ -260,28 +263,58 @@ function OrderCreateFormFields({
           {isSubmitting ? 'Preparing request' : 'Create payable test run'}
         </Button>
         {error ? (
-          <p className='text-sm text-red-600' role='alert'>
-            {error}
+          <p className='text-sm font-semibold text-red-600' role='alert'>
+            Request failed. Open the response details below.
           </p>
         ) : null}
       </div>
       {responseDebug ? (
-        <Card className='space-y-3 border-red-500/30 bg-red-500/5'>
-          <div>
-            <p className='text-xs tracking-[0.16em] text-red-600 uppercase dark:text-red-300'>
-              Full request response
-            </p>
-            <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              This is the complete response Tollora received while preparing the
-              payable request.
-            </p>
-          </div>
-          <pre className='bg-background/80 border-border max-h-[32rem] overflow-auto rounded-lg border p-4 text-xs leading-6 whitespace-pre-wrap'>
-            {JSON.stringify(responseDebug, null, 2)}
-          </pre>
-        </Card>
+        <RequestFailurePanel debug={responseDebug} message={error} />
       ) : null}
     </form>
+  )
+}
+
+function RequestFailurePanel({
+  debug,
+  message
+}: {
+  debug: ApiResponseDebug
+  message: string
+}) {
+  const status = debug.response
+    ? `${debug.response.status} ${debug.response.statusText || ''}`.trim()
+    : 'Client validation'
+  const providerMessage = getReadableDebugMessage(debug, message)
+
+  return (
+    <Card className='space-y-4 border-red-500/30 bg-red-500/5'>
+      <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
+        <div className='space-y-2'>
+          <p className='text-xs tracking-[0.16em] text-red-600 uppercase dark:text-red-300'>
+            Request failed
+          </p>
+          <h3 className='text-xl font-semibold'>
+            Pricing request was rejected
+          </h3>
+          <p className='text-foreground/75 max-w-4xl text-sm leading-6'>
+            {providerMessage}
+          </p>
+        </div>
+        <span className='w-fit rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-sm font-semibold text-red-700 dark:text-red-200'>
+          {status}
+        </span>
+      </div>
+
+      <details className='border-border/80 bg-background/70 rounded-lg border p-4'>
+        <summary className='cursor-pointer text-sm font-semibold'>
+          View full request and response JSON
+        </summary>
+        <pre className='bg-muted mt-4 max-h-96 overflow-auto rounded-lg p-4 text-xs leading-6 whitespace-pre-wrap'>
+          {JSON.stringify(debug, null, 2)}
+        </pre>
+      </details>
+    </Card>
   )
 }
 
@@ -307,12 +340,14 @@ function RequestSchemaField({
     lowerType.includes('integer') ||
     lowerType.includes('float')
   const isUrl = lowerName.includes('url') || lowerType.includes('url')
+  const isArray = isArrayType(lowerType)
   const isLongText =
     lowerName.includes('prompt') ||
     lowerName.includes('script') ||
     lowerName.includes('summary') ||
     lowerName.includes('description') ||
     lowerName.includes('context') ||
+    isArray ||
     lowerType.includes('object') ||
     lowerType.includes('array') ||
     lowerType.includes('json')
@@ -420,6 +455,7 @@ function coerceFieldValue(
   const lowerType = typeLabel.toLowerCase()
   const lowerName = fieldName.toLowerCase()
   const required = isRequiredField(typeLabel)
+  const isArray = isArrayType(lowerType)
 
   if (value === undefined || value === '') {
     if (required) {
@@ -431,6 +467,12 @@ function coerceFieldValue(
 
   if (typeof value === 'boolean') {
     return value
+  }
+
+  if (isArray) {
+    const parsed = parseArrayValue(value, fieldName)
+
+    return parsed
   }
 
   if (
@@ -504,6 +546,91 @@ function getResponseErrorMessage(value: { error?: string; message?: string }) {
   return value.error ?? value.message
 }
 
+function getReadableDebugMessage(debug: ApiResponseDebug, fallback: string) {
+  const responseBody = debug.response?.body
+
+  if (responseBody && typeof responseBody === 'object') {
+    const body = responseBody as Record<string, unknown>
+    const nestedError = body.error
+
+    if (nestedError && typeof nestedError === 'object') {
+      const nestedMessage = (nestedError as Record<string, unknown>).message
+
+      if (typeof nestedMessage === 'string') {
+        return nestedMessage
+      }
+    }
+
+    if (typeof body.message === 'string') {
+      return extractProviderMessage(body.message) ?? body.message
+    }
+
+    if (typeof body.error === 'string') {
+      return body.error
+    }
+  }
+
+  return fallback || debug.error || 'Unable to prepare the payable request.'
+}
+
+function extractProviderMessage(value: string) {
+  const marker = 'Response body:'
+  const markerIndex = value.indexOf(marker)
+
+  if (markerIndex < 0) {
+    return null
+  }
+
+  const bodyText = value.slice(markerIndex + marker.length).trim()
+
+  try {
+    const body = JSON.parse(bodyText) as unknown
+
+    if (body && typeof body === 'object') {
+      const error = (body as Record<string, unknown>).error
+
+      if (error && typeof error === 'object') {
+        const message = (error as Record<string, unknown>).message
+
+        if (typeof message === 'string') {
+          return message
+        }
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function parseArrayValue(value: string, fieldName: string) {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return []
+  }
+
+  if (!trimmed.startsWith('[')) {
+    return trimmed
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown
+
+    if (!Array.isArray(parsed)) {
+      throw new Error(`${humanizeFieldName(fieldName)} must be a JSON array.`)
+    }
+
+    return parsed
+  } catch {
+    throw new Error(`${humanizeFieldName(fieldName)} must be a valid array.`)
+  }
+}
+
 function validateBuyerWallet(value: string) {
   if (!/^0x[a-fA-F0-9]{40}$/.test(value)) {
     throw new Error('Buyer wallet must be a valid 0x wallet address.')
@@ -527,6 +654,10 @@ function getUnionOptions(typeLabel: string) {
     .split('|')
     .map(option => option.trim().replace(/^['"]|['"]$/g, ''))
     .filter(option => !/undefined|optional|null/i.test(option))
+}
+
+function isArrayType(lowerTypeLabel: string) {
+  return lowerTypeLabel.includes('[]') || lowerTypeLabel.includes('array')
 }
 
 function stripRequirementLabel(typeLabel: string) {
