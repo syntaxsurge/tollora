@@ -11,10 +11,19 @@ import { registerExactEvmScheme } from '@x402/evm/exact/client'
 import type { PaymentRequired, x402PaymentResult } from '@x402/fetch'
 import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
 import {
+  Activity,
   AlertTriangle,
+  BadgeCheck,
   CheckCircle2,
+  Circle,
+  CircleDollarSign,
+  Clock3,
   ExternalLink,
+  FileJson,
   Loader2,
+  ReceiptText,
+  RefreshCw,
+  ShieldCheck,
   WalletCards
 } from 'lucide-react'
 import { prepareTransaction, sendTransaction } from 'thirdweb'
@@ -713,9 +722,9 @@ function OrderStatusContent({
 
   return (
     <div className='space-y-6'>
-      <div className='grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.55fr)]'>
-        <Card className='space-y-5 p-5 sm:p-6 lg:p-8'>
-          <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+      <div className='grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.65fr)]'>
+        <Card className='space-y-5 p-5 sm:p-6'>
+          <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
             <div>
               <div className='flex flex-wrap items-center gap-2'>
                 <WalletCards className='text-primary h-5 w-5' aria-hidden />
@@ -728,19 +737,18 @@ function OrderStatusContent({
                   ? 'Pay this API call with your wallet'
                   : 'Payment and provider call'}
               </h2>
-              <p className='text-foreground/70 mt-2 max-w-3xl text-base leading-7'>
-                Tollora reads the x402 price, prepares MUSD, signs the payment,
-                settles on Mezo, then returns either a direct API response or an
-                async provider job to poll.
-              </p>
             </div>
-            <Badge className='w-fit'>Mezo MUSD x402</Badge>
+            <div className='flex flex-wrap gap-2'>
+              <Badge className='w-fit'>x402</Badge>
+              <Badge className='w-fit'>MUSD</Badge>
+              <Badge className='w-fit'>Mezo</Badge>
+            </div>
           </div>
 
           <PaymentStepList steps={walletSteps} />
 
-          <div className='border-foreground/10 bg-background/40 flex flex-col gap-4 rounded-lg border p-4 lg:flex-row lg:items-center lg:justify-between'>
-            <div className='min-w-0'>
+          <div className='border-foreground/10 bg-background/40 grid gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
+            <div className='min-w-0 space-y-2'>
               <p className='text-foreground/60 text-xs uppercase'>
                 Connected signer
               </p>
@@ -750,7 +758,7 @@ function OrderStatusContent({
               </p>
               <StatusMessage status={status} explorerUrl={order.explorerUrl} />
             </div>
-            <div className='flex shrink-0 flex-col gap-2 sm:flex-row'>
+            <div className='flex shrink-0 flex-col gap-2 sm:flex-row lg:justify-end'>
               <Button
                 onClick={runWithWallet}
                 disabled={order.status !== 'payment_required' || isPaying}
@@ -803,28 +811,28 @@ function createWalletSteps(activeStep?: WalletStepId): WalletStep[] {
   const steps: Array<Omit<WalletStep, 'status'>> = [
     {
       id: 'requirement',
-      title: 'Read x402 price',
-      description: 'Fetch the payable MUSD requirement from Tollora.'
+      title: 'Quote',
+      description: 'x402 price'
     },
     {
       id: 'allowance',
-      title: 'Prepare MUSD',
-      description: 'Check balance and approve Permit2 when required.'
+      title: 'Approve',
+      description: 'MUSD ready'
     },
     {
       id: 'signature',
-      title: 'Sign payment',
-      description: 'Confirm the x402 payment signature in your wallet.'
+      title: 'Sign',
+      description: 'Wallet confirms'
     },
     {
       id: 'settlement',
-      title: 'Settle on Mezo',
-      description: 'The facilitator submits settlement on-chain.'
+      title: 'Settle',
+      description: 'On-chain'
     },
     {
       id: 'result',
-      title: 'Receive result',
-      description: 'Tollora returns the provider response and receipt.'
+      title: 'Result',
+      description: 'API output'
     }
   ]
 
@@ -836,24 +844,26 @@ function createWalletSteps(activeStep?: WalletStepId): WalletStep[] {
 
 function PaymentStepList({ steps }: { steps: WalletStep[] }) {
   return (
-    <div className='grid gap-3 md:grid-cols-2'>
+    <div className='grid gap-2 sm:grid-cols-5'>
       {steps.map(step => (
         <div
           key={step.id}
           className={cn(
-            'border-foreground/10 bg-background/40 rounded-lg border p-4',
+            'border-foreground/10 bg-background/40 min-h-28 rounded-lg border p-3',
             step.status === 'active' && 'border-brand-cyan/50 bg-accent/10',
             step.status === 'complete' && 'border-emerald-500/35',
             step.status === 'error' && 'border-destructive/50 bg-destructive/10'
           )}
         >
-          <div className='flex items-center gap-2'>
-            <StepIcon status={step.status} />
-            <p className='text-sm font-semibold'>{step.title}</p>
+          <div className='flex flex-col gap-2'>
+            <StepIcon id={step.id} status={step.status} />
+            <div>
+              <p className='text-sm font-semibold'>{step.title}</p>
+              <p className='text-foreground/60 mt-1 text-xs leading-5'>
+                {step.detail ?? step.description}
+              </p>
+            </div>
           </div>
-          <p className='text-foreground/60 mt-2 text-xs leading-5'>
-            {step.detail ?? step.description}
-          </p>
           {step.txHash ? (
             <a
               className='text-primary mt-3 inline-flex max-w-full items-center gap-1 text-xs font-semibold break-all underline-offset-4 hover:underline'
@@ -875,38 +885,69 @@ function PaymentStepList({ steps }: { steps: WalletStep[] }) {
 }
 
 function OrderSnapshotCard({ order }: { order: MarketplaceOrder }) {
+  const summaryItems = [
+    {
+      icon: CircleDollarSign,
+      label: 'Quote',
+      value: order.quotedAmountMusd ?? order.amountMusd
+    },
+    {
+      icon: ShieldCheck,
+      label: 'Paid',
+      value: order.paidAmountMusd ?? order.reservedAmountMusd ?? 'Pending'
+    },
+    {
+      icon: Activity,
+      label: 'Provider',
+      value: order.providerName
+    },
+    {
+      icon: ReceiptText,
+      label: 'Request',
+      value: shortenHash(order.requestId)
+    }
+  ]
+
   return (
-    <Card className='space-y-4 p-5 sm:p-6'>
+    <Card className='space-y-5 p-5 sm:p-6'>
       <div>
         <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
           Current state
         </p>
-        <h2 className='mt-2 text-2xl font-semibold'>
-          {orderStatusLabels[order.status]}
-        </h2>
-        <p className='text-foreground/70 mt-2 text-sm leading-6'>
-          {orderStatusDetails[order.status]}
-        </p>
+        <div className='mt-3 flex flex-wrap items-center gap-3'>
+          <OrderStateIcon status={order.status} />
+          <h2 className='text-2xl font-semibold'>
+            {orderStatusLabels[order.status]}
+          </h2>
+        </div>
       </div>
-      <div className='grid gap-3 text-sm'>
+
+      <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-1'>
         <SummaryTile label='Product' value={order.productName} />
-        <SummaryTile
-          label='Quoted amount'
-          value={order.quotedAmountMusd ?? order.amountMusd}
-        />
-        <SummaryTile
-          label='Paid or reserved'
-          value={order.paidAmountMusd ?? order.reservedAmountMusd ?? 'Pending'}
-        />
+        {summaryItems.map(item => (
+          <SummaryTile
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            value={item.value}
+          />
+        ))}
         {order.actualAmountMusd ? (
           <SummaryTile label='Final usage' value={order.actualAmountMusd} />
         ) : null}
         {order.deltaAmountMusd && order.deltaAmountMusd !== '0.00 MUSD' ? (
           <SummaryTile label='Delta' value={order.deltaAmountMusd} />
         ) : null}
-        <SummaryTile label='Provider' value={order.providerName} />
-        <SummaryTile label='Request ID' value={order.requestId} />
       </div>
+
+      <details className='border-foreground/10 rounded-lg border p-3'>
+        <summary className='cursor-pointer text-sm font-semibold'>
+          What this means
+        </summary>
+        <p className='text-foreground/70 mt-3 text-sm leading-6'>
+          {orderStatusDetails[order.status]}
+        </p>
+      </details>
     </Card>
   )
 }
@@ -920,10 +961,10 @@ function StatusMessage({
 }) {
   if (!status) {
     return (
-      <p className='text-foreground/60 mt-3 text-sm leading-6'>
-        First-time wallets may need one MUSD approval transaction before the
-        x402 payment signature.
-      </p>
+      <div className='text-foreground/60 mt-3 flex items-center gap-2 text-sm'>
+        <ShieldCheck className='h-4 w-4' aria-hidden />
+        <span>First run may ask for MUSD approval.</span>
+      </div>
     )
   }
 
@@ -965,28 +1006,26 @@ function ProviderResponsePanel({
     order.resultReleaseStatus === 'delta_payment_required'
 
   return (
-    <Card className='space-y-5 p-5 sm:p-6 lg:p-8'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between'>
+    <Card className='space-y-5 p-5 sm:p-6'>
+      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
         <div>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             API response
           </p>
-          <h2 className='mt-2 text-2xl font-semibold'>
+          <h2 className='mt-2 flex items-center gap-2 text-2xl font-semibold'>
+            {hasAsyncJob ? (
+              <Clock3 className='text-primary h-5 w-5' aria-hidden />
+            ) : hasResponse ? (
+              <FileJson className='text-primary h-5 w-5' aria-hidden />
+            ) : (
+              <Circle className='text-foreground/40 h-5 w-5' aria-hidden />
+            )}
             {hasAsyncJob && order.status !== 'completed'
               ? 'Async job accepted'
               : hasResponse
                 ? 'Provider response received'
                 : 'No provider response yet'}
           </h2>
-          <p className='text-foreground/70 mt-2 max-w-3xl text-base leading-7'>
-            {needsDeltaPayment
-              ? 'The provider finished processing, but final usage exceeded the prepaid quote. Pay the metered delta to reveal the result.'
-              : hasAsyncJob && order.status !== 'completed'
-                ? 'This API started a long-running provider job. Poll the job until it completes, or wait for the provider webhook to update the order.'
-                : hasResponse
-                  ? 'This is the paid response returned by the provider adapter after x402 settlement.'
-                  : 'Run the paid request to receive either a direct result or an async job id.'}
-          </p>
         </div>
         {hasAsyncJob ? (
           <Badge className='w-fit'>Async provider job</Badge>
@@ -1027,16 +1066,16 @@ function ProviderResponsePanel({
             {isPolling ? (
               <>
                 <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
-                Polling status
+                Polling
               </>
             ) : (
-              'Poll provider status'
+              <>
+                <RefreshCw className='h-4 w-4' aria-hidden />
+                Poll status
+              </>
             )}
           </Button>
-          <p className='text-foreground/60 text-sm leading-6'>
-            Long-running APIs should return quickly with a job id, then expose a
-            status endpoint or webhook for completion.
-          </p>
+          <p className='text-foreground/60 text-sm'>Refresh async job state.</p>
         </div>
       ) : null}
 
@@ -1064,14 +1103,18 @@ function ProviderResponsePanel({
       ) : null}
 
       {hasResponse ? (
-        <pre className='bg-muted max-h-[32rem] overflow-auto rounded-lg p-4 text-sm leading-6 whitespace-pre-wrap'>
-          {JSON.stringify(order.responsePayload, null, 2)}
-        </pre>
+        <details open className='border-foreground/10 rounded-lg border p-4'>
+          <summary className='cursor-pointer text-sm font-semibold'>
+            Response JSON
+          </summary>
+          <pre className='bg-muted mt-4 max-h-[32rem] overflow-auto rounded-lg p-4 text-sm leading-6 whitespace-pre-wrap'>
+            {JSON.stringify(order.responsePayload, null, 2)}
+          </pre>
+        </details>
       ) : (
-        <div className='border-foreground/10 bg-background/40 rounded-lg border p-5 text-sm leading-6'>
-          The response panel will show the JSON returned by the provider
-          adapter. For async products, the first response is usually a job
-          object; the final output appears after polling or webhook completion.
+        <div className='border-foreground/10 bg-background/40 flex items-center gap-3 rounded-lg border p-4 text-sm'>
+          <FileJson className='text-foreground/45 h-5 w-5' aria-hidden />
+          <span>Provider output appears here after payment.</span>
         </div>
       )}
     </Card>
@@ -1148,25 +1191,70 @@ function OrderMetadataGrid({ order }: { order: MarketplaceOrder }) {
   )
 }
 
-function StepIcon({ status }: { status: WalletStepStatus }) {
+function StepIcon({
+  id,
+  status
+}: {
+  id: WalletStepId
+  status: WalletStepStatus
+}) {
   if (status === 'active') {
-    return <Loader2 className='text-primary h-4 w-4 animate-spin' aria-hidden />
+    return <Loader2 className='text-primary h-5 w-5 animate-spin' aria-hidden />
   }
 
   if (status === 'complete') {
-    return <CheckCircle2 className='h-4 w-4 text-emerald-500' aria-hidden />
+    return <CheckCircle2 className='h-5 w-5 text-emerald-500' aria-hidden />
   }
 
   if (status === 'error') {
-    return <AlertTriangle className='text-destructive h-4 w-4' aria-hidden />
+    return <AlertTriangle className='text-destructive h-5 w-5' aria-hidden />
   }
 
-  return (
-    <span
-      className='border-foreground/25 block h-4 w-4 rounded-full border'
-      aria-hidden
-    />
-  )
+  const Icon = getWalletStepIcon(id)
+
+  return <Icon className='text-foreground/45 h-5 w-5' aria-hidden />
+}
+
+function getWalletStepIcon(id: WalletStepId) {
+  if (id === 'requirement') {
+    return CircleDollarSign
+  }
+
+  if (id === 'allowance') {
+    return ShieldCheck
+  }
+
+  if (id === 'signature') {
+    return WalletCards
+  }
+
+  if (id === 'settlement') {
+    return BadgeCheck
+  }
+
+  return FileJson
+}
+
+function OrderStateIcon({ status }: { status: MarketplaceOrder['status'] }) {
+  const className = 'h-6 w-6'
+
+  if (status === 'completed' || status === 'paid' || status === 'ready') {
+    return <CheckCircle2 className={cn(className, 'text-emerald-500')} />
+  }
+
+  if (status === 'failed' || status === 'expired') {
+    return <AlertTriangle className={cn(className, 'text-destructive')} />
+  }
+
+  if (status === 'processing' || status === 'forwarding') {
+    return <Loader2 className={cn(className, 'text-primary animate-spin')} />
+  }
+
+  if (status === 'delta_payment_required') {
+    return <CircleDollarSign className={cn(className, 'text-amber-500')} />
+  }
+
+  return <Clock3 className={cn(className, 'text-primary')} />
 }
 
 function PaymentRequirementCard({
@@ -1211,11 +1299,24 @@ function PaymentRequirementCard({
   )
 }
 
-function SummaryTile({ label, value }: { label: string; value: string }) {
+function SummaryTile({
+  label,
+  value,
+  icon: Icon
+}: {
+  label: string
+  value: string
+  icon?: typeof Circle
+}) {
   return (
-    <div className='border-foreground/10 rounded-lg border p-3'>
-      <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-      <p className='mt-1 font-semibold break-all'>{value}</p>
+    <div className='border-foreground/10 bg-background/35 flex gap-3 rounded-lg border p-3'>
+      {Icon ? (
+        <Icon className='text-primary mt-0.5 h-4 w-4 shrink-0' aria-hidden />
+      ) : null}
+      <div className='min-w-0'>
+        <p className='text-foreground/60 text-xs uppercase'>{label}</p>
+        <p className='mt-1 font-semibold break-all'>{value}</p>
+      </div>
     </div>
   )
 }

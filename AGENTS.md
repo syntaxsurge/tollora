@@ -556,8 +556,9 @@ Before creating a new helper or service file:
   payments with the connected browser wallet, check and submit the required Mezo
   MUSD Permit2 allowance transaction when needed, verify MUSD balance before
   asking for payment signatures, retry the product call, display step-by-step
-  wallet progress with explorer links for submitted transactions, surface
-  settlement failure guidance from the x402 facilitator, separate direct API
+  wallet progress as a compact icon timeline with explorer links for submitted
+  transactions, surface settlement failure guidance from the x402 facilitator,
+  keep long explanations inside collapsible details, separate direct API
   responses from async provider jobs, poll provider status when an order has an
   external job ID, keep 402 inspection as a diagnostic action, persist receipt
   metadata in browser session storage, show quote/reservation/final usage

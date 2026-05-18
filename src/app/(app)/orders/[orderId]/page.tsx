@@ -27,9 +27,7 @@ export default async function OrderDetailPage({
               Run & Pay playground
             </h1>
             <p className='text-foreground/70 text-base leading-7'>
-              Pay a hosted Tollora API, track each wallet step, inspect the
-              settlement transaction, and view the provider response or async
-              job status.
+              Pay, settle, and inspect one hosted API request.
             </p>
           </div>
           <Link
