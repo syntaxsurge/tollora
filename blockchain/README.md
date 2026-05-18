@@ -1,7 +1,7 @@
 # Blockchain Workspace
 
-This workspace keeps the subscription contract isolated from the Next.js
-runtime while providing Tollora deployment shortcuts.
+This workspace keeps Tollora contracts isolated from the Next.js runtime while
+providing deployment shortcuts.
 
 ## Structure
 
@@ -9,11 +9,16 @@ runtime while providing Tollora deployment shortcuts.
   contract supported by Tollora.
 - `blockchain/contracts/AgentRunAttestor.sol` - the Mezo proof hash attestor
   for autonomous agent runs.
+- `blockchain/contracts/ApiPaymentEscrow.sol` - escrow for prepaid
+  credit-metered API calls that must be released or refunded after provider
+  completion.
 - `blockchain/hardhat.config.ts` - Hardhat configuration for Mezo Testnet.
 - `blockchain/scripts/deploySubscriptionManager.ts` - deployment script that
   writes the deployed address to `blockchain/deployment.log`.
 - `blockchain/scripts/deployAgentRunAttestor.ts` - deployment script that
   prints `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`.
+- `blockchain/scripts/deployApiPaymentEscrow.ts` - deployment script that prints
+  `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`.
 - `src/lib/contracts/` - frontend-facing subscription ABI and address helpers.
 
 ## Setup
@@ -21,7 +26,8 @@ runtime while providing Tollora deployment shortcuts.
 1. Copy `blockchain/.env.example` to `blockchain/.env` and fill in RPC,
    deployer, admin, and platform addresses.
 2. Install dependencies from the blockchain workspace.
-3. Compile and deploy the subscription contract and agent attestor.
+3. Compile and deploy the subscription, agent attestor, and API payment escrow
+   contracts.
 
 ```bash
 cd blockchain
@@ -29,6 +35,7 @@ pnpm install
 pnpm compile
 pnpm deploy:subscription
 pnpm deploy:agent-attestor
+pnpm deploy:api-escrow
 ```
 
 ## Notes
@@ -37,4 +44,7 @@ pnpm deploy:agent-attestor
   `blockchain/deployment.log` into the root `.env.local` after deployment.
 - Copy `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS` from the attestor deployment output
   into the root `.env.local` after deployment.
+- Copy `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS` from the escrow deployment
+  output into the root `.env.local` after deployment, then set
+  `API_ESCROW_OPERATOR_PRIVATE_KEY` to an account with `OPERATOR_ROLE`.
 - Avoid importing from `blockchain/**` in the Next.js runtime.

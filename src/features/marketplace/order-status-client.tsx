@@ -540,16 +540,13 @@ function OrderStatusContent({
           ? settlementTxHash
           : undefined
       })
-      updateWalletStep('result', {
-        status: 'complete',
-        detail: 'Provider response and receipt were saved.'
-      })
       const receipt = body.receipt
         ? {
             ...body.receipt,
             orderId: order.id
           }
         : undefined
+      const responsePayload = body.order?.responsePayload ?? body.data
       const nextOrder: MarketplaceOrder = {
         ...order,
         ...body.order,
@@ -559,10 +556,18 @@ function OrderStatusContent({
           (body.order?.status as MarketplaceOrder['status']) ?? 'completed',
         receiptId: receipt?.id,
         explorerUrl: receipt?.explorerUrl,
-        responsePayload: body.data,
+        responsePayload,
         resultUrl: receipt?.resultUrl ?? body.order?.resultUrl,
         updatedAt: new Date().toISOString()
       }
+      const providerFailed = nextOrder.status === 'failed'
+
+      updateWalletStep('result', {
+        status: providerFailed ? 'error' : 'complete',
+        detail: providerFailed
+          ? 'Provider failed after payment settlement. Review refund and provider response details below.'
+          : 'Provider response and receipt were saved.'
+      })
 
       window.sessionStorage.setItem(
         `tollora:order:${order.id}`,
@@ -578,9 +583,28 @@ function OrderStatusContent({
 
       setOrder(nextOrder)
       setStatus(
-        settlementTxHash
-          ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
-          : 'MUSD payment settled and provider response returned.'
+        providerFailed
+          ? body.message ||
+              body.error ||
+              'Payment settled, but the provider request failed.'
+          : settlementTxHash
+            ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
+            : 'MUSD payment settled and provider response returned.'
+      )
+      setPaymentError(
+        providerFailed
+          ? [
+              body.error,
+              body.message,
+              nextOrder.resultReleaseStatus === 'refunded'
+                ? 'Escrow refund completed.'
+                : nextOrder.resultReleaseStatus === 'refundable'
+                  ? 'Refund is required.'
+                  : undefined
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : ''
       )
     } catch (caughtError) {
       const message =
@@ -1076,7 +1100,9 @@ function ProviderResponsePanel({
               <Circle className='text-foreground/40 h-5 w-5' aria-hidden />
             )}
             {hasAsyncJob && order.status !== 'completed'
-              ? 'Async job accepted'
+              ? order.status === 'failed'
+                ? 'Provider failed'
+                : 'Async job accepted'
               : hasResponse
                 ? 'Provider response received'
                 : 'No provider response yet'}
@@ -1157,6 +1183,19 @@ function ProviderResponsePanel({
         </div>
       ) : null}
 
+      {order.status === 'failed' ? (
+        <div className='border-destructive/35 bg-destructive/10 rounded-lg border p-4'>
+          <p className='font-semibold'>Provider failed after payment</p>
+          <p className='text-foreground/70 mt-1 text-sm leading-6'>
+            {order.resultReleaseStatus === 'refunded'
+              ? 'The payment was refunded from escrow. The refund transaction is linked above.'
+              : order.resultReleaseStatus === 'refundable'
+                ? 'The payment settled directly or the escrow refund did not complete. Treat this order as refundable and inspect the provider response below.'
+                : 'Inspect the provider response below to see what failed.'}
+          </p>
+        </div>
+      ) : null}
+
       {hasResponse ? (
         <details open className='border-foreground/10 rounded-lg border p-4'>
           <summary className='cursor-pointer text-sm font-semibold'>
@@ -1177,7 +1216,14 @@ function ProviderResponsePanel({
 }
 
 function SettlementLinks({ order }: { order: MarketplaceOrder }) {
-  if (!order.receiptId && !order.explorerUrl && !order.agentRunId) {
+  if (
+    !order.receiptId &&
+    !order.explorerUrl &&
+    !order.agentRunId &&
+    !order.escrowReserveExplorerUrl &&
+    !order.escrowReleaseExplorerUrl &&
+    !order.escrowRefundExplorerUrl
+  ) {
     return null
   }
 
@@ -1223,7 +1269,44 @@ function SettlementLinks({ order }: { order: MarketplaceOrder }) {
           </a>
         </div>
       ) : null}
+      {order.escrowReserveExplorerUrl ? (
+        <ExplorerTile
+          label='Escrow reserve'
+          url={order.escrowReserveExplorerUrl}
+        />
+      ) : null}
+      {order.escrowReleaseExplorerUrl ? (
+        <ExplorerTile
+          label='Escrow release'
+          url={order.escrowReleaseExplorerUrl}
+        />
+      ) : null}
+      {order.escrowRefundExplorerUrl ? (
+        <ExplorerTile
+          label='Escrow refund'
+          url={order.escrowRefundExplorerUrl}
+        />
+      ) : null}
     </Card>
+  )
+}
+
+function ExplorerTile({ label, url }: { label: string; url: string }) {
+  const txHash = getTransactionHashFromExplorerUrl(url)
+
+  return (
+    <div className='border-foreground/10 rounded-lg border p-4'>
+      <p className='text-foreground/60 text-xs uppercase'>{label}</p>
+      <a
+        className='text-primary mt-1 inline-flex max-w-full items-center gap-1 font-semibold break-all underline-offset-4 hover:underline'
+        href={url}
+        target='_blank'
+        rel='noreferrer'
+      >
+        {txHash ? shortenHash(txHash) : 'Open on explorer'}
+        <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+      </a>
+    </div>
   )
 }
 
@@ -1237,6 +1320,8 @@ function OrderMetadataGrid({ order }: { order: MarketplaceOrder }) {
         ['Buyer wallet', order.buyerWallet],
         ['Pricing source', order.pricingSource ?? 'fixed'],
         ['Result release', order.resultReleaseStatus ?? 'not_applicable'],
+        ['Escrow state', order.escrowStatus ?? 'not_applicable'],
+        ['Refund amount', order.refundAmountMusd ?? ''],
         ['Created', new Date(order.createdAt).toLocaleString()],
         ['Updated', new Date(order.updatedAt).toLocaleString()]
       ].map(([label, value]) => (

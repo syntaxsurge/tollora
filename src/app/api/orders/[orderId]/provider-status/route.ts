@@ -6,7 +6,15 @@ import {
 } from '@/features/marketplace/orders'
 import { resolveFinalUsageDelta } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import {
+  getMarketplaceReceiptById,
+  recordMarketplaceReceipt
+} from '@/features/marketplace/receipts'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
+import {
+  refundEscrowPayment,
+  releaseEscrowPayment
+} from '@/lib/contracts/api-payment-escrow'
 
 type OrderProviderStatusRouteProps = {
   params: Promise<{
@@ -58,13 +66,17 @@ export async function GET(
         }).catch(() => null)
       : null
   const resultReleaseStatus =
-    usageDelta?.releaseStatus === 'delta_payment_required'
-      ? 'delta_payment_required'
-      : usageDelta?.releaseStatus === 'credit_due'
-        ? 'credit_due'
-        : providerResult.status === 'completed'
-          ? 'released'
-          : order.resultReleaseStatus
+    providerResult.status === 'failed'
+      ? order.escrowStatus === 'reserved'
+        ? 'refunded'
+        : 'refundable'
+      : usageDelta?.releaseStatus === 'delta_payment_required'
+        ? 'delta_payment_required'
+        : usageDelta?.releaseStatus === 'credit_due'
+          ? 'credit_due'
+          : providerResult.status === 'completed'
+            ? 'released'
+            : order.resultReleaseStatus
   const nextStatus =
     resultReleaseStatus === 'delta_payment_required'
       ? ('delta_payment_required' as const)
@@ -78,6 +90,53 @@ export async function GET(
           externalJobId: providerResult.externalJobId ?? order.externalJobId
         }
       : (providerResult.responsePayload ?? order.responsePayload)
+  const shouldRefundEscrow =
+    providerResult.status === 'failed' &&
+    order.escrowStatus === 'reserved' &&
+    isHexBytes32(order.escrowPaymentId)
+  const shouldReleaseEscrow =
+    providerResult.status === 'completed' &&
+    order.escrowStatus === 'reserved' &&
+    resultReleaseStatus !== 'delta_payment_required' &&
+    isHexBytes32(order.escrowPaymentId)
+  const escrowPaymentId = isHexBytes32(order.escrowPaymentId)
+    ? order.escrowPaymentId
+    : null
+  const escrowRefund = shouldRefundEscrow
+    ? await refundEscrowPayment(escrowPaymentId!).catch(error => ({
+        error: describeUnknownError(error)
+      }))
+    : null
+  const escrowRelease = shouldReleaseEscrow
+    ? await releaseEscrowPayment(escrowPaymentId!).catch(error => ({
+        error: describeUnknownError(error)
+      }))
+    : null
+  const refundedEscrow = isEscrowWriteResult(escrowRefund) ? escrowRefund : null
+  const releasedEscrow = isEscrowWriteResult(escrowRelease)
+    ? escrowRelease
+    : null
+  const receipt = order.receiptId
+    ? getMarketplaceReceiptById(order.receiptId)
+    : undefined
+
+  if (receipt && (refundedEscrow || releasedEscrow || shouldRefundEscrow)) {
+    recordMarketplaceReceipt({
+      ...receipt,
+      escrowStatus: shouldRefundEscrow
+        ? refundedEscrow
+          ? 'refunded'
+          : 'failed'
+        : releasedEscrow
+          ? 'released'
+          : receipt.escrowStatus,
+      escrowRefundTxHash: refundedEscrow?.txHash,
+      escrowRefundExplorerUrl: refundedEscrow?.explorerUrl,
+      escrowReleaseTxHash: releasedEscrow?.txHash,
+      escrowReleaseExplorerUrl: releasedEscrow?.explorerUrl
+    })
+  }
+
   const nextOrder = updateMarketplaceOrder(order.id, {
     status: nextStatus,
     externalJobId: providerResult.externalJobId ?? order.externalJobId,
@@ -101,7 +160,27 @@ export async function GET(
       usageDelta && usageDelta.deltaUsd !== 0
         ? usageDelta.deltaLabel
         : order.deltaAmountMusd,
-    resultReleaseStatus
+    resultReleaseStatus,
+    escrowStatus: shouldRefundEscrow
+      ? refundedEscrow
+        ? 'refunded'
+        : 'failed'
+      : shouldReleaseEscrow
+        ? releasedEscrow
+          ? 'released'
+          : 'failed'
+        : order.escrowStatus,
+    escrowRefundTxHash: refundedEscrow ? refundedEscrow.txHash : undefined,
+    escrowRefundExplorerUrl: refundedEscrow
+      ? refundedEscrow.explorerUrl
+      : undefined,
+    escrowReleaseTxHash: releasedEscrow ? releasedEscrow.txHash : undefined,
+    escrowReleaseExplorerUrl: releasedEscrow
+      ? releasedEscrow.explorerUrl
+      : undefined,
+    refundAmountMusd: refundedEscrow
+      ? order.paidAmountMusd
+      : order.refundAmountMusd
   })
 
   return NextResponse.json({
@@ -122,6 +201,20 @@ export async function GET(
           ? usageDelta.deltaLabel
           : '0.00 MUSD',
       resultReleaseStatus
+    },
+    escrow: {
+      refund: refundedEscrow
+        ? {
+            txHash: refundedEscrow.txHash,
+            explorerUrl: refundedEscrow.explorerUrl
+          }
+        : null,
+      release: releasedEscrow
+        ? {
+            txHash: releasedEscrow.txHash,
+            explorerUrl: releasedEscrow.explorerUrl
+          }
+        : null
     }
   })
 }
@@ -142,4 +235,25 @@ function parseJsonOrEmpty(value: string | undefined) {
   } catch {
     return {}
   }
+}
+
+function isHexBytes32(
+  value: string | null | undefined
+): value is `0x${string}` {
+  return /^0x[a-fA-F0-9]{64}$/.test(value ?? '')
+}
+
+function describeUnknownError(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function isEscrowWriteResult(
+  value: unknown
+): value is { txHash: `0x${string}`; explorerUrl: string | null } {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'txHash' in value &&
+      typeof value.txHash === 'string'
+  )
 }

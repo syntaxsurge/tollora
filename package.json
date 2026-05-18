@@ -17,6 +17,7 @@
     "convex:reset": "dotenv -e .env.local -- tsx scripts/reset-convex.ts",
     "contracts:deploy": "tsx scripts/deploy-contracts.ts",
     "contracts:deploy:agent": "pnpm --dir blockchain deploy:agent-attestor",
+    "contracts:deploy:api-escrow": "pnpm --dir blockchain deploy:api-escrow",
     "x402:call": "tsx scripts/x402-paid-call.ts"
   },
   "dependencies": {

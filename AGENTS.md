@@ -461,8 +461,10 @@ Before creating a new helper or service file:
   examples, and reviews; client helper in `src/lib/db/convex/client.ts`.
 - Hardhat blockchain workspace in `blockchain/` with
   `contracts/SubscriptionManager.sol` plus `contracts/AgentRunAttestor.sol` for
-  Mezo proof hashes. The agent attestor deploy script prints
-  `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS` for the root app environment.
+  Mezo proof hashes and `contracts/ApiPaymentEscrow.sol` for prepaid
+  credit-metered API payments. The agent attestor deploy script prints
+  `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS` for the root app environment; the API
+  escrow deploy script prints `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`.
 - Shared UI primitives in `src/components/ui` and layout shells in
   `src/components/layout`.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
@@ -569,12 +571,13 @@ Before creating a new helper or service file:
   poll provider status when an order has an external job ID, keep 402 inspection
   as a diagnostic action, persist receipt metadata in browser session storage,
   show quote/reservation/final usage amounts for credit-metered calls, claim
-  metered deltas through x402 before revealing locked results, and link to the
-  settlement receipt and Mezo explorer transaction. Draft products stay hidden
-  from public marketplace usage but can be tested through provider management by
-  creating provider-test order records; locally persisted draft listings created
-  before owner metadata exists can still be tested through matching order
-  records.
+  metered deltas through x402 before revealing locked results, show escrow
+  reserve/release/refund transaction links when a credit-metered async payment
+  uses escrow, and link to the settlement receipt and Mezo explorer transaction.
+  Draft products stay hidden from public marketplace usage but can be tested
+  through provider management by creating provider-test order records; locally
+  persisted draft listings created before owner metadata exists can still be
+  tested through matching order records.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
@@ -582,10 +585,13 @@ Before creating a new helper or service file:
 - Marketplace products support fixed per-call MUSD pricing and credit-metered
   pricing. Credit-metered products call a provider quote endpoint or read a
   deterministic credit field before x402 settlement, convert credits to MUSD
-  with a configured rate and multiplier, reserve or settle the quoted amount
-  before expensive provider work starts, compare final usage against the quote,
-  lock results that need a delta payment, include failed quote response status
-  and response body in pricing errors, and record quote, paid, actual, and
+  with a configured rate and multiplier, settle the quoted amount before
+  expensive provider work starts, route asynchronous metered payments to
+  ApiPaymentEscrow when configured, refund escrowed payments when provider work
+  fails before a usable result, release escrowed payments only after successful
+  completion or result claim, compare final usage against the quote, lock
+  results that need a delta payment, include failed quote response status and
+  response body in pricing errors, and record quote, paid, actual, escrow, and
   release metadata on orders and receipts.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
@@ -684,5 +690,7 @@ Before creating a new helper or service file:
 - `pnpm convex:reset`
 - `pnpm contracts:deploy`
 - `pnpm contracts:deploy:agent`
+- `pnpm contracts:deploy:api-escrow`
 - `pnpm x402:call <product-slug>`
 - `pnpm --dir blockchain deploy:agent-attestor`
+- `pnpm --dir blockchain deploy:api-escrow`

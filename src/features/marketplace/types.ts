@@ -30,6 +30,22 @@ export type MarketplaceOrder = {
     | 'delta_payment_required'
     | 'credit_due'
     | 'refundable'
+    | 'refunded'
+  escrowStatus?:
+    | 'not_applicable'
+    | 'reserved'
+    | 'released'
+    | 'refunded'
+    | 'failed'
+  escrowAddress?: string
+  escrowPaymentId?: string
+  escrowReserveTxHash?: string
+  escrowReserveExplorerUrl?: string | null
+  escrowReleaseTxHash?: string
+  escrowReleaseExplorerUrl?: string | null
+  escrowRefundTxHash?: string
+  escrowRefundExplorerUrl?: string | null
+  refundAmountMusd?: string
   requestId: string
   requestPayloadJson?: string
   receiptId?: string

@@ -13,9 +13,11 @@ import { getProductBySlug } from '@/features/marketplace/products'
 import {
   buildExplorerUrl,
   buildReceiptAmounts,
+  getMarketplaceReceiptById,
   recordMarketplaceReceipt
 } from '@/features/marketplace/receipts'
 import { x402Network } from '@/lib/config/chains'
+import { releaseEscrowPayment } from '@/lib/contracts/api-payment-escrow'
 import { NextRequestAdapter } from '@/lib/x402/next-request-adapter'
 import {
   getTolloraPaywallConfig,
@@ -135,6 +137,30 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     resultUrl: order.lockedResultUrl ?? order.resultUrl
   }
   recordMarketplaceReceipt(receipt)
+  const escrowPaymentId = isHexBytes32(order.escrowPaymentId)
+    ? order.escrowPaymentId
+    : null
+  const escrowRelease =
+    order.escrowStatus === 'reserved' && escrowPaymentId
+      ? await releaseEscrowPayment(escrowPaymentId).catch(error => ({
+          error: describeUnknownError(error)
+        }))
+      : null
+  const releasedEscrow = isEscrowWriteResult(escrowRelease)
+    ? escrowRelease
+    : null
+  const originalReceipt = order.receiptId
+    ? getMarketplaceReceiptById(order.receiptId)
+    : undefined
+
+  if (originalReceipt && releasedEscrow) {
+    recordMarketplaceReceipt({
+      ...originalReceipt,
+      escrowStatus: 'released',
+      escrowReleaseTxHash: releasedEscrow.txHash,
+      escrowReleaseExplorerUrl: releasedEscrow.explorerUrl
+    })
+  }
 
   const releasedOrder = updateMarketplaceOrder(order.id, {
     status: 'completed',
@@ -145,7 +171,17 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     resultUrl: order.lockedResultUrl ?? order.resultUrl,
     lockedResultUrl: undefined,
     receiptId,
-    explorerUrl: receipt.explorerUrl
+    explorerUrl: receipt.explorerUrl,
+    escrowStatus:
+      order.escrowStatus === 'reserved'
+        ? releasedEscrow
+          ? 'released'
+          : 'failed'
+        : order.escrowStatus,
+    escrowReleaseTxHash: releasedEscrow ? releasedEscrow.txHash : undefined,
+    escrowReleaseExplorerUrl: releasedEscrow
+      ? releasedEscrow.explorerUrl
+      : undefined
   })
 
   return NextResponse.json(
@@ -156,6 +192,14 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
       x402: {
         network: settlement.network,
         transaction: settlement.transaction
+      },
+      escrow: {
+        release: releasedEscrow
+          ? {
+              txHash: releasedEscrow.txHash,
+              explorerUrl: releasedEscrow.explorerUrl
+            }
+          : null
       }
     },
     {
@@ -246,4 +290,25 @@ function parseMusdAmount(value: string | undefined) {
   const amount = Number((value ?? '').replace(/[^0-9.]/g, ''))
 
   return Number.isFinite(amount) ? amount : 0
+}
+
+function isHexBytes32(
+  value: string | null | undefined
+): value is `0x${string}` {
+  return /^0x[a-fA-F0-9]{64}$/.test(value ?? '')
+}
+
+function describeUnknownError(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function isEscrowWriteResult(
+  value: unknown
+): value is { txHash: `0x${string}`; explorerUrl: string | null } {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'txHash' in value &&
+      typeof value.txHash === 'string'
+  )
 }

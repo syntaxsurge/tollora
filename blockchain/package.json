@@ -5,6 +5,7 @@
     "compile": "hardhat compile",
     "deploy:subscription": "hardhat run scripts/deploySubscriptionManager.ts --network mezoTestnet",
     "deploy:agent-attestor": "hardhat run scripts/deployAgentRunAttestor.ts --network mezoTestnet",
+    "deploy:api-escrow": "hardhat run scripts/deployApiPaymentEscrow.ts --network mezoTestnet",
     "lint:fix": "pnpm lint:fix-typescript && pnpm lint:fix-solidity",
     "lint:check": "pnpm lint:check-typescript && pnpm lint:check-solidity",
     "lint:fix-typescript": "eslint \"{scripts,test}/**/*.ts\" --fix",

@@ -19,6 +19,13 @@ export type MarketplaceReceipt = {
   network: 'eip155:31611'
   txHash: string
   explorerUrl: string | null
+  escrowAddress?: string
+  escrowPaymentId?: string
+  escrowStatus?: 'reserved' | 'released' | 'refunded' | 'failed'
+  escrowReleaseTxHash?: string
+  escrowReleaseExplorerUrl?: string | null
+  escrowRefundTxHash?: string
+  escrowRefundExplorerUrl?: string | null
   createdAt: string
   resultUrl?: string
   agentRunId?: string

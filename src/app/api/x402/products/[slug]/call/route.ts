@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 import type { HTTPProcessResult } from '@x402/core/server'
+import type { PaymentRequirements } from '@x402/core/types'
+import { isAddress, type Hex } from 'viem'
 
 import {
   getMarketplaceOrderById,
@@ -24,6 +26,15 @@ import {
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
 import { x402Network } from '@/lib/config/chains'
+import {
+  getApiPaymentPayTo,
+  getEscrowPaymentId,
+  refundEscrowPayment,
+  releaseEscrowPayment,
+  reserveEscrowPayment,
+  shouldUseApiPaymentEscrow,
+  toAtomicMusdAmount
+} from '@/lib/contracts/api-payment-escrow'
 import { envServer } from '@/lib/env/env.server'
 import { NextRequestAdapter } from '@/lib/x402/next-request-adapter'
 import {
@@ -382,6 +393,14 @@ async function handlePrepaidAsyncProviderCall({
   }
 
   const settlement = settlementResponse
+  const escrowContext = await reservePrepaidEscrow({
+    product,
+    orderId,
+    receiptId,
+    resolvedPrice,
+    settlement,
+    paymentRequirements: processResult.paymentRequirements
+  })
   const receipt = {
     id: receiptId,
     orderId,
@@ -396,6 +415,9 @@ async function handlePrepaidAsyncProviderCall({
     network: x402Network as 'eip155:31611',
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),
+    escrowAddress: escrowContext?.escrowAddress,
+    escrowPaymentId: escrowContext?.paymentId,
+    escrowStatus: escrowContext ? ('reserved' as const) : undefined,
     createdAt
   }
   recordMarketplaceReceipt(receipt)
@@ -412,6 +434,13 @@ async function handlePrepaidAsyncProviderCall({
     amountMusd: resolvedPrice.amountLabel,
     ...buildOrderPricingFields(resolvedPrice, resolvedPrice),
     resultReleaseStatus: 'reserved' as const,
+    escrowStatus: escrowContext
+      ? ('reserved' as const)
+      : ('not_applicable' as const),
+    escrowAddress: escrowContext?.escrowAddress,
+    escrowPaymentId: escrowContext?.paymentId,
+    escrowReserveTxHash: escrowContext?.reserveTxHash,
+    escrowReserveExplorerUrl: escrowContext?.reserveExplorerUrl,
     requestId,
     requestPayloadJson:
       existingOrder?.requestPayloadJson ?? JSON.stringify(payload, null, 2),
@@ -437,10 +466,37 @@ async function handlePrepaidAsyncProviderCall({
   })
 
   if (adapterResult.status === 'failed') {
+    const refund = escrowContext
+      ? await refundEscrowPayment(escrowContext.paymentId).catch(error => ({
+          error: describeUnknownError(error)
+        }))
+      : null
+    const refundedEscrow = isEscrowWriteResult(refund) ? refund : null
+    const refundError = isEscrowWriteError(refund) ? refund.error : ''
+    const updatedReceipt = recordMarketplaceReceipt({
+      ...receipt,
+      escrowStatus: escrowContext
+        ? refundedEscrow
+          ? 'refunded'
+          : 'failed'
+        : undefined,
+      escrowRefundTxHash: refundedEscrow?.txHash,
+      escrowRefundExplorerUrl: refundedEscrow?.explorerUrl
+    })
     const failedOrder = updateMarketplaceOrder(orderId, {
       status: 'failed',
       responsePayload: adapterResult.responsePayload,
-      resultReleaseStatus: 'refundable',
+      resultReleaseStatus: refundedEscrow ? 'refunded' : 'refundable',
+      escrowStatus: escrowContext
+        ? refundedEscrow
+          ? 'refunded'
+          : 'failed'
+        : 'not_applicable',
+      escrowRefundTxHash: refundedEscrow ? refundedEscrow.txHash : undefined,
+      escrowRefundExplorerUrl: refundedEscrow
+        ? refundedEscrow.explorerUrl
+        : undefined,
+      refundAmountMusd: resolvedPrice.amountLabel,
       updatedAt: new Date().toISOString()
     })
 
@@ -448,15 +504,30 @@ async function handlePrepaidAsyncProviderCall({
       {
         ...reservationResponse,
         error: adapterResult.errorMessage ?? 'Provider request failed.',
+        message: refundedEscrow
+          ? 'The provider failed after x402 settlement, so Tollora refunded the escrowed payment to the buyer.'
+          : escrowContext
+            ? `The provider failed after x402 settlement, but the escrow refund transaction did not complete. ${refundError}`
+            : 'The provider failed after direct x402 settlement. This order is refundable in Tollora records, but the payment was already sent to the payTo wallet.',
         order: failedOrder ?? {
           ...baseOrder,
           status: 'failed',
           responsePayload: adapterResult.responsePayload,
-          resultReleaseStatus: 'refundable' as const
+          resultReleaseStatus: refundedEscrow
+            ? ('refunded' as const)
+            : ('refundable' as const)
         },
-        receipt,
+        receipt: updatedReceipt,
+        refund: refundedEscrow
+          ? {
+              amountMusd: resolvedPrice.amountLabel,
+              txHash: refundedEscrow.txHash,
+              explorerUrl: refundedEscrow.explorerUrl
+            }
+          : null,
         provider: {
           id: providerAdapter.id,
+          error: adapterResult.errorMessage ?? 'Provider request failed.',
           response: adapterResult.responsePayload
         },
         x402: {
@@ -503,6 +574,30 @@ async function handlePrepaidAsyncProviderCall({
           externalJobId: adapterResult.externalJobId
         }
       : adapterResult.responsePayload
+  const shouldReleaseEscrow =
+    escrowContext &&
+    adapterResult.status === 'completed' &&
+    resultReleaseStatus !== 'delta_payment_required'
+  const escrowRelease = shouldReleaseEscrow
+    ? await releaseEscrowPayment(escrowContext.paymentId).catch(error => ({
+        error: describeUnknownError(error)
+      }))
+    : null
+  const releasedEscrow = isEscrowWriteResult(escrowRelease)
+    ? escrowRelease
+    : null
+  const updatedReceipt = recordMarketplaceReceipt({
+    ...receipt,
+    escrowStatus: escrowContext
+      ? shouldReleaseEscrow
+        ? releasedEscrow
+          ? 'released'
+          : 'failed'
+        : 'reserved'
+      : receipt.escrowStatus,
+    escrowReleaseTxHash: releasedEscrow?.txHash,
+    escrowReleaseExplorerUrl: releasedEscrow?.explorerUrl
+  })
 
   const finalOrder = updateMarketplaceOrder(orderId, {
     status: nextStatus,
@@ -527,12 +622,23 @@ async function handlePrepaidAsyncProviderCall({
         ? usageDelta.deltaLabel
         : '0.00 MUSD',
     resultReleaseStatus,
+    escrowStatus: escrowContext
+      ? shouldReleaseEscrow
+        ? releasedEscrow
+          ? 'released'
+          : 'failed'
+        : 'reserved'
+      : 'not_applicable',
+    escrowReleaseTxHash: releasedEscrow ? releasedEscrow.txHash : undefined,
+    escrowReleaseExplorerUrl: releasedEscrow
+      ? releasedEscrow.explorerUrl
+      : undefined,
     updatedAt: new Date().toISOString()
   })
 
   const finalBody = {
     order: finalOrder,
-    receipt,
+    receipt: updatedReceipt,
     pricing: {
       quoted: resolvedPrice,
       actual: usageDelta?.actualPrice ?? null,
@@ -546,7 +652,20 @@ async function handlePrepaidAsyncProviderCall({
     x402: {
       network: settlement.network,
       transaction: settlement.transaction
-    }
+    },
+    escrow: escrowContext
+      ? {
+          status: finalOrder?.escrowStatus,
+          paymentId: escrowContext.paymentId,
+          address: escrowContext.escrowAddress,
+          release: releasedEscrow
+            ? {
+                txHash: releasedEscrow.txHash,
+                explorerUrl: releasedEscrow.explorerUrl
+              }
+            : null
+        }
+      : null
   }
 
   return NextResponse.json(finalBody, {
@@ -767,6 +886,96 @@ function buildOrderPricingFields(
   }
 }
 
+async function reservePrepaidEscrow({
+  product,
+  orderId,
+  receiptId,
+  resolvedPrice,
+  settlement,
+  paymentRequirements
+}: {
+  product: ProductForCall
+  orderId: string
+  receiptId: string
+  resolvedPrice: ResolvedProductPrice
+  settlement: {
+    payer?: string
+    transaction: string
+  }
+  paymentRequirements: PaymentRequirements
+}) {
+  if (!shouldUseApiPaymentEscrow(product)) {
+    return null
+  }
+
+  const requirement = getPaymentRequirementForEscrow(paymentRequirements)
+  const escrowAddress = getApiPaymentPayTo(product)
+
+  if (!requirement || !isAddress(requirement.asset)) {
+    throw new Error('Escrow payment could not read the settled MUSD asset.')
+  }
+
+  if (!isAddress(escrowAddress)) {
+    throw new Error('Escrow payment address is not configured.')
+  }
+
+  if (!isAddress(settlement.payer ?? '')) {
+    throw new Error('Escrow payment could not read the buyer wallet.')
+  }
+
+  if (!isAddress(product.providerWallet ?? '')) {
+    throw new Error('Escrow payment could not read the provider wallet.')
+  }
+
+  if (!isHexBytes32(settlement.transaction)) {
+    throw new Error('Escrow payment could not read the settlement transaction.')
+  }
+
+  const paymentId = getEscrowPaymentId(orderId, receiptId)
+  const payer = settlement.payer
+  const provider = product.providerWallet
+
+  if (!payer || !provider || !isAddress(payer) || !isAddress(provider)) {
+    throw new Error('Escrow payment addresses are invalid.')
+  }
+
+  const amount =
+    'amount' in requirement
+      ? BigInt(requirement.amount ?? '0')
+      : toAtomicMusdAmount(resolvedPrice.amountUsd)
+  const reserve = await reserveEscrowPayment({
+    paymentId,
+    token: requirement.asset,
+    payer,
+    provider,
+    amount,
+    settlementTxHash: settlement.transaction
+  })
+
+  if (!reserve) {
+    throw new Error(
+      'Escrow is configured for this API, but the operator signer is not available.'
+    )
+  }
+
+  return {
+    paymentId,
+    escrowAddress,
+    reserveTxHash: reserve.txHash,
+    reserveExplorerUrl: reserve.explorerUrl
+  }
+}
+
+function getPaymentRequirementForEscrow(
+  paymentRequirements: PaymentRequirements
+) {
+  if ('amount' in paymentRequirements) {
+    return paymentRequirements
+  }
+
+  return paymentRequirements
+}
+
 function extractBuyerWallet(paymentPayload: unknown) {
   const payload = paymentPayload as {
     payload?: {
@@ -777,6 +986,30 @@ function extractBuyerWallet(paymentPayload: unknown) {
   }
 
   return payload.payload?.authorization?.from ?? ''
+}
+
+function isHexBytes32(value: string | null | undefined): value is Hex {
+  return /^0x[a-fA-F0-9]{64}$/.test(value ?? '')
+}
+
+function isEscrowWriteResult(
+  value: unknown
+): value is { txHash: Hex; explorerUrl: string | null } {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'txHash' in value &&
+      typeof value.txHash === 'string'
+  )
+}
+
+function isEscrowWriteError(value: unknown): value is { error: string } {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'error' in value &&
+      typeof value.error === 'string'
+  )
 }
 
 function buildSettlementGuidance(

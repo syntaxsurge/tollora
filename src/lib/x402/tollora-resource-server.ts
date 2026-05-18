@@ -12,6 +12,7 @@ import { getMarketplaceOrderById } from '@/features/marketplace/orders'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
 import { x402Network } from '@/lib/config/chains'
+import { getApiPaymentPayTo } from '@/lib/contracts/api-payment-escrow'
 import { envServer } from '@/lib/env/env.server'
 
 const paidCallPattern = '/api/x402/products/:slug/call'
@@ -75,7 +76,7 @@ const paidCallRoute: RouteConfig = {
   accepts: {
     scheme: 'exact',
     network: x402Network as Network,
-    payTo: context => requireProductFromContext(context).providerWallet,
+    payTo: context => getApiPaymentPayTo(requireProductFromContext(context)),
     price: async context => {
       const product = requireProductFromContext(context)
       const resolvedPrice = await resolveProductPrice({
