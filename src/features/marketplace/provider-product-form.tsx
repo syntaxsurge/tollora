@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { FormEvent, type ReactNode, useRef, useState } from 'react'
 
-import { HelpCircle } from 'lucide-react'
+import { Eye, EyeOff, HelpCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -1007,24 +1007,52 @@ function Field({
   onChange?: (value: string) => void
 }) {
   const errorId = `${name}-error`
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+  const isPasswordField = type === 'password'
+  const inputType =
+    isPasswordField && isPasswordVisible
+      ? 'text'
+      : isPasswordField
+        ? 'password'
+        : type
 
   return (
     <label className='space-y-2'>
       <HelpLabel label={label} help={help} required={required} />
-      <Input
-        name={name}
-        type={type}
-        step={step}
-        defaultValue={onChange ? undefined : defaultValue}
-        value={onChange ? value : undefined}
-        onChange={
-          onChange ? event => onChange(event.currentTarget.value) : undefined
-        }
-        required={required}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? errorId : undefined}
-        className={cn(error && 'border-red-500 focus-visible:ring-red-500')}
-      />
+      <span className='relative block'>
+        <Input
+          name={name}
+          type={inputType}
+          step={step}
+          defaultValue={onChange ? undefined : defaultValue}
+          value={onChange ? value : undefined}
+          onChange={
+            onChange ? event => onChange(event.currentTarget.value) : undefined
+          }
+          required={required}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          className={cn(
+            isPasswordField && 'pr-12',
+            error && 'border-red-500 focus-visible:ring-red-500'
+          )}
+        />
+        {isPasswordField ? (
+          <button
+            type='button'
+            className='text-foreground/60 hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background absolute top-1/2 right-2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+            aria-label={isPasswordVisible ? 'Hide secret' : 'Show secret'}
+            aria-pressed={isPasswordVisible}
+            onClick={() => setIsPasswordVisible(current => !current)}
+          >
+            {isPasswordVisible ? (
+              <EyeOff className='h-4 w-4' aria-hidden />
+            ) : (
+              <Eye className='h-4 w-4' aria-hidden />
+            )}
+          </button>
+        ) : null}
+      </span>
       {error ? (
         <p id={errorId} className='text-sm font-medium text-red-500'>
           {error}
