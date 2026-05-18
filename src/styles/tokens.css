@@ -34,8 +34,8 @@
   --muted-foreground: 213 20% 72%;
   --accent: 187 100% 45%;
   --accent-foreground: 224 56% 6%;
-  --primary: 218 100% 64%;
-  --primary-foreground: 224 56% 6%;
+  --primary: 218 92% 46%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 270 78% 64%;
   --secondary-foreground: 0 0% 100%;
   --warning: 34 100% 54%;
@@ -44,7 +44,7 @@
   --input: 223 26% 24%;
   --ring: 187 100% 52%;
   --brand-cyan: 187 100% 45%;
-  --brand-blue: 218 100% 64%;
+  --brand-blue: 218 92% 46%;
   --brand-royal: 228 82% 65%;
   --brand-purple: 270 78% 64%;
   --brand-orange: 34 100% 54%;
