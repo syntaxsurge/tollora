@@ -29,13 +29,13 @@ provider dashboards.
   configured facilitator.
 - Public proof pages for autonomous runs with receipt rollups, proof hashes, and
   Mezo explorer links.
-- Provider adapter registry with synchronous responses, async ClipLore video
-  jobs, prompt enhancement, and data responses behind the same paid gateway
-  contract.
-- Async provider job polling plus ClipLore webhook intake with optional HMAC
-  verification.
+- Generic external HTTP adapter for provider-created APIs, including private
+  upstream auth, idempotency headers, async job polling, and result-path
+  extraction behind the same paid gateway contract.
+- OpenAPI import for faster provider onboarding from hosted JSON/YAML specs or
+  uploaded files.
 - OpenAPI JSON and Scalar API reference for gateway, receipt, provider, and
-  webhook routes.
+  agent routes.
 - Receipt pages with MUSD amount, fee split, payer, provider wallet, transaction
   hash, and explorer links.
 - Admin moderation pages for API products and buyer request operations.
@@ -93,6 +93,10 @@ payment from the connected browser wallet, and receive the provider response.
 Teams that want API-key ergonomics can use `/billing` to create a managed credit
 account and call `/api/credits/products/{slug}/call` with a Tollora API key.
 
+Providers can open `/provider/products/new` and import an OpenAPI JSON/YAML URL
+or file to prefill endpoint URL, method, auth type, schemas, sample payload,
+async polling, and result-path fields before publishing a paid listing.
+
 ## Walkthrough And Deployment
 
 - Deployment checklist:
@@ -115,9 +119,6 @@ Key values:
 - `NEXT_PUBLIC_X402_NETWORK=eip155:31611`
 - `X402_FACILITATOR_URL=https://facilitator.vativ.io/`
 - `TOLLORA_PLATFORM_FEE_BPS=500`
-- `CLIPLORE_API_URL`
-- `CLIPLORE_API_KEY`
-- `CLIPLORE_WEBHOOK_SECRET`
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`

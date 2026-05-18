@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 
-import { marketplaceProducts } from '@/features/marketplace/products'
 import { x402Network } from '@/lib/config/chains'
 
 export const dynamic = 'force-static'
@@ -205,6 +204,50 @@ export function GET() {
           }
         }
       },
+      '/api/providers/openapi/preview': {
+        post: {
+          tags: ['Providers'],
+          summary: 'Preview paid API listings from OpenAPI',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/OpenApiImportRequest' }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'OpenAPI operation candidates',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/OpenApiImportPreview' }
+                }
+              }
+            },
+            '400': { description: 'Invalid or unsupported OpenAPI document' }
+          }
+        }
+      },
+      '/api/providers/self/products': {
+        post: {
+          tags: ['Providers'],
+          summary: 'Create a paid provider API product',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CreateProviderProduct' }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Provider product accepted' },
+            '400': { description: 'Invalid product payload' },
+            '409': { description: 'Product slug already exists' }
+          }
+        }
+      },
       '/api/receipts/{receiptId}': {
         get: {
           tags: ['Receipts'],
@@ -349,33 +392,6 @@ export function GET() {
           }
         }
       },
-      '/api/provider-webhooks/cliplore': {
-        post: {
-          tags: ['Providers'],
-          summary: 'Receive ClipLore video job status updates',
-          parameters: [
-            {
-              name: 'x-cliplore-signature',
-              in: 'header',
-              required: false,
-              schema: { type: 'string' }
-            }
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ClipLoreWebhook' }
-              }
-            }
-          },
-          responses: {
-            '200': { description: 'Webhook accepted' },
-            '400': { description: 'Invalid webhook payload' },
-            '401': { description: 'Invalid webhook signature' }
-          }
-        }
-      }
     },
     components: {
       securitySchemes: {
@@ -426,13 +442,68 @@ export function GET() {
             debits: { type: 'array', items: { type: 'object' } }
           }
         },
+        OpenApiImportRequest: {
+          type: 'object',
+          properties: {
+            specUrl: { type: 'string', format: 'uri' },
+            specText: { type: 'string' },
+            baseUrl: { type: 'string', format: 'uri' }
+          }
+        },
+        OpenApiImportPreview: {
+          type: 'object',
+          properties: {
+            info: { type: 'object', additionalProperties: true },
+            candidates: {
+              type: 'array',
+              items: { type: 'object', additionalProperties: true }
+            }
+          }
+        },
+        CreateProviderProduct: {
+          type: 'object',
+          required: [
+            'name',
+            'slug',
+            'category',
+            'description',
+            'priceUsd',
+            'endpointUrl',
+            'method',
+            'receivingWallet',
+            'requestSchemaJson',
+            'responseSchemaJson'
+          ],
+          properties: {
+            name: { type: 'string' },
+            slug: { type: 'string' },
+            category: { type: 'string' },
+            description: { type: 'string' },
+            priceUsd: { type: 'number' },
+            endpointUrl: { type: 'string', format: 'uri' },
+            method: { type: 'string', enum: ['GET', 'POST'] },
+            authType: { type: 'string' },
+            authSecret: { type: 'string' },
+            executionMode: { type: 'string' },
+            settlementModel: { type: 'string' },
+            resultDelivery: { type: 'string' },
+            statusEndpointUrl: { type: 'string', format: 'uri' },
+            externalJobIdPath: { type: 'string' },
+            statusPath: { type: 'string' },
+            resultUrlPath: { type: 'string' },
+            receivingWallet: { type: 'string' },
+            requestSchemaJson: { type: 'string' },
+            responseSchemaJson: { type: 'string' },
+            referencePayloadJson: { type: 'string' },
+            isAgentReady: { type: 'boolean' }
+          }
+        },
         CreateOrderRequest: {
           type: 'object',
           required: ['productSlug', 'buyerWallet', 'requestPayloadJson'],
           properties: {
             productSlug: {
-              type: 'string',
-              enum: marketplaceProducts.map(product => product.slug)
+              type: 'string'
             },
             buyerWallet: { type: 'string' },
             requestPayloadJson: { type: 'string' }
@@ -514,8 +585,7 @@ export function GET() {
             allowedTools: {
               type: 'array',
               items: {
-                type: 'string',
-                enum: marketplaceProducts.map(product => product.slug)
+                type: 'string'
               }
             },
             mode: { type: 'string', enum: ['local', 'production'] }
@@ -572,21 +642,6 @@ export function GET() {
             run: { type: 'object', additionalProperties: true }
           }
         },
-        ClipLoreWebhook: {
-          type: 'object',
-          required: ['orderId', 'externalJobId', 'status'],
-          properties: {
-            orderId: { type: 'string' },
-            receiptId: { type: 'string' },
-            externalJobId: { type: 'string' },
-            status: {
-              type: 'string',
-              enum: ['queued', 'processing', 'completed', 'failed']
-            },
-            resultUrl: { type: 'string', format: 'uri' },
-            errorMessage: { type: 'string' }
-          }
-        },
         ReadinessCheck: {
           type: 'object',
           properties: {
@@ -621,8 +676,7 @@ function paidCallOperation(method: 'GET' | 'POST') {
         in: 'path',
         required: true,
         schema: {
-          type: 'string',
-          enum: marketplaceProducts.map(product => product.slug)
+          type: 'string'
         }
       }
     ],

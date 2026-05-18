@@ -46,6 +46,7 @@
     "thirdweb": "^5.105.26",
     "viem": "^2.43.3",
     "wagmi": "^2.16.1",
+    "yaml": "^2.9.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

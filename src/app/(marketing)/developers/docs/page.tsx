@@ -63,8 +63,8 @@ export default function DeveloperDocsPage() {
           body='Receipts include product, provider, buyer wallet, provider wallet, amount in MUSD, network, transaction hash, request ID, timestamp, and result URL when the provider response exposes one.'
         />
         <DocSection
-          title='ClipLore provider adapter'
-          body='The ClipLore adapter validates prompt, format, duration, optional script, and source preferences, starts video jobs through the configured ClipLore API, sends Tollora order and receipt metadata as the external reference, supports polling through the order provider-status endpoint, and accepts signed webhook status updates.'
+          title='External API adapter'
+          body='Provider-created listings use a generic HTTP adapter. Tollora forwards paid requests to the configured upstream endpoint, applies server-side provider credentials, sends idempotency headers, extracts job IDs and result URLs from configured JSON paths, and polls status endpoints for async products.'
         />
         <DocSection
           title='Autonomous agent runs'
@@ -75,8 +75,8 @@ export default function DeveloperDocsPage() {
           body='Completed agent runs hash the objective, selected tools, paid action log, response hashes, receipt IDs, and final deliverables. Tollora writes that proof hash to AgentRunAttestor on Mezo so the public proof page can be audited without publishing private content on-chain.'
         />
         <DocSection
-          title='Webhook events'
-          body='Provider webhooks post status changes with order ID, external job ID, status, optional receipt ID, result URL, and error message. ClipLore signatures are verified when the webhook secret is configured.'
+          title='OpenAPI import'
+          body='Providers can import hosted or uploaded OpenAPI JSON/YAML documents from the List a paid API page. Tollora turns operations into listing candidates and pre-fills endpoint URL, method, auth type, request schema, response schema, reference payload, async polling, and result-path fields.'
         />
       </section>
 
@@ -206,18 +206,15 @@ Content-Type: application/json
 
       <Card>
         <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          ClipLore webhook
+          OpenAPI import
         </p>
         <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`POST /api/provider-webhooks/cliplore
+          {`POST /api/providers/openapi/preview
 Content-Type: application/json
 
 {
-  "orderId": "ord_6f8d2a44c9b1",
-  "receiptId": "rcpt_24d7c6fae911",
-  "externalJobId": "clip_6f8d2a44c9b1",
-  "status": "completed",
-  "resultUrl": "https://cliplore.ai"
+  "specUrl": "https://cliplore.ai/api/openapi.json",
+  "baseUrl": "https://cliplore.ai/api/v1"
 }`}
         </pre>
       </Card>

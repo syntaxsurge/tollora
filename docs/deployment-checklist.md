@@ -16,9 +16,6 @@ Use this checklist before submitting or presenting the app.
 - `NEXT_PUBLIC_X402_NETWORK=eip155:31611`
 - `X402_FACILITATOR_URL=https://facilitator.vativ.io/`
 - `TOLLORA_PLATFORM_FEE_BPS=500`
-- `CLIPLORE_API_URL`
-- `CLIPLORE_API_KEY`
-- `CLIPLORE_WEBHOOK_SECRET`
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
@@ -50,8 +47,8 @@ pnpm build
 - `POST /api/credits/accounts`, `POST /api/credits/top-ups`, and
   `POST /api/credits/products/{published-product-slug}/call` support managed
   API-key credits.
-- `POST /api/provider-webhooks/cliplore` accepts a valid ClipLore job status
-  payload.
+- `POST /api/providers/openapi/preview` imports a hosted or uploaded OpenAPI
+  document and returns paid-listing candidates.
 - `/marketplace` shows published API products.
 - `/agents` and `/agents/new` show the autonomous agent lifecycle.
 - `/proofs/[proofId]` renders without wallet auth.

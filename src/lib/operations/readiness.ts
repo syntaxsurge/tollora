@@ -48,15 +48,6 @@ export function getOperationalReadiness() {
         'Provider-created listings store upstream endpoint, auth, and polling mappings for paid forwarding.'
     },
     {
-      label: 'ClipLore webhook',
-      value: envServer.CLIPLORE_WEBHOOK_SECRET
-        ? 'Signature verification enabled'
-        : 'Unsigned local intake',
-      state: envServer.CLIPLORE_WEBHOOK_SECRET ? 'ready' : 'attention',
-      detail:
-        'Webhook signatures are verified when the shared secret is configured.'
-    },
-    {
       label: 'Marketplace listings',
       value: products.length.toString(),
       state: products.length > 0 ? 'ready' : 'attention',

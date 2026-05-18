@@ -16,9 +16,15 @@ type ParsedArgs = {
 
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2)
-  const slug = args.find(arg => !arg.startsWith('--')) ?? 'prompt-enhancer-api'
+  const slug = args.find(arg => !arg.startsWith('--'))
   const payloadIndex = args.indexOf('--payload')
   const urlIndex = args.indexOf('--url')
+
+  if (!slug) {
+    throw new Error(
+      'Usage: pnpm x402:call <published-product-slug> --payload \'{"key":"value"}\''
+    )
+  }
 
   return {
     slug,
@@ -44,15 +50,14 @@ async function main() {
   const { slug, payload, url } = parseArgs()
   const product = getProductBySlug(slug)
 
-  if (!product) {
-    throw new Error(`Unknown Tollora product slug: ${slug}`)
-  }
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const endpointUrl = url ?? new URL(product.endpointPath, appUrl).toString()
+  const endpointUrl =
+    url ??
+    new URL(product?.endpointPath ?? `/api/x402/products/${slug}/call`, appUrl)
+      .toString()
   const requestPayload = payload
     ? (JSON.parse(payload) as unknown)
-    : product.referencePayload
+    : (product?.referencePayload ?? {})
   const signer = privateKeyToAccount(getPrivateKey() as `0x${string}`)
   const client = new x402Client()
 
@@ -60,12 +65,15 @@ async function main() {
 
   const paidFetch = wrapFetchWithPayment(fetch, client)
   const response = await paidFetch(endpointUrl, {
-    method: product.method,
+    method: product?.method ?? 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json'
     },
-    body: product.method === 'POST' ? JSON.stringify(requestPayload) : undefined
+    body:
+      (product?.method ?? 'POST') === 'POST'
+        ? JSON.stringify(requestPayload)
+        : undefined
   })
   const body = await response.json().catch(() => null)
   const httpClient = new x402HTTPClient(client)

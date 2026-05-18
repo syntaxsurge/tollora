@@ -431,9 +431,10 @@ Before creating a new helper or service file:
   unpaid requests, verify and settle signed MUSD payments through the configured
   facilitator, call the registered provider adapter, return paid provider
   responses, and attach receipt metadata.
-- `POST /api/provider-webhooks/cliplore` — accepts ClipLore video job status
-  updates, validates payload shape, and verifies HMAC signatures when
-  `CLIPLORE_WEBHOOK_SECRET` is configured.
+- `POST /api/providers/openapi/preview` — imports a hosted or uploaded OpenAPI
+  JSON/YAML document and returns paid-listing candidates with inferred endpoint
+  URL, method, auth type, schemas, reference payload, async polling paths, and
+  result mapping.
 - `GET /api/openapi.json` — returns the Tollora OpenAPI document.
 - `GET /api/reference` — serves the Scalar API reference for the OpenAPI
   document.
@@ -505,8 +506,8 @@ Before creating a new helper or service file:
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
   schemas, upstream endpoint URL, upstream authentication, async polling JSON
-  paths, runtime model, wallet fields, agent readiness, and visibility before
-  posting to the product API route.
+  paths, runtime model, wallet fields, agent readiness, OpenAPI-imported
+  operation defaults, and visibility before posting to the product API route.
 - `/provider/products/[productId]` shows product operations, payable request
   links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
@@ -535,10 +536,10 @@ Before creating a new helper or service file:
   autonomous agent spend, proof counts, and recent MUSD receipt records.
 - `/admin/products` and `/admin/orders` provide allowlisted operational review
   for marketplace listings and buyer API request records.
-- `/developers` and `/developers/docs` describe provider onboarding, x402 paid
-  calls, autonomous agent runs, Mezo proof attestations, gateway forwarding,
-  receipt records, webhook events, ClipLore adapter behavior, OpenAPI JSON, and
-  the Scalar API reference.
+- `/developers` and `/developers/docs` describe provider onboarding, OpenAPI
+  import, x402 paid calls, autonomous agent runs, Mezo proof attestations,
+  gateway forwarding, receipt records, external HTTP adapter behavior, OpenAPI
+  JSON, and the Scalar API reference.
 - Admin routes use `src/components/layout/admin-sidebar.tsx`; the users table is
   server-rendered from URL search, filter, sort, and pagination parameters.
 - Admin user row actions use three-dot menus with reusable responsive dialogs
