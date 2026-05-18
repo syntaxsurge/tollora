@@ -67,7 +67,7 @@ export function Dialog({
         aria-labelledby='dialog-title'
         aria-describedby={description ? 'dialog-description' : undefined}
         className={cn(
-          'bg-card text-foreground border-border relative flex max-h-[min(760px,calc(100vh-2rem))] w-[calc(100vw-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg border shadow-2xl shadow-brand-blue/15',
+          'bg-card text-foreground border-border shadow-brand-blue/15 relative flex max-h-[min(760px,calc(100vh-2rem))] w-[calc(100vw-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg border shadow-2xl',
           className
         )}
       >

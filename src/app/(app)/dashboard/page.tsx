@@ -151,7 +151,9 @@ export default function DashboardPage() {
               href={`/agents/${recentAgentRun.id}`}
               className='border-foreground/10 hover:border-foreground/25 block rounded-lg border p-4 transition'
             >
-              <span className='block font-semibold'>{recentAgentRun.title}</span>
+              <span className='block font-semibold'>
+                {recentAgentRun.title}
+              </span>
               <span className='text-foreground/60 mt-1 block text-sm leading-6'>
                 {recentAgentRun.summary}
               </span>

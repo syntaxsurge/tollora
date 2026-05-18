@@ -1,7 +1,8 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { FormEvent, useState } from 'react'
+
+import { useRouter } from 'nextjs-toploader/app'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -14,7 +15,12 @@ export function AgentRunCreateForm({
 }: {
   products: Pick<
     ApiProduct,
-    'slug' | 'name' | 'priceLabel' | 'providerName' | 'category' | 'isAgentReady'
+    | 'slug'
+    | 'name'
+    | 'priceLabel'
+    | 'providerName'
+    | 'category'
+    | 'isAgentReady'
   >[]
 }) {
   const router = useRouter()
@@ -164,23 +170,23 @@ export function AgentRunCreateForm({
             </div>
           ) : null}
           {agentReadyProducts.map(product => (
-              <label
-                key={product.slug}
-                className='border-foreground/10 flex cursor-pointer gap-3 rounded-lg border p-4'
-              >
-                <input
-                  type='checkbox'
-                  checked={selectedTools.includes(product.slug)}
-                  onChange={() => toggleTool(product.slug)}
-                  className='mt-1'
-                />
-                <span>
-                  <span className='block font-semibold'>{product?.name}</span>
-                  <span className='text-foreground/60 mt-1 block text-sm'>
-                    {product.priceLabel} - {product.providerName}
-                  </span>
+            <label
+              key={product.slug}
+              className='border-foreground/10 flex cursor-pointer gap-3 rounded-lg border p-4'
+            >
+              <input
+                type='checkbox'
+                checked={selectedTools.includes(product.slug)}
+                onChange={() => toggleTool(product.slug)}
+                className='mt-1'
+              />
+              <span>
+                <span className='block font-semibold'>{product?.name}</span>
+                <span className='text-foreground/60 mt-1 block text-sm'>
+                  {product.priceLabel} - {product.providerName}
                 </span>
-              </label>
+              </span>
+            </label>
           ))}
         </div>
         <Button

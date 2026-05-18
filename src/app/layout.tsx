@@ -5,6 +5,7 @@ import { Geist_Mono, Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import NextTopLoader from 'nextjs-toploader'
 
+import { NavigationProgressEvents } from '@/components/feedback/navigation-progress-events'
 import { AppProviders } from '@/components/providers/app-providers'
 import { siteConfig } from '@/lib/config/site'
 
@@ -63,6 +64,7 @@ export default function RootLayout({
           showSpinner={false}
           shadow='0 0 16px rgba(20, 184, 166, 0.45)'
         />
+        <NavigationProgressEvents />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

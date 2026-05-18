@@ -13,7 +13,7 @@ export function AppSidebar() {
     <aside className='lg:sticky lg:top-24 lg:self-start'>
       <nav
         aria-label='Workspace'
-        className='border-border/80 bg-card/90 rounded-lg border p-2 shadow-sm shadow-brand-blue/5 backdrop-blur'
+        className='border-border/80 bg-card/90 shadow-brand-blue/5 rounded-lg border p-2 shadow-sm backdrop-blur'
       >
         <div className='px-3 py-2'>
           <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
@@ -33,7 +33,7 @@ export function AppSidebar() {
                 className={cn(
                   'rounded-md px-3 py-3 transition duration-200',
                   isActive
-                    ? 'border border-primary/25 bg-primary text-primary-foreground shadow-sm'
+                    ? 'border-primary/25 bg-primary text-primary-foreground border shadow-sm'
                     : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >

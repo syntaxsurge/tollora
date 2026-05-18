@@ -165,7 +165,9 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
           <Button
             variant='outline'
             onClick={attestRun}
-            disabled={isAttesting || !['completed', 'attesting'].includes(run.status)}
+            disabled={
+              isAttesting || !['completed', 'attesting'].includes(run.status)
+            }
           >
             {isAttesting ? 'Writing proof' : 'Attest proof on Mezo'}
           </Button>

@@ -15,7 +15,7 @@ export function AdminSidebar() {
     <aside className='lg:sticky lg:top-24 lg:self-start'>
       <nav
         aria-label='Admin'
-        className='border-border/80 bg-card/90 rounded-lg border p-2 shadow-sm shadow-brand-purple/5 backdrop-blur'
+        className='border-border/80 bg-card/90 shadow-brand-purple/5 rounded-lg border p-2 shadow-sm backdrop-blur'
       >
         <div className='flex items-center gap-2 px-3 py-2'>
           <ShieldCheck className='text-accent h-4 w-4' aria-hidden />
@@ -38,7 +38,7 @@ export function AdminSidebar() {
                 className={cn(
                   'rounded-md px-3 py-3 transition duration-200',
                   isActive
-                    ? 'border border-primary/25 bg-primary text-primary-foreground shadow-sm'
+                    ? 'border-primary/25 bg-primary text-primary-foreground border shadow-sm'
                     : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >
@@ -61,7 +61,7 @@ export function AdminSidebar() {
         </div>
         <Link
           href='/dashboard'
-          className='text-muted-foreground hover:bg-accent/10 hover:text-primary mt-3 block rounded-md px-3 py-2 text-sm transition dark:hover:text-accent'
+          className='text-muted-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent mt-3 block rounded-md px-3 py-2 text-sm transition'
         >
           Back to workspace
         </Link>

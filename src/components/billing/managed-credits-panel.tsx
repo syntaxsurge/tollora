@@ -5,8 +5,8 @@ import { FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
 
 type PublicManagedCreditAccount = {
   wallet: string

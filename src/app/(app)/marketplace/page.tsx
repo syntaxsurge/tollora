@@ -1,5 +1,6 @@
-import { Search } from 'lucide-react'
 import Link from 'next/link'
+
+import { Search } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
@@ -28,9 +29,9 @@ export default function MarketplacePage() {
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
               Browse x402-protected API products for AI workflows, data access,
-              media generation, commerce automation, and autonomous agent
-              runs. Every listing exposes a stable Tollora endpoint and records
-              MUSD receipts for buyers, providers, and proof-backed agent work.
+              media generation, commerce automation, and autonomous agent runs.
+              Every listing exposes a stable Tollora endpoint and records MUSD
+              receipts for buyers, providers, and proof-backed agent work.
             </p>
           </div>
           <div className='grid gap-3 sm:grid-cols-3 lg:grid-cols-1'>

@@ -398,6 +398,9 @@ Before creating a new helper or service file:
   polling mappings, runtime model, price, agent readiness, and visibility, then
   records a provider-created marketplace listing and returns the accepted
   product response.
+- `PATCH /api/providers/self/products/[slug]/status` — updates a provider
+  product lifecycle state between draft, published, and paused for management
+  workflows.
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
@@ -504,13 +507,15 @@ Before creating a new helper or service file:
   model, result delivery model, Run with wallet entry point, Use from code
   anchor, and Use in agent run entry point.
 - `/orders/new` shows selected product price, gateway endpoint, method,
-  provider, request body, connected buyer wallet, and x402 documentation link
-  before a payable API request is created.
+  provider, connected buyer wallet, and a schema-driven request builder that
+  generates validated fields from the product request schema while keeping an
+  advanced JSON preview before a payable API request is created.
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.
-- `/provider/products` lists provider API products with status, price, gateway
-  path, listing links, and management actions.
+- `/provider/products` lists provider API products with status context, price,
+  call volume, gateway path, listing links, and next-step management actions for
+  drafts, paused listings, and live products.
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
@@ -527,8 +532,10 @@ Before creating a new helper or service file:
   as `estimatedCredits`, and 202 Accepted job operations, links async
   job-creation operations to matching status endpoints from the imported spec,
   and marks required provider auth and polling fields accurately.
-- `/provider/products/[productId]` shows product operations, payable request
-  links, usage links, endpoint copy support, and schema details.
+- `/provider/products/[productId]` is the provider API management workspace. It
+  shows lifecycle controls for publishing, pausing, and returning products to
+  draft, a launch checklist, payable schema-driven test runs, gateway endpoint
+  copy support, provider contract details, and request/response schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
   request IDs, and status labels.
 - `/orders` and `/orders/[orderId]` show buyer request lifecycle state using
@@ -628,7 +635,12 @@ Before creating a new helper or service file:
   `src/lib/contracts/subscription.ts`,
   `src/lib/contracts/subscription-admin.ts`, the chain registry, and the
   configured `NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS`.
-- Route transitions show a top progress loader via `nextjs-toploader`.
+- Route transitions show a top progress loader via `nextjs-toploader`. Client
+  components that navigate programmatically use the `nextjs-toploader/app`
+  router wrapper so `push` and `replace` redirects show the same loader as
+  link-based navigation. `NavigationProgressEvents` starts the same loader for
+  same-origin form submits and browser-level unload navigations so redirects
+  outside `next/link` still show progress.
 - Theme switching using `next-themes` with class-based dark mode.
 
 ## Core Commands

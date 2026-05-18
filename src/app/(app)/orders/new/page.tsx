@@ -74,6 +74,8 @@ export default async function NewOrderPage({
         <OrderCreateForm
           product={{
             slug: product.slug,
+            name: product.name,
+            requestSchema: product.requestSchema,
             referencePayload: product.referencePayload
           }}
         />

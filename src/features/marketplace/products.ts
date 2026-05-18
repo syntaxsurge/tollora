@@ -130,6 +130,23 @@ export function recordProviderProduct(product: ApiProduct) {
   return product
 }
 
+export function updateProviderProductStatus(
+  slug: string,
+  status: ApiProductStatus
+) {
+  const product = getProductBySlug(slug)
+
+  if (!product) {
+    return null
+  }
+
+  return recordProviderProduct({
+    ...product,
+    status,
+    featured: status === 'published' ? (product.featured ?? true) : false
+  })
+}
+
 export function getMarketplaceMetrics() {
   const products = getPublishedProducts()
   const totalCalls = products.reduce((sum, product) => sum + product.calls, 0)

@@ -28,8 +28,8 @@ export default async function AdminOperationsPage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>Gateway operations</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Monitor deployment readiness, x402 payment health, autonomous
-            agent signers, provider adapters, receipt coverage, and contract
+            Monitor deployment readiness, x402 payment health, autonomous agent
+            signers, provider adapters, receipt coverage, and contract
             configuration from the admin workspace.
           </p>
         </div>

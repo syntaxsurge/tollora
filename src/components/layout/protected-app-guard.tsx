@@ -1,8 +1,10 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import * as React from 'react'
+
+import { useRouter } from 'nextjs-toploader/app'
 
 import { useWalletRuntimeReady } from '@/components/providers/wallet-provider'
 import { walletProvider } from '@/lib/config/wallet'

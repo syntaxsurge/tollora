@@ -32,9 +32,7 @@ export function getAgentRunReceiptIds(actions: AgentAction[]) {
 }
 
 export function hashObject(value: unknown): `0x${string}` {
-  return `0x${createHash('sha256')
-    .update(JSON.stringify(value))
-    .digest('hex')}`
+  return `0x${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`
 }
 
 export function buildProofId(proofHash: `0x${string}`) {
