@@ -6,14 +6,17 @@ import {
   getProductBySlug
 } from '@/features/marketplace/products'
 import {
-  apiProductSchema,
-  formatMusdAmount
+  apiProductBaseSchema,
+  formatMusdAmount,
+  refineApiProduct
 } from '@/features/marketplace/schemas'
 
-const createProviderProductSchema = apiProductSchema.extend({
-  ownerWallet: apiProductSchema.shape.receivingWallet,
-  providerDisplayName: apiProductSchema.shape.name
-})
+const createProviderProductSchema = apiProductBaseSchema
+  .extend({
+    ownerWallet: apiProductBaseSchema.shape.receivingWallet,
+    providerDisplayName: apiProductBaseSchema.shape.name
+  })
+  .superRefine(refineApiProduct)
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)

@@ -16,6 +16,7 @@ export type OpenApiImportCandidate = {
   method: 'GET' | 'POST'
   endpointUrl: string
   authType: 'none' | 'bearer' | 'api_key_header' | 'api_key_query'
+  authRequired: boolean
   authHeaderName: string
   authQueryParam: string
   executionMode: ApiProductExecutionMode
@@ -39,6 +40,7 @@ type OpenApiDocument = {
     title?: string
   }
   servers?: { url?: string }[]
+  security?: Record<string, unknown[]>[]
   paths?: Record<string, Record<string, OpenApiOperation>>
   components?: {
     schemas?: Record<string, unknown>
@@ -80,9 +82,11 @@ export function parseOpenApiDocument(input: string) {
     throw new Error('OpenAPI document is empty.')
   }
 
-  return (trimmed.startsWith('{') || trimmed.startsWith('[')
-    ? JSON.parse(trimmed)
-    : parseYaml(trimmed)) as OpenApiDocument
+  return (
+    trimmed.startsWith('{') || trimmed.startsWith('[')
+      ? JSON.parse(trimmed)
+      : parseYaml(trimmed)
+  ) as OpenApiDocument
 }
 
 export function createOpenApiImportCandidates({
@@ -166,6 +170,7 @@ function buildCandidate({
   const pollingPath = acceptedAsync
     ? findPollingPath(document, path, jobIdPath)
     : ''
+  const auth = inferAuth(document, operation)
 
   return {
     operationId: operation.operationId || `${method.toLowerCase()}-${path}`,
@@ -175,15 +180,22 @@ function buildCandidate({
     category: inferCategory(operation, path),
     method,
     endpointUrl: joinUrl(baseUrl, path),
-    authType: inferAuthType(document, operation),
-    authHeaderName: 'Authorization',
-    authQueryParam: '',
+    authType: auth.type,
+    authRequired: auth.required,
+    authHeaderName:
+      auth.type === 'api_key_header'
+        ? auth.security?.name || 'Authorization'
+        : 'Authorization',
+    authQueryParam:
+      auth.type === 'api_key_query' ? auth.security?.name || '' : '',
     executionMode: acceptedAsync ? 'asynchronous' : 'synchronous',
     settlementModel: acceptedAsync
       ? 'pay_on_job_acceptance'
       : 'pay_on_successful_response',
     resultDelivery: acceptedAsync ? 'poll_or_webhook' : 'direct_response',
-    estimatedLatency: acceptedAsync ? 'Async provider job' : 'Provider response',
+    estimatedLatency: acceptedAsync
+      ? 'Async provider job'
+      : 'Provider response',
     statusEndpointUrl: pollingPath
       ? joinUrl(baseUrl, pollingPath).replace(/\{[^}]+\}/g, '{externalJobId}')
       : '',
@@ -225,34 +237,43 @@ function resolveBaseUrl({
   return serverUrl.replace(/\/$/, '')
 }
 
-function inferAuthType(document: OpenApiDocument, operation: OpenApiOperation) {
-  const securityName = Object.keys(operation.security?.[0] ?? {})[0]
+function inferAuth(document: OpenApiDocument, operation: OpenApiOperation) {
+  const securityRequirement =
+    (operation.security ?? document.security ?? []).find(
+      requirement => Object.keys(requirement).length > 0
+    ) ?? {}
+  const securityName = Object.keys(securityRequirement)[0]
   const security = securityName
     ? document.components?.securitySchemes?.[securityName]
     : undefined
 
   if (security?.type === 'http' && security.scheme === 'bearer') {
-    return 'bearer'
+    return { type: 'bearer' as const, required: true, security }
   }
 
   if (security?.type === 'apiKey' && security.in === 'query') {
-    return 'api_key_query'
+    return { type: 'api_key_query' as const, required: true, security }
   }
 
   if (security?.type === 'apiKey') {
-    return 'api_key_header'
+    return { type: 'api_key_header' as const, required: true, security }
   }
 
-  return 'none'
+  return { type: 'none' as const, required: false, security }
 }
 
 function inferCategory(
   operation: OpenApiOperation,
   path: string
 ): ApiProductCategory {
-  const text = `${operation.tags?.join(' ') ?? ''} ${operation.summary ?? ''} ${path}`.toLowerCase()
+  const text =
+    `${operation.tags?.join(' ') ?? ''} ${operation.summary ?? ''} ${path}`.toLowerCase()
 
-  if (text.includes('video') || text.includes('media') || text.includes('image')) {
+  if (
+    text.includes('video') ||
+    text.includes('media') ||
+    text.includes('image')
+  ) {
     return 'media'
   }
 

@@ -2,17 +2,16 @@
 
 import { HelpCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import {
-  FormEvent,
-  type ReactNode,
-  useRef,
-  useState
-} from 'react'
+import { FormEvent, type ReactNode, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import type { OpenApiImportCandidate } from '@/features/marketplace/openapi-import'
+import type {
+  ApiProductAuthType,
+  ApiProductExecutionMode
+} from '@/features/marketplace/products'
 import {
   apiProductAuthTypes,
   apiProductCategories,
@@ -29,6 +28,18 @@ export function ProviderProductForm() {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [authType, setAuthType] = useState<ApiProductAuthType>('bearer')
+  const [executionMode, setExecutionMode] =
+    useState<ApiProductExecutionMode>('synchronous')
+  const authSecretIsRequired = [
+    'bearer',
+    'api_key_header',
+    'api_key_query'
+  ].includes(authType)
+  const isBasicAuth = authType === 'basic'
+  const isQueryKeyAuth = authType === 'api_key_query'
+  const isHeaderAuth = authType === 'bearer' || authType === 'api_key_header'
+  const isAsyncProduct = executionMode === 'asynchronous'
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -92,9 +103,11 @@ export function ProviderProductForm() {
     )
     setFormValue(form, 'endpointUrl', candidate.endpointUrl)
     setFormValue(form, 'method', candidate.method)
+    setAuthType(candidate.authType)
     setFormValue(form, 'authType', candidate.authType)
     setFormValue(form, 'authHeaderName', candidate.authHeaderName)
     setFormValue(form, 'authQueryParam', candidate.authQueryParam)
+    setExecutionMode(candidate.executionMode)
     setFormValue(form, 'executionMode', candidate.executionMode)
     setFormValue(form, 'settlementModel', candidate.settlementModel)
     setFormValue(form, 'resultDelivery', candidate.resultDelivery)
@@ -237,6 +250,8 @@ export function ProviderProductForm() {
             label='Auth type'
             name='authType'
             defaultValue='bearer'
+            value={authType}
+            onChange={value => setAuthType(value as ApiProductAuthType)}
             help='How Tollora authenticates to the upstream provider API.'
           >
             {apiProductAuthTypes.map(type => (
@@ -250,28 +265,28 @@ export function ProviderProductForm() {
             name='authSecret'
             type='password'
             defaultValue=''
-            required={false}
-            help='Provider API key or token. It is used server-side and is not shown to buyers.'
+            required={authSecretIsRequired}
+            help='Provider API key or token. Imported OpenAPI operations that declare bearer or API-key security require this secret before Tollora can forward paid calls.'
           />
           <Field
             label='Header name'
             name='authHeaderName'
             defaultValue='Authorization'
-            required={false}
+            required={isHeaderAuth}
             help='Header used for bearer or API-key-header auth.'
           />
           <Field
             label='Query parameter name'
             name='authQueryParam'
             defaultValue=''
-            required={false}
+            required={isQueryKeyAuth}
             help='Query parameter used when auth type is api_key_query.'
           />
           <Field
             label='Basic auth username'
             name='authUsername'
             defaultValue=''
-            required={false}
+            required={isBasicAuth}
             help='Username used only when auth type is basic.'
           />
           <Field
@@ -279,7 +294,7 @@ export function ProviderProductForm() {
             name='authPassword'
             type='password'
             defaultValue=''
-            required={false}
+            required={isBasicAuth}
             help='Password used only when auth type is basic.'
           />
         </div>
@@ -298,7 +313,11 @@ export function ProviderProductForm() {
           <SelectField
             label='Execution mode'
             name='executionMode'
-            defaultValue='asynchronous'
+            defaultValue='synchronous'
+            value={executionMode}
+            onChange={value =>
+              setExecutionMode(value as ApiProductExecutionMode)
+            }
             help='Synchronous APIs return the final result immediately; asynchronous APIs return a job ID.'
           >
             {apiProductExecutionModes.map(mode => (
@@ -310,7 +329,7 @@ export function ProviderProductForm() {
           <SelectField
             label='Settlement model'
             name='settlementModel'
-            defaultValue='pay_on_job_acceptance'
+            defaultValue='pay_on_successful_response'
             help='Defines when the buyer should pay relative to provider success or job acceptance.'
           >
             {apiProductSettlementModels.map(model => (
@@ -322,7 +341,7 @@ export function ProviderProductForm() {
           <SelectField
             label='Result delivery'
             name='resultDelivery'
-            defaultValue='poll_or_webhook'
+            defaultValue='direct_response'
             help='How buyers retrieve the usable result after the paid call.'
           >
             {apiProductResultDeliveries.map(delivery => (
@@ -360,6 +379,12 @@ export function ProviderProductForm() {
             Async polling
           </p>
           <h2 className='font-display mt-2 text-2xl'>Job status mapping</h2>
+          <p className='text-foreground/65 mt-2 text-sm leading-6'>
+            Fill this only for async APIs that return a provider job ID. For
+            ClipLore video or media jobs, import OpenAPI and Tollora fills the
+            likely polling URL and JSON paths. Fast quote/read endpoints can
+            stay synchronous and leave this section blank.
+          </p>
         </div>
         <div className='grid gap-4 md:grid-cols-2'>
           <Field
@@ -367,13 +392,14 @@ export function ProviderProductForm() {
             name='statusEndpointUrl'
             type='url'
             defaultValue=''
-            required={false}
+            required={isAsyncProduct}
             help='Polling URL for async jobs. Use {externalJobId} where the job ID belongs.'
           />
           <SelectField
             label='Status method'
             name='statusMethod'
             defaultValue='GET'
+            required={isAsyncProduct}
             help='HTTP method Tollora uses to poll the upstream job status.'
           >
             <option value='GET'>GET</option>
@@ -383,14 +409,14 @@ export function ProviderProductForm() {
             label='External job ID path'
             name='externalJobIdPath'
             defaultValue='jobId'
-            required={false}
+            required={isAsyncProduct}
             help='Dot-path where Tollora finds the provider job ID in the first response.'
           />
           <Field
             label='Status path'
             name='statusPath'
             defaultValue='status'
-            required={false}
+            required={isAsyncProduct}
             help='Dot-path where Tollora reads completed, processing, or failed status.'
           />
           <Field
@@ -492,8 +518,9 @@ function OpenApiImportPanel({
   const [isImporting, setIsImporting] = useState(false)
 
   const selectedCandidate =
-    candidates.find(candidate => candidate.operationId === selectedOperationId) ??
-    candidates[0]
+    candidates.find(
+      candidate => candidate.operationId === selectedOperationId
+    ) ?? candidates[0]
 
   async function handleFile(file: File | undefined) {
     if (!file) {
@@ -590,7 +617,7 @@ function OpenApiImportPanel({
           <Input
             type='file'
             accept='.json,.yaml,.yml,application/json,text/yaml,application/yaml'
-            className='flex h-16 cursor-pointer items-center py-0 leading-[4rem] file:mr-4 file:h-9 file:rounded-md file:border-0 file:bg-muted file:px-4 file:text-sm file:font-semibold file:text-foreground hover:file:bg-accent/10'
+            className='file:bg-muted file:text-foreground hover:file:bg-accent/10 flex h-16 cursor-pointer items-center py-0 leading-[4rem] file:mr-4 file:h-9 file:rounded-md file:border-0 file:px-4 file:text-sm file:font-semibold'
             onChange={event => handleFile(event.target.files?.[0])}
           />
         </label>
@@ -782,11 +809,8 @@ function HelpLabel({
         </span>
       ) : null}
       <span className='group relative inline-flex'>
-        <HelpCircle
-          className='text-foreground/45 h-3.5 w-3.5'
-          aria-hidden
-        />
-        <span className='bg-card text-card-foreground border-border pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-72 -translate-x-1/2 rounded-lg border p-3 text-xs leading-5 normal-case tracking-normal opacity-100 shadow-xl shadow-black/30 ring-1 ring-foreground/10 group-hover:block group-focus-within:block dark:bg-slate-950 dark:text-white dark:ring-white/10'>
+        <HelpCircle className='text-foreground/45 h-3.5 w-3.5' aria-hidden />
+        <span className='bg-card text-card-foreground border-border ring-foreground/10 pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-72 -translate-x-1/2 rounded-lg border p-3 text-xs leading-5 tracking-normal normal-case opacity-100 shadow-xl ring-1 shadow-black/30 group-focus-within:block group-hover:block dark:bg-slate-950 dark:text-white dark:ring-white/10'>
           {help}
         </span>
       </span>

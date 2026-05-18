@@ -10,10 +10,7 @@ export const apiProductCategories = [
 ] as const
 
 export const apiProductStatuses = ['draft', 'published', 'paused'] as const
-export const apiProductExecutionModes = [
-  'synchronous',
-  'asynchronous'
-] as const
+export const apiProductExecutionModes = ['synchronous', 'asynchronous'] as const
 export const apiProductSettlementModels = [
   'pay_on_successful_response',
   'pay_on_job_acceptance',
@@ -43,7 +40,7 @@ export const orderStatuses = [
   'expired'
 ] as const
 
-export const apiProductSchema = z.object({
+export const apiProductBaseSchema = z.object({
   name: z.string().trim().min(3).max(90),
   slug: z
     .string()
@@ -85,6 +82,88 @@ export const apiProductSchema = z.object({
   isAgentReady: z.coerce.boolean().default(true),
   webhookUrl: z.string().trim().url().optional().or(z.literal(''))
 })
+
+export const apiProductSchema =
+  apiProductBaseSchema.superRefine(refineApiProduct)
+
+export function refineApiProduct(
+  value: z.infer<typeof apiProductBaseSchema>,
+  context: z.RefinementCtx
+) {
+  if (
+    ['bearer', 'api_key_header', 'api_key_query'].includes(value.authType) &&
+    !value.authSecret
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['authSecret'],
+      message: 'Auth secret or API key is required for this auth type.'
+    })
+  }
+
+  if (
+    ['bearer', 'api_key_header'].includes(value.authType) &&
+    !value.authHeaderName
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['authHeaderName'],
+      message: 'Header name is required for bearer or header API-key auth.'
+    })
+  }
+
+  if (value.authType === 'api_key_query' && !value.authQueryParam) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['authQueryParam'],
+      message: 'Query parameter name is required for query API-key auth.'
+    })
+  }
+
+  if (value.authType === 'basic') {
+    if (!value.authUsername) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['authUsername'],
+        message: 'Basic auth username is required.'
+      })
+    }
+
+    if (!value.authPassword) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['authPassword'],
+        message: 'Basic auth password is required.'
+      })
+    }
+  }
+
+  if (value.executionMode === 'asynchronous') {
+    if (!value.statusEndpointUrl) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['statusEndpointUrl'],
+        message: 'Status endpoint URL is required for async APIs.'
+      })
+    }
+
+    if (!value.externalJobIdPath) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['externalJobIdPath'],
+        message: 'External job ID path is required for async APIs.'
+      })
+    }
+
+    if (!value.statusPath) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['statusPath'],
+        message: 'Status path is required for async APIs.'
+      })
+    }
+  }
+}
 
 export const createOrderSchema = z.object({
   productSlug: z.string().trim().min(3),

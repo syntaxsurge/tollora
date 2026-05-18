@@ -505,9 +505,12 @@ Before creating a new helper or service file:
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
-  schemas, upstream endpoint URL, upstream authentication, async polling JSON
-  paths, runtime model, wallet fields, agent readiness, OpenAPI-imported
-  operation defaults, and visibility before posting to the product API route.
+  schemas, upstream endpoint URL, upstream authentication requirements, async
+  polling requirements, runtime model, wallet fields, agent readiness,
+  OpenAPI-imported operation defaults, and visibility before posting to the
+  product API route. The OpenAPI importer detects operation-level or
+  document-level security schemes and 202 Accepted job operations so the listing
+  form marks required provider auth and polling fields accurately.
 - `/provider/products/[productId]` shows product operations, payable request
   links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
