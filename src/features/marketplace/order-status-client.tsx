@@ -986,6 +986,9 @@ function OrderSnapshotCard({ order }: { order: MarketplaceOrder }) {
       value: shortenHash(order.requestId)
     }
   ]
+  const refundUrl =
+    order.escrowRefundExplorerUrl ??
+    getExplorerTransactionUrl(order.escrowRefundTxHash, defaultAppChain.id)
 
   return (
     <Card className='space-y-5 p-5 sm:p-6'>
@@ -1016,6 +1019,14 @@ function OrderSnapshotCard({ order }: { order: MarketplaceOrder }) {
         ) : null}
         {order.deltaAmountMusd && order.deltaAmountMusd !== '0.00 MUSD' ? (
           <SummaryTile label='Delta' value={order.deltaAmountMusd} />
+        ) : null}
+        {order.resultReleaseStatus === 'refunded' && refundUrl ? (
+          <SummaryTile
+            icon={ReceiptText}
+            label='Refund'
+            value={shortenHash(order.escrowRefundTxHash ?? refundUrl)}
+            href={refundUrl}
+          />
         ) : null}
       </div>
 
@@ -1442,21 +1453,47 @@ function PaymentRequirementCard({
 function SummaryTile({
   label,
   value,
-  icon: Icon
+  icon: Icon,
+  href
 }: {
   label: string
   value: string
   icon?: typeof Circle
+  href?: string | null
 }) {
-  return (
-    <div className='border-foreground/10 bg-background/35 flex gap-3 rounded-lg border p-3'>
+  const content = (
+    <>
       {Icon ? (
         <Icon className='text-primary mt-0.5 h-4 w-4 shrink-0' aria-hidden />
       ) : null}
       <div className='min-w-0'>
         <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-        <p className='mt-1 font-semibold break-all'>{value}</p>
+        <p className='mt-1 flex items-center gap-1 font-semibold break-all'>
+          {value}
+          {href ? (
+            <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+          ) : null}
+        </p>
       </div>
+    </>
+  )
+
+  if (href) {
+    return (
+      <a
+        className='border-foreground/10 bg-background/35 hover:border-primary/45 focus-visible:ring-primary flex gap-3 rounded-lg border p-3 transition focus-visible:ring-2 focus-visible:outline-none'
+        href={href}
+        target='_blank'
+        rel='noreferrer'
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <div className='border-foreground/10 bg-background/35 flex gap-3 rounded-lg border p-3'>
+      {content}
     </div>
   )
 }

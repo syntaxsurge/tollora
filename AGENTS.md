@@ -502,10 +502,11 @@ Before creating a new helper or service file:
   applies bearer, API-key, query-key, or basic auth server-side, sends
   idempotency headers, extracts external job IDs and result URLs through
   configured JSON paths, and polls provider status endpoints for async products.
-  Credit-metered async providers receive generic external prepaid metadata with
-  order, receipt, buyer, and settlement references so provider APIs can report
-  estimated, charged, and refunded usage without importing Tollora settlement
-  logic.
+  Credit-metered async providers always receive
+  `billingMode: "external_prepaid"` plus generic external prepaid metadata with
+  order, receipt, buyer, requested billing mode, and settlement references so
+  provider APIs can report estimated, charged, and refunded usage without
+  importing Tollora settlement logic.
 - `/marketplace` lists published provider-created MUSD-paid API products with
   category filters, price badges, provider names, x402 protection badges,
   agent-ready badges, and entry points for autonomous agent runs.

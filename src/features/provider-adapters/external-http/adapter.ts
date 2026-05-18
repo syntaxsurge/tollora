@@ -84,9 +84,13 @@ function buildProviderRequestPayload({
 
   return {
     ...input.requestPayload,
-    billingMode: input.requestPayload.billingMode ?? 'external_prepaid',
+    billingMode: 'external_prepaid',
     externalReference: {
       ...asRecord(input.requestPayload.externalReference),
+      requestedBillingMode:
+        typeof input.requestPayload.billingMode === 'string'
+          ? input.requestPayload.billingMode
+          : undefined,
       orderId: input.orderId,
       receiptId: input.receiptId,
       buyerReference: input.buyerWallet,
