@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 
-import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
-import type { PaymentRequired, x402PaymentResult } from '@x402/fetch'
 import { decodePaymentRequiredHeader as decodeX402PaymentRequiredHeader } from '@x402/core/http'
 import {
   createPermit2ApprovalTx,
   getPermit2AllowanceReadParams
 } from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
+import type { PaymentRequired, x402PaymentResult } from '@x402/fetch'
+import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -234,6 +234,7 @@ function OrderStatusContent({
   const [isInspecting, setIsInspecting] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isPolling, setIsPolling] = useState(false)
+  const [isClaiming, setIsClaiming] = useState(false)
 
   useEffect(() => {
     if (order) {
@@ -588,6 +589,117 @@ function OrderStatusContent({
     }
   }
 
+  async function claimMeteredResult() {
+    if (!order || order.status !== 'delta_payment_required') {
+      return
+    }
+
+    const walletControls = getWalletControls()
+
+    if (!walletControls) {
+      setStatus(`Connect a ${walletLabel} before claiming this result.`)
+      return
+    }
+
+    setIsClaiming(true)
+    setPaymentError('')
+    setStatus('Reading the metered delta payment requirement.')
+
+    try {
+      const initialRequirement = await requestClaimPaymentRequirement(order)
+
+      if (initialRequirement) {
+        setPaymentRequirements({
+          status: initialRequirement.status,
+          statusText: initialRequirement.statusText,
+          paymentRequired: initialRequirement.paymentRequired,
+          response: initialRequirement.body
+        })
+        await ensurePermit2Allowance(
+          initialRequirement.paymentRequired,
+          walletControls,
+          message => setStatus(message),
+          updateWalletStep
+        )
+      }
+
+      const client = registerExactEvmScheme(new x402Client(), {
+        signer: walletControls.signer
+      })
+      const httpClient = new x402HTTPClient(client)
+      const fetchWithPayment = wrapFetchWithPayment(fetch, httpClient)
+      const response = await fetchWithPayment(
+        `/api/x402/orders/${order.id}/claim`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json'
+          }
+        }
+      )
+      const paymentResult = await httpClient
+        .processResponse(response.clone())
+        .catch(() => null)
+      const body = (await readResponseBody(response)) as {
+        error?: string
+        order?: Partial<MarketplaceOrder>
+        receipt?: MarketplaceReceipt
+        data?: unknown
+        x402?: {
+          transaction?: string
+          network?: string
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(buildPaidRequestError(response, body, paymentResult))
+      }
+
+      const receipt = body.receipt
+      const nextOrder: MarketplaceOrder = {
+        ...order,
+        ...body.order,
+        id: order.id,
+        status: 'completed',
+        resultReleaseStatus: 'released',
+        receiptId: receipt?.id ?? order.receiptId,
+        explorerUrl: receipt?.explorerUrl ?? order.explorerUrl,
+        responsePayload: body.data ?? body.order?.responsePayload,
+        resultUrl: receipt?.resultUrl ?? body.order?.resultUrl,
+        updatedAt: new Date().toISOString()
+      }
+
+      window.sessionStorage.setItem(
+        `tollora:order:${order.id}`,
+        JSON.stringify(nextOrder)
+      )
+
+      if (receipt) {
+        window.sessionStorage.setItem(
+          `tollora:receipt:${receipt.id}`,
+          JSON.stringify(receipt)
+        )
+      }
+
+      setOrder(nextOrder)
+      setStatus(
+        receipt?.txHash
+          ? `Metered delta settled on Mezo. Transaction: ${receipt.txHash}`
+          : 'Metered delta settled and the provider result is released.'
+      )
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to claim the metered result.'
+
+      setPaymentError(message)
+      setStatus(message)
+    } finally {
+      setIsClaiming(false)
+    }
+  }
+
   if (!order) {
     return (
       <div>
@@ -677,6 +789,8 @@ function OrderStatusContent({
         order={order}
         isPolling={isPolling}
         onPoll={pollProviderStatus}
+        isClaiming={isClaiming}
+        onClaim={claimMeteredResult}
       />
 
       <SettlementLinks order={order} />
@@ -776,7 +890,20 @@ function OrderSnapshotCard({ order }: { order: MarketplaceOrder }) {
       </div>
       <div className='grid gap-3 text-sm'>
         <SummaryTile label='Product' value={order.productName} />
-        <SummaryTile label='Amount' value={order.amountMusd} />
+        <SummaryTile
+          label='Quoted amount'
+          value={order.quotedAmountMusd ?? order.amountMusd}
+        />
+        <SummaryTile
+          label='Paid or reserved'
+          value={order.paidAmountMusd ?? order.reservedAmountMusd ?? 'Pending'}
+        />
+        {order.actualAmountMusd ? (
+          <SummaryTile label='Final usage' value={order.actualAmountMusd} />
+        ) : null}
+        {order.deltaAmountMusd && order.deltaAmountMusd !== '0.00 MUSD' ? (
+          <SummaryTile label='Delta' value={order.deltaAmountMusd} />
+        ) : null}
         <SummaryTile label='Provider' value={order.providerName} />
         <SummaryTile label='Request ID' value={order.requestId} />
       </div>
@@ -821,14 +948,21 @@ function StatusMessage({
 function ProviderResponsePanel({
   order,
   isPolling,
-  onPoll
+  onPoll,
+  isClaiming,
+  onClaim
 }: {
   order: MarketplaceOrder
   isPolling: boolean
   onPoll: () => Promise<void>
+  isClaiming: boolean
+  onClaim: () => Promise<void>
 }) {
   const hasAsyncJob = Boolean(order.externalJobId)
   const hasResponse = Boolean(order.responsePayload)
+  const needsDeltaPayment =
+    order.status === 'delta_payment_required' ||
+    order.resultReleaseStatus === 'delta_payment_required'
 
   return (
     <Card className='space-y-5 p-5 sm:p-6 lg:p-8'>
@@ -845,11 +979,13 @@ function ProviderResponsePanel({
                 : 'No provider response yet'}
           </h2>
           <p className='text-foreground/70 mt-2 max-w-3xl text-base leading-7'>
-            {hasAsyncJob && order.status !== 'completed'
-              ? 'This API started a long-running provider job. Poll the job until it completes, or wait for the provider webhook to update the order.'
-              : hasResponse
-                ? 'This is the paid response returned by the provider adapter after x402 settlement.'
-                : 'Run the paid request to receive either a direct result or an async job id.'}
+            {needsDeltaPayment
+              ? 'The provider finished processing, but final usage exceeded the prepaid quote. Pay the metered delta to reveal the result.'
+              : hasAsyncJob && order.status !== 'completed'
+                ? 'This API started a long-running provider job. Poll the job until it completes, or wait for the provider webhook to update the order.'
+                : hasResponse
+                  ? 'This is the paid response returned by the provider adapter after x402 settlement.'
+                  : 'Run the paid request to receive either a direct result or an async job id.'}
           </p>
         </div>
         {hasAsyncJob ? (
@@ -887,7 +1023,7 @@ function ProviderResponsePanel({
 
       {hasAsyncJob ? (
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-          <Button onClick={onPoll} disabled={isPolling}>
+          <Button onClick={onPoll} disabled={isPolling || needsDeltaPayment}>
             {isPolling ? (
               <>
                 <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
@@ -901,6 +1037,29 @@ function ProviderResponsePanel({
             Long-running APIs should return quickly with a job id, then expose a
             status endpoint or webhook for completion.
           </p>
+        </div>
+      ) : null}
+
+      {needsDeltaPayment ? (
+        <div className='border-primary/30 bg-primary/10 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between'>
+          <div>
+            <p className='font-semibold'>Metered delta required</p>
+            <p className='text-foreground/70 mt-1 text-sm leading-6'>
+              Final usage is {order.actualAmountMusd ?? 'above the quote'}. Pay
+              the remaining {order.deltaAmountMusd ?? 'MUSD'} to unlock the
+              completed provider response.
+            </p>
+          </div>
+          <Button onClick={onClaim} disabled={isClaiming}>
+            {isClaiming ? (
+              <>
+                <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                Claiming result
+              </>
+            ) : (
+              'Pay delta and reveal'
+            )}
+          </Button>
         </div>
       ) : null}
 
@@ -978,6 +1137,8 @@ function OrderMetadataGrid({ order }: { order: MarketplaceOrder }) {
         ['Request ID', order.requestId],
         ['Provider wallet', order.providerWallet ?? ''],
         ['Buyer wallet', order.buyerWallet],
+        ['Pricing source', order.pricingSource ?? 'fixed'],
+        ['Result release', order.resultReleaseStatus ?? 'not_applicable'],
         ['Created', new Date(order.createdAt).toLocaleString()],
         ['Updated', new Date(order.updatedAt).toLocaleString()]
       ].map(([label, value]) => (
@@ -1197,6 +1358,35 @@ async function requestPaymentRequirement(order: MarketplaceOrder) {
 
   if (!paymentRequired) {
     throw new Error('Tollora did not return a readable x402 requirement.')
+  }
+
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    paymentRequired,
+    body
+  }
+}
+
+async function requestClaimPaymentRequirement(order: MarketplaceOrder) {
+  const response = await fetch(`/api/x402/orders/${order.id}/claim`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json'
+    }
+  })
+
+  if (response.status !== 402) {
+    return null
+  }
+
+  const body = await readResponseBody(response)
+  const paymentRequired = decodePaymentRequiredHeader(response)
+
+  if (!paymentRequired) {
+    throw new Error(
+      'Tollora did not return a readable x402 delta payment requirement.'
+    )
   }
 
   return {

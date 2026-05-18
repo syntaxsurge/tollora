@@ -402,16 +402,18 @@ Before creating a new helper or service file:
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
 - `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
-  long-running job status, updates the order with status/result metadata, and
-  returns the latest provider payload.
+  long-running job status, compares final credit-metered usage with the prepaid
+  quote, locks results that require a metered delta, and returns the latest
+  provider payload.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
 - `POST /api/credits/accounts` — creates or returns a managed credit account and
   Tollora API key for a wallet.
 - `POST /api/credits/top-ups` — records a MUSD top-up transaction hash and
   increases the wallet's managed credit balance.
 - `POST /api/credits/products/[slug]/call` — calls a product with a Tollora API
-  key, debits managed credits, forwards to the provider adapter, and records a
-  receipt linked to the top-up transaction.
+  key, reserves managed credits before provider work starts, releases the
+  reservation on provider failure, settles lower final usage back to the credit
+  balance, and records a receipt linked to the top-up transaction.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
   autonomous Launch Pack Agent runs with objective, source context, owner
   wallet, budget cap, max paid actions, allowed marketplace tools, and signer
@@ -428,9 +430,14 @@ Before creating a new helper or service file:
   autonomous agent run.
 - `GET /api/x402/products/[slug]/call` and `POST /api/x402/products/[slug]/call`
   — protect product calls with x402, return HTTP 402 payment requirements for
-  unpaid requests, verify and settle signed MUSD payments through the configured
-  facilitator, call the registered provider adapter, return paid provider
-  responses, and attach receipt metadata.
+  unpaid requests, quote credit-metered requests before payment, verify and
+  settle signed MUSD payments through the configured facilitator, start
+  credit-metered async provider work only after settlement, return paid provider
+  responses or pollable job records, and attach receipt metadata.
+- `POST /api/x402/orders/[orderId]/claim` — protects metered result release
+  with x402 when final provider usage exceeds the prepaid quote, settles the
+  delta in MUSD, unlocks the stored provider result, and records a delta
+  receipt.
 - `POST /api/providers/openapi/preview` — imports a hosted or uploaded OpenAPI
   JSON/YAML document and returns paid-listing candidates with inferred endpoint
   URL, method, auth type, schemas, reference payload, async polling paths, and
@@ -528,17 +535,21 @@ Before creating a new helper or service file:
   settlement failure guidance from the x402 facilitator, separate direct API
   responses from async provider jobs, poll provider status when an order has an
   external job ID, keep 402 inspection as a diagnostic action, persist receipt
-  metadata in browser session storage, and link to the settlement receipt and
-  Mezo explorer transaction.
+  metadata in browser session storage, show quote/reservation/final usage
+  amounts for credit-metered calls, claim metered deltas through x402 before
+  revealing locked results, and link to the settlement receipt and Mezo explorer
+  transaction.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
   directly, polled/webhooked, or revealed after completion.
 - Marketplace products support fixed per-call MUSD pricing and credit-metered
-  pricing. Credit-metered products can call a provider quote endpoint before
-  x402 settlement, read a numeric credit path such as `estimatedCredits`,
-  convert credits to MUSD with a configured rate and multiplier, and record the
-  resolved charge on orders and receipts.
+  pricing. Credit-metered products call a provider quote endpoint or read a
+  deterministic credit field before x402 settlement, convert credits to MUSD
+  with a configured rate and multiplier, reserve or settle the quoted amount
+  before expensive provider work starts, compare final usage against the quote,
+  lock results that need a delta payment, and record quote, paid, actual, and
+  release metadata on orders and receipts.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

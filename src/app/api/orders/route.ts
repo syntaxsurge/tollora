@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { recordMarketplaceOrder } from '@/features/marketplace/orders'
+import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
 import { createOrderSchema } from '@/features/marketplace/schemas'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
@@ -28,11 +29,33 @@ export async function POST(request: Request) {
     )
   }
 
+  let requestPayload: unknown
+
   try {
-    JSON.parse(parsed.data.requestPayloadJson)
+    requestPayload = JSON.parse(parsed.data.requestPayloadJson)
   } catch {
     return NextResponse.json(
       { error: 'Request payload must contain valid JSON.' },
+      { status: 400 }
+    )
+  }
+
+  const resolvedPrice = await resolveProductPrice({
+    product,
+    requestPayload
+  }).catch(error => ({
+    error:
+      error instanceof Error
+        ? error.message
+        : 'Could not calculate a payable quote for this request.'
+  }))
+
+  if ('error' in resolvedPrice) {
+    return NextResponse.json(
+      {
+        error: 'Could not price this request.',
+        message: resolvedPrice.error
+      },
       { status: 400 }
     )
   }
@@ -49,7 +72,14 @@ export async function POST(request: Request) {
     providerWallet: product.providerWallet,
     buyerWallet: parsed.data.buyerWallet,
     status: 'payment_required',
-    amountMusd: product.priceLabel,
+    amountMusd: resolvedPrice.amountLabel,
+    quotedCredits: resolvedPrice.creditValue,
+    quotedAmountMusd: resolvedPrice.amountLabel,
+    pricingSource: resolvedPrice.source,
+    resultReleaseStatus:
+      product.pricing.model === 'credit_metered'
+        ? 'reserved'
+        : 'not_applicable',
     requestId,
     requestPayloadJson: parsed.data.requestPayloadJson,
     createdAt,

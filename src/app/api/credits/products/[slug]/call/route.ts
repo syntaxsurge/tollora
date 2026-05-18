@@ -5,18 +5,24 @@ import { NextResponse } from 'next/server'
 import {
   debitManagedCredits,
   getManagedCreditAccountByApiKey,
+  refundManagedCreditDebit,
+  settleManagedCreditDebit,
   toPublicManagedCreditAccount
 } from '@/features/billing/managed-credits'
+import { recordMarketplaceOrder } from '@/features/marketplace/orders'
+import {
+  resolveFinalUsageDelta,
+  resolveProductPrice
+} from '@/features/marketplace/pricing'
+import { getProductBySlug } from '@/features/marketplace/products'
 import {
   buildExplorerUrl,
   buildReceiptAmounts,
   recordMarketplaceReceipt
 } from '@/features/marketplace/receipts'
-import { recordMarketplaceOrder } from '@/features/marketplace/orders'
-import { getProductBySlug } from '@/features/marketplace/products'
-import { resolveProductPrice } from '@/features/marketplace/pricing'
-import { x402Network } from '@/lib/config/chains'
+import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
+import { x402Network } from '@/lib/config/chains'
 
 type CreditProductCallRouteProps = {
   params: Promise<{
@@ -110,9 +116,16 @@ export async function POST(
   })
 
   if (providerResult.status === 'failed') {
+    refundManagedCreditDebit({
+      apiKey,
+      debitId: debitResult.debit.id,
+      note: 'Provider failed after reservation; reserved MUSD was returned to the managed credit balance.'
+    })
+
     return NextResponse.json(
       {
         error: providerResult.errorMessage ?? 'Provider request failed.',
+        creditAccount: toPublicManagedCreditAccount(debitResult.account),
         provider: {
           id: providerAdapter.id,
           response: providerResult.responsePayload
@@ -123,6 +136,50 @@ export async function POST(
   }
 
   const createdAt = new Date().toISOString()
+  const usageDelta =
+    providerResult.status === 'completed'
+      ? await resolveFinalUsageDelta({
+          product,
+          requestPayload: payload,
+          providerResponse: providerResult.responsePayload,
+          paidAmountUsd: resolvedPrice.amountUsd
+        }).catch(() => null)
+      : null
+  const settlementAdjustment =
+    usageDelta?.actualPrice && usageDelta.releaseStatus !== 'not_applicable'
+      ? settleManagedCreditDebit({
+          apiKey,
+          debitId: debitResult.debit.id,
+          actualAmountMusd: usageDelta.actualPrice.amountUsd,
+          note:
+            usageDelta.releaseStatus === 'credit_due'
+              ? 'Final usage was lower than the reserved quote; unused MUSD was returned to the managed credit balance.'
+              : usageDelta.releaseStatus === 'delta_payment_required'
+                ? 'Final usage exceeded the reserved quote; result release requires the remaining MUSD.'
+                : 'Final metered usage matched the reserved quote.'
+        })
+      : null
+  const resultReleaseStatus: MarketplaceOrder['resultReleaseStatus'] =
+    usageDelta?.releaseStatus === 'delta_payment_required'
+      ? 'delta_payment_required'
+      : usageDelta?.releaseStatus === 'credit_due'
+        ? 'credit_due'
+        : providerResult.status === 'completed'
+          ? 'released'
+          : 'reserved'
+  const orderStatus =
+    resultReleaseStatus === 'delta_payment_required'
+      ? ('delta_payment_required' as const)
+      : providerResult.status
+  const responsePayload =
+    resultReleaseStatus === 'delta_payment_required'
+      ? {
+          status: 'ready',
+          message:
+            'Final usage exceeded the managed credit reservation. Top up or pay the delta before Tollora reveals the provider result.',
+          externalJobId: providerResult.externalJobId
+        }
+      : providerResult.responsePayload
   const receipt = {
     id: receiptId,
     orderId,
@@ -147,15 +204,41 @@ export async function POST(
     providerName: product.providerName,
     providerWallet: product.providerWallet,
     buyerWallet: account.wallet,
-    status: providerResult.status,
+    status: orderStatus,
     amountMusd: resolvedPrice.amountLabel,
+    quotedCredits: resolvedPrice.creditValue,
+    quotedAmountMusd: resolvedPrice.amountLabel,
+    paidAmountMusd: resolvedPrice.amountLabel,
+    reservedAmountMusd:
+      resolvedPrice.model === 'credit_metered'
+        ? resolvedPrice.amountLabel
+        : undefined,
+    actualCredits: usageDelta?.actualPrice?.creditValue,
+    actualAmountMusd: usageDelta?.actualPrice?.amountLabel,
+    deltaAmountMusd:
+      usageDelta && usageDelta.deltaUsd !== 0
+        ? usageDelta.deltaLabel
+        : '0.00 MUSD',
+    pricingSource: resolvedPrice.source,
+    resultReleaseStatus,
     requestId,
     requestPayloadJson: JSON.stringify(payload, null, 2),
     receiptId,
     explorerUrl: receipt.explorerUrl,
     externalJobId: providerResult.externalJobId,
-    responsePayload: providerResult.responsePayload,
-    resultUrl: providerResult.resultUrl,
+    responsePayload,
+    lockedResponsePayload:
+      resultReleaseStatus === 'delta_payment_required'
+        ? providerResult.responsePayload
+        : undefined,
+    resultUrl:
+      resultReleaseStatus === 'delta_payment_required'
+        ? undefined
+        : providerResult.resultUrl,
+    lockedResultUrl:
+      resultReleaseStatus === 'delta_payment_required'
+        ? providerResult.resultUrl
+        : undefined,
     createdAt,
     updatedAt: createdAt
   }
@@ -166,9 +249,19 @@ export async function POST(
   return NextResponse.json({
     order,
     receipt,
-    pricing: resolvedPrice,
-    data: providerResult.responsePayload,
-    creditAccount: toPublicManagedCreditAccount(debitResult.account)
+    pricing: {
+      quoted: resolvedPrice,
+      actual: usageDelta?.actualPrice ?? null,
+      deltaAmountMusd:
+        usageDelta && usageDelta.deltaUsd !== 0
+          ? usageDelta.deltaLabel
+          : '0.00 MUSD',
+      resultReleaseStatus
+    },
+    data: responsePayload,
+    creditAccount: toPublicManagedCreditAccount(
+      settlementAdjustment?.account ?? debitResult.account
+    )
   })
 }
 

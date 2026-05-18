@@ -44,9 +44,12 @@ pnpm build
   returns HTTP 402 and a `payment-required` header.
 - Browser Run & Pay signs a marketplace request from a connected wallet and
   returns a receipt after settlement.
+- Credit-metered async listings return an x402 quote before provider work,
+  start provider work only after settlement, and expose
+  `POST /api/x402/orders/{orderId}/claim` when final usage requires a delta.
 - `POST /api/credits/accounts`, `POST /api/credits/top-ups`, and
   `POST /api/credits/products/{published-product-slug}/call` support managed
-  API-key credits.
+  API-key credits with pre-call reservation and failed-provider release.
 - `POST /api/providers/openapi/preview` imports a hosted or uploaded OpenAPI
   document and returns paid-listing candidates.
 - `/marketplace` shows published API products.

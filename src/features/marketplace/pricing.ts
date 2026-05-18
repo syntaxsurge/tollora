@@ -18,6 +18,17 @@ export type ResolvedProductPrice = {
   quoteResponse?: unknown
 }
 
+export type PriceDelta = {
+  actualPrice: ResolvedProductPrice | null
+  deltaUsd: number
+  deltaLabel: string
+  releaseStatus:
+    | 'not_applicable'
+    | 'released'
+    | 'delta_payment_required'
+    | 'credit_due'
+}
+
 export async function resolveProductPrice({
   product,
   requestPayload,
@@ -42,7 +53,10 @@ export async function resolveProductPrice({
           requestPayload
         })
       : requestPayload
-  const creditUnitPath = pricing.creditUnitPath || 'estimatedCredits'
+  const creditUnitPath =
+    providerResponse && pricing.usageCreditPath
+      ? pricing.usageCreditPath
+      : pricing.creditUnitPath || 'estimatedCredits'
   const creditValue = readNumberPath(sourcePayload, creditUnitPath)
 
   if (creditValue === null) {
@@ -76,6 +90,56 @@ export async function resolveProductPrice({
         : 'request_payload',
     quoteResponse:
       !providerResponse && pricing.quoteEndpointUrl ? sourcePayload : undefined
+  }
+}
+
+export async function resolveFinalUsageDelta({
+  product,
+  requestPayload,
+  providerResponse,
+  paidAmountUsd
+}: {
+  product: ApiProduct
+  requestPayload: unknown
+  providerResponse: unknown
+  paidAmountUsd: number
+}): Promise<PriceDelta> {
+  if (product.pricing.model !== 'credit_metered') {
+    return {
+      actualPrice: null,
+      deltaUsd: 0,
+      deltaLabel: formatMusdAmount(0),
+      releaseStatus: 'not_applicable'
+    }
+  }
+
+  if (!product.pricing.usageCreditPath) {
+    return {
+      actualPrice: null,
+      deltaUsd: 0,
+      deltaLabel: formatMusdAmount(0),
+      releaseStatus: 'released'
+    }
+  }
+
+  const actualPrice = await resolveProductPrice({
+    product,
+    requestPayload,
+    providerResponse
+  })
+  const deltaUsd = Number((actualPrice.amountUsd - paidAmountUsd).toFixed(6))
+  const releaseStatus =
+    deltaUsd > 0
+      ? 'delta_payment_required'
+      : deltaUsd < 0
+        ? 'credit_due'
+        : 'released'
+
+  return {
+    actualPrice,
+    deltaUsd,
+    deltaLabel: formatMusdAmount(Math.abs(deltaUsd)),
+    releaseStatus
   }
 }
 

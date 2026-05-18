@@ -33,9 +33,12 @@ export const apiProductPricingModels = ['fixed', 'credit_metered'] as const
 export const orderStatuses = [
   'created',
   'payment_required',
+  'quoted',
   'paid',
   'forwarding',
   'processing',
+  'ready',
+  'delta_payment_required',
   'completed',
   'failed',
   'expired'

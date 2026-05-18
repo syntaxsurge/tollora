@@ -8,8 +8,9 @@ import type {
   AgentRun,
   AgentToolSlug
 } from '@/features/agents/types'
-import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
+import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
@@ -42,9 +43,17 @@ export function buildAgentPlan(run: AgentRun): AgentAction[] {
 export async function executeAgentRunActions(run: AgentRun) {
   const actions = run.actions.length > 0 ? run.actions : buildAgentPlan(run)
   const completedActions: AgentAction[] = []
+  let spendUsd = 0
 
   for (const action of actions) {
-    const result = await executeAgentAction(run, action)
+    const result = await executeAgentAction(run, action, spendUsd)
+
+    if (result.receipt) {
+      spendUsd = Number(
+        (spendUsd + parseMusdLabel(result.receipt.amountMusd)).toFixed(6)
+      )
+    }
+
     completedActions.push(result)
   }
 
@@ -66,7 +75,11 @@ export async function executeAgentRunActions(run: AgentRun) {
   } as const
 }
 
-async function executeAgentAction(run: AgentRun, action: AgentAction) {
+async function executeAgentAction(
+  run: AgentRun,
+  action: AgentAction,
+  currentSpendUsd: number
+) {
   const product = getProductBySlug(action.productSlug)
 
   if (!product) {
@@ -78,9 +91,42 @@ async function executeAgentAction(run: AgentRun, action: AgentAction) {
     } satisfies AgentAction
   }
 
+  const requestPayload = action.requestPayload
+  const quotedPrice = await resolveProductPrice({
+    product,
+    requestPayload
+  }).catch(error => ({
+    error:
+      error instanceof Error
+        ? error.message
+        : 'The agent could not quote this paid tool.'
+  }))
+
+  if ('error' in quotedPrice) {
+    return {
+      ...action,
+      status: 'failed',
+      errorMessage: quotedPrice.error,
+      completedAt: new Date().toISOString()
+    } satisfies AgentAction
+  }
+
+  if (currentSpendUsd + quotedPrice.amountUsd > run.budgetCapMusd) {
+    return {
+      ...action,
+      status: 'skipped',
+      amountMusd: quotedPrice.amountLabel,
+      errorMessage:
+        'Skipped because the quoted MUSD price would exceed the agent budget.',
+      completedAt: new Date().toISOString()
+    } satisfies AgentAction
+  }
+
   const started = {
     ...action,
     status: 'quoted',
+    amountMusd: quotedPrice.amountLabel,
+    requestPayload,
     startedAt: action.startedAt ?? new Date().toISOString()
   } satisfies AgentAction
 
@@ -120,6 +166,12 @@ async function executeAgentAction(run: AgentRun, action: AgentAction) {
     responsePayload: buildLocalResponse(started, run.objective),
     completedAt: new Date().toISOString()
   } satisfies AgentAction
+}
+
+function parseMusdLabel(value: string) {
+  const amount = Number(value.replace(/[^0-9.]/g, ''))
+
+  return Number.isFinite(amount) ? amount : 0
 }
 
 async function callPaidProductWithAgentWallet(action: AgentAction) {
@@ -173,7 +225,9 @@ function buildLocalResponse(action: AgentAction, objective: string) {
 }
 
 function buildDeliverables(run: AgentRun, actions: AgentAction[]) {
-  const completedActions = actions.filter(action => action.status === 'completed')
+  const completedActions = actions.filter(
+    action => action.status === 'completed'
+  )
   const asyncAction = completedActions.find(
     action =>
       Boolean(action.responsePayload?.resultUrl) ||

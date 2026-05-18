@@ -8,16 +8,24 @@ import {
 import type { Network } from '@x402/core/types'
 import { registerExactEvmScheme } from '@x402/evm/exact/server'
 
-import { getProductBySlug } from '@/features/marketplace/products'
+import { getMarketplaceOrderById } from '@/features/marketplace/orders'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
+import { getProductBySlug } from '@/features/marketplace/products'
 import { x402Network } from '@/lib/config/chains'
 import { envServer } from '@/lib/env/env.server'
 
 const paidCallPattern = '/api/x402/products/:slug/call'
+const claimPattern = '/api/x402/orders/:orderId/claim'
 let serverPromise: Promise<x402HTTPResourceServer> | null = null
 
 function getProductSlugFromPath(path: string) {
   const match = path.match(/^\/api\/x402\/products\/([^/]+)\/call$/)
+
+  return match?.[1]
+}
+
+function getOrderIdFromClaimPath(path: string) {
+  const match = path.match(/^\/api\/x402\/orders\/([^/]+)\/claim$/)
 
   return match?.[1]
 }
@@ -95,6 +103,83 @@ const paidCallRoute: RouteConfig = {
   })
 }
 
+const claimRoute: RouteConfig = {
+  accepts: {
+    scheme: 'exact',
+    network: x402Network as Network,
+    payTo: context => {
+      const order = requireClaimOrderFromContext(context)
+      const product = getProductBySlug(order.productSlug)
+
+      if (!product) {
+        throw new Error('Claim product was not found.')
+      }
+
+      return product.providerWallet
+    },
+    price: context => {
+      const order = requireClaimOrderFromContext(context)
+      const amount = parseMusdAmount(order.deltaAmountMusd)
+
+      if (amount <= 0) {
+        throw new Error('Order does not have a payable metered delta.')
+      }
+
+      return `$${amount.toFixed(6)}`
+    },
+    maxTimeoutSeconds: 300
+  },
+  description:
+    'MUSD-settled Tollora result claim for credit-metered API usage that exceeded the prepaid quote.',
+  mimeType: 'application/json',
+  unpaidResponseBody: context => {
+    const order = requireClaimOrderFromContext(context)
+
+    return {
+      contentType: 'application/json',
+      body: {
+        error: 'MUSD delta payment required.',
+        order: {
+          id: order.id,
+          productSlug: order.productSlug,
+          productName: order.productName,
+          deltaAmountMusd: order.deltaAmountMusd,
+          resultReleaseStatus: order.resultReleaseStatus
+        },
+        payment: {
+          network: x402Network,
+          scheme: 'exact',
+          facilitatorUrl:
+            envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
+        }
+      }
+    }
+  },
+  settlementFailedResponseBody: (_context, settleResult) => ({
+    contentType: 'application/json',
+    body: {
+      error: 'MUSD delta settlement failed.',
+      reason: settleResult.errorReason,
+      message: settleResult.errorMessage
+    }
+  })
+}
+
+function requireClaimOrderFromContext(context: HTTPRequestContext) {
+  const orderId = getOrderIdFromClaimPath(context.path)
+  const order = orderId ? getMarketplaceOrderById(orderId) : undefined
+
+  if (
+    !order ||
+    order.status !== 'delta_payment_required' ||
+    order.resultReleaseStatus !== 'delta_payment_required'
+  ) {
+    throw new Error('Order does not require a result claim payment.')
+  }
+
+  return order
+}
+
 function getRequestPayload(context: HTTPRequestContext) {
   return context.adapter.getBody?.() ?? context.adapter.getQueryParams?.() ?? {}
 }
@@ -113,7 +198,8 @@ export async function getTolloraX402Server() {
 
       const httpServer = new x402HTTPResourceServer(resourceServer, {
         [`GET ${paidCallPattern}`]: paidCallRoute,
-        [`POST ${paidCallPattern}`]: paidCallRoute
+        [`POST ${paidCallPattern}`]: paidCallRoute,
+        [`POST ${claimPattern}`]: claimRoute
       })
 
       await httpServer.initialize()
@@ -123,6 +209,12 @@ export async function getTolloraX402Server() {
   }
 
   return serverPromise
+}
+
+function parseMusdAmount(value: string | undefined) {
+  const amount = Number((value ?? '').replace(/[^0-9.]/g, ''))
+
+  return Number.isFinite(amount) ? amount : 0
 }
 
 export function getTolloraPaywallConfig(currentUrl: string) {

@@ -126,6 +126,26 @@ export function GET() {
         get: paidCallOperation('GET'),
         post: paidCallOperation('POST')
       },
+      '/api/x402/orders/{orderId}/claim': {
+        post: {
+          tags: ['x402'],
+          summary: 'Pay a metered delta and reveal a completed result',
+          security: [{ x402Payment: [] }],
+          parameters: [pathStringParameter('orderId')],
+          responses: {
+            '200': {
+              description: 'Released provider result and delta receipt',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/PaidProductResponse' }
+                }
+              }
+            },
+            '400': { description: 'Order does not require a claim payment' },
+            '402': { description: 'x402 MUSD delta payment required' }
+          }
+        }
+      },
       '/api/credits/accounts': {
         post: {
           tags: ['Credits'],
@@ -391,7 +411,7 @@ export function GET() {
             '404': { description: 'Proof not found' }
           }
         }
-      },
+      }
     },
     components: {
       securitySchemes: {
@@ -519,6 +539,15 @@ export function GET() {
             buyerWallet: { type: 'string' },
             status: { type: 'string' },
             amountMusd: { type: 'string' },
+            quotedCredits: { type: 'number' },
+            quotedAmountMusd: { type: 'string' },
+            paidAmountMusd: { type: 'string' },
+            reservedAmountMusd: { type: 'string' },
+            actualCredits: { type: 'number' },
+            actualAmountMusd: { type: 'string' },
+            deltaAmountMusd: { type: 'string' },
+            pricingSource: { type: 'string' },
+            resultReleaseStatus: { type: 'string' },
             requestId: { type: 'string' },
             receiptId: { type: 'string' },
             explorerUrl: { type: 'string' },

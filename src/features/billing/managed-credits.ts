@@ -16,6 +16,8 @@ export type ManagedCreditDebit = {
   amountMusd: number
   receiptId: string
   createdAt: string
+  status?: 'reserved' | 'settled' | 'refunded' | 'delta_due'
+  note?: string
 }
 
 export type ManagedCreditAccount = {
@@ -124,16 +126,89 @@ export function debitManagedCredits({
     productName: product.name,
     amountMusd: debitAmount,
     receiptId,
+    status: 'reserved' as const,
+    note: 'Reserved before forwarding the paid request to the provider.',
     createdAt: new Date().toISOString()
   }
 
-  account.balanceMusd = Number(
-    (account.balanceMusd - debitAmount).toFixed(2)
-  )
+  account.balanceMusd = Number((account.balanceMusd - debitAmount).toFixed(2))
   account.debits.unshift(debit)
   account.updatedAt = debit.createdAt
 
   return { account, product, debit }
+}
+
+export function refundManagedCreditDebit({
+  apiKey,
+  debitId,
+  note
+}: {
+  apiKey: string
+  debitId: string
+  note: string
+}) {
+  const account = getManagedCreditAccountByApiKey(apiKey)
+
+  if (!account) {
+    return null
+  }
+
+  const debit = account.debits.find(item => item.id === debitId)
+
+  if (!debit || debit.status === 'refunded') {
+    return { account, debit: debit ?? null }
+  }
+
+  debit.status = 'refunded'
+  debit.note = note
+  account.balanceMusd = Number(
+    (account.balanceMusd + debit.amountMusd).toFixed(6)
+  )
+  account.updatedAt = new Date().toISOString()
+
+  return { account, debit }
+}
+
+export function settleManagedCreditDebit({
+  apiKey,
+  debitId,
+  actualAmountMusd,
+  note
+}: {
+  apiKey: string
+  debitId: string
+  actualAmountMusd: number
+  note: string
+}) {
+  const account = getManagedCreditAccountByApiKey(apiKey)
+
+  if (!account) {
+    return null
+  }
+
+  const debit = account.debits.find(item => item.id === debitId)
+
+  if (!debit || debit.status === 'refunded') {
+    return { account, debit: debit ?? null, deltaMusd: 0 }
+  }
+
+  const deltaMusd = Number((actualAmountMusd - debit.amountMusd).toFixed(6))
+
+  if (deltaMusd < 0) {
+    account.balanceMusd = Number(
+      (account.balanceMusd + Math.abs(deltaMusd)).toFixed(6)
+    )
+    debit.status = 'settled'
+  } else if (deltaMusd > 0) {
+    debit.status = 'delta_due'
+  } else {
+    debit.status = 'settled'
+  }
+
+  debit.note = note
+  account.updatedAt = new Date().toISOString()
+
+  return { account, debit, deltaMusd }
 }
 
 export function toPublicManagedCreditAccount(account: ManagedCreditAccount) {
