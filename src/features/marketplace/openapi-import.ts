@@ -24,13 +24,26 @@ export type OpenApiImportCandidate = {
   resultDelivery: ApiProductResultDelivery
   estimatedLatency: string
   statusEndpointUrl: string
+  statusMethod: 'GET' | 'POST'
   externalJobIdPath: string
   statusPath: string
   resultUrlPath: string
   errorMessagePath: string
+  pollingOptions: OpenApiPollingCandidate[]
   requestSchema: Record<string, string>
   responseSchema: Record<string, string>
   referencePayload: Record<string, unknown>
+}
+
+export type OpenApiPollingCandidate = {
+  id: string
+  label: string
+  method: 'GET' | 'POST'
+  path: string
+  statusEndpointUrl: string
+  statusPath: string
+  resultUrlPath: string
+  errorMessagePath: string
 }
 
 type OpenApiDocument = {
@@ -62,6 +75,12 @@ type OpenApiOperation = {
   description?: string
   tags?: string[]
   security?: Record<string, unknown[]>[]
+  parameters?: {
+    in?: string
+    name?: string
+    required?: boolean
+    schema?: unknown
+  }[]
   requestBody?: {
     content?: Record<string, { schema?: unknown; example?: unknown }>
   }
@@ -167,9 +186,16 @@ function buildCandidate({
     'url',
     'outputUrl'
   ])
-  const pollingPath = acceptedAsync
-    ? findPollingPath(document, path, jobIdPath)
-    : ''
+  const pollingOptions = acceptedAsync
+    ? createPollingCandidates({
+        document,
+        baseUrl,
+        createPath: path,
+        createMethod: method,
+        externalJobIdPath: jobIdPath
+      })
+    : []
+  const defaultPollingOption = pollingOptions[0]
   const auth = inferAuth(document, operation)
 
   return {
@@ -196,21 +222,192 @@ function buildCandidate({
     estimatedLatency: acceptedAsync
       ? 'Async provider job'
       : 'Provider response',
-    statusEndpointUrl: pollingPath
-      ? joinUrl(baseUrl, pollingPath).replace(/\{[^}]+\}/g, '{externalJobId}')
-      : '',
+    statusEndpointUrl: defaultPollingOption?.statusEndpointUrl ?? '',
+    statusMethod: defaultPollingOption?.method ?? 'GET',
     externalJobIdPath: jobIdPath,
-    statusPath,
-    resultUrlPath,
-    errorMessagePath: pickFirstField(responseFields, [
-      'errorMessage',
-      'message',
-      'error'
-    ]),
+    statusPath: defaultPollingOption?.statusPath ?? statusPath,
+    resultUrlPath: defaultPollingOption?.resultUrlPath ?? resultUrlPath,
+    errorMessagePath:
+      defaultPollingOption?.errorMessagePath ??
+      pickFirstField(responseFields, ['errorMessage', 'message', 'error']),
+    pollingOptions,
     requestSchema: schemaFields,
     responseSchema: responseFields,
     referencePayload: schemaToExamplePayload(requestSchema)
   }
+}
+
+function createPollingCandidates({
+  document,
+  baseUrl,
+  createPath,
+  createMethod,
+  externalJobIdPath
+}: {
+  document: OpenApiDocument
+  baseUrl: string
+  createPath: string
+  createMethod: 'GET' | 'POST'
+  externalJobIdPath: string
+}) {
+  if (!document.paths || !externalJobIdPath) {
+    return []
+  }
+
+  const createTokens = pathTokens(createPath)
+
+  return Object.entries(document.paths)
+    .flatMap(([path, pathItem]) =>
+      httpMethods.flatMap(method => {
+        const operation = pathItem[method]
+
+        if (!operation || !path.includes('{')) {
+          return []
+        }
+
+        const methodName = method.toUpperCase() as 'GET' | 'POST'
+        const operationText =
+          `${path} ${operation.summary ?? ''} ${operation.operationId ?? ''}`.toLowerCase()
+
+        if (path === createPath && methodName === createMethod) {
+          return []
+        }
+
+        if (
+          methodName !== 'GET' &&
+          !operationText.includes('status') &&
+          !operationText.includes('get')
+        ) {
+          return []
+        }
+
+        const responseSchema = getResponseSchema(
+          document,
+          operation,
+          pickResponseStatus(operation)
+        )
+        const responseFields = schemaToFieldMap(responseSchema)
+        const pathParamName = getPathParamName(operation, path)
+        const score = scorePollingCandidate({
+          createPath,
+          createTokens,
+          method: methodName,
+          candidatePath: path,
+          candidateOperation: operation,
+          externalJobIdPath,
+          pathParamName,
+          responseFields
+        })
+
+        if (score < 3) {
+          return []
+        }
+
+        return [
+          {
+            score,
+            candidate: {
+              id: `${methodName}:${path}`,
+              label: `${methodName} ${path} - ${
+                operation.summary || operation.operationId || 'Status endpoint'
+              }`,
+              method: methodName,
+              path,
+              statusEndpointUrl: replacePathParam(
+                joinUrl(baseUrl, path),
+                pathParamName
+              ),
+              statusPath: pickFirstField(responseFields, [
+                'status',
+                'state',
+                'job.status',
+                'data.status'
+              ]),
+              resultUrlPath: pickFirstField(responseFields, [
+                'resultUrl',
+                'renderUrl',
+                'previewUrl',
+                'url',
+                'outputUrl',
+                'result.url',
+                'data.resultUrl',
+                'data.url'
+              ]),
+              errorMessagePath: pickFirstField(responseFields, [
+                'errorMessage',
+                'message',
+                'error.message',
+                'error',
+                'data.errorMessage'
+              ])
+            } satisfies OpenApiPollingCandidate
+          }
+        ]
+      })
+    )
+    .sort((left, right) => right.score - left.score)
+    .map(({ candidate }) => candidate)
+}
+
+function scorePollingCandidate({
+  createPath,
+  createTokens,
+  method,
+  candidatePath,
+  candidateOperation,
+  externalJobIdPath,
+  pathParamName,
+  responseFields
+}: {
+  createPath: string
+  createTokens: string[]
+  method: 'GET' | 'POST'
+  candidatePath: string
+  candidateOperation: OpenApiOperation
+  externalJobIdPath: string
+  pathParamName: string
+  responseFields: Record<string, string>
+}) {
+  const candidateTokens = pathTokens(candidatePath)
+  const candidateText =
+    `${candidatePath} ${candidateOperation.summary ?? ''} ${candidateOperation.operationId ?? ''}`.toLowerCase()
+  const statusPath = pickFirstField(responseFields, [
+    'status',
+    'state',
+    'job.status',
+    'data.status'
+  ])
+  let score = 0
+
+  if (candidatePath.startsWith(createPath.replace(/\/$/, ''))) {
+    score += 6
+  }
+
+  if (pathParamName && similarName(pathParamName, externalJobIdPath)) {
+    score += 5
+  }
+
+  if (statusPath) {
+    score += 4
+  }
+
+  if (candidateText.includes('status') || candidateText.includes('get')) {
+    score += 2
+  }
+
+  if (method === 'GET') {
+    score += 2
+  }
+
+  if (candidateTokens.some(token => createTokens.includes(token))) {
+    score += 2
+  }
+
+  if (candidateText.includes('job')) {
+    score += 1
+  }
+
+  return score
 }
 
 function resolveBaseUrl({
@@ -344,11 +541,28 @@ function schemaToFieldMap(schema: unknown) {
     return {}
   }
 
+  return flattenSchemaFields(properties)
+}
+
+function flattenSchemaFields(
+  properties: Record<string, unknown>,
+  prefix = ''
+): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(properties).map(([key, value]) => [
-      key,
-      describeSchemaField(value)
-    ])
+    Object.entries(properties).flatMap(([key, value]) => {
+      const path = prefix ? `${prefix}.${key}` : key
+      const nestedProperties = readSchemaProperties(value)
+      const field = [[path, describeSchemaField(value)]]
+
+      if (!nestedProperties) {
+        return field
+      }
+
+      return [
+        ...field,
+        ...Object.entries(flattenSchemaFields(nestedProperties, path))
+      ]
+    })
   )
 }
 
@@ -439,35 +653,57 @@ function exampleValueForSchema(schema: unknown): unknown {
   return ''
 }
 
-function findPollingPath(
-  document: OpenApiDocument,
-  createPath: string,
-  jobIdPath: string
-) {
-  if (!jobIdPath || !document.paths) {
-    return ''
-  }
-
-  const candidates = Object.entries(document.paths)
-    .filter(([, pathItem]) => Boolean(pathItem.get))
-    .map(([path]) => path)
-
-  return (
-    candidates.find(
-      path =>
-        path.startsWith(createPath.replace(/\/$/, '')) && path.includes('{')
-    ) ??
-    candidates.find(path =>
-      path.toLowerCase().includes(jobIdPath.toLowerCase().replace(/id$/, ''))
-    ) ??
-    ''
-  )
-}
-
 function pickFirstField(fields: Record<string, string>, names: string[]) {
   const keys = Object.keys(fields)
 
   return names.find(name => keys.includes(name)) ?? ''
+}
+
+function getPathParamName(operation: OpenApiOperation, path: string) {
+  const explicitParam = operation.parameters?.find(
+    parameter => parameter.in === 'path' && parameter.name
+  )?.name
+
+  if (explicitParam) {
+    return explicitParam
+  }
+
+  return path.match(/\{([^}]+)\}/)?.[1] ?? ''
+}
+
+function replacePathParam(url: string, pathParamName: string) {
+  if (pathParamName) {
+    return url.replace(`{${pathParamName}}`, '{externalJobId}')
+  }
+
+  return url.replace(/\{[^}]+\}/g, '{externalJobId}')
+}
+
+function pathTokens(path: string) {
+  return path
+    .toLowerCase()
+    .replace(/\{[^}]+\}/g, '')
+    .split('/')
+    .filter(Boolean)
+    .flatMap(segment => segment.split(/[^a-z0-9]+/))
+    .filter(Boolean)
+}
+
+function similarName(left: string, right: string) {
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .replace(/id$/, '')
+
+  const normalizedLeft = normalize(left)
+  const normalizedRight = normalize(right)
+
+  return (
+    normalizedLeft === normalizedRight ||
+    normalizedLeft.includes(normalizedRight) ||
+    normalizedRight.includes(normalizedLeft)
+  )
 }
 
 function joinUrl(baseUrl: string, path: string) {

@@ -465,9 +465,8 @@ Before creating a new helper or service file:
   dashboard, marketplace, provider, profile, billing, and settings navigation.
 - Tollora marketplace product registry, provider-created listings, product
   schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
-  and dashboard metrics live in `src/features/marketplace/products.ts`;
-  reusable marketplace cards live in
-  `src/features/marketplace/product-card.tsx`.
+  and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
+  marketplace cards live in `src/features/marketplace/product-card.tsx`.
 - Autonomous Launch Pack Agent models, run storage, paid action execution, proof
   hashing, status labels, and UI clients live in `src/features/agents`.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
@@ -509,8 +508,9 @@ Before creating a new helper or service file:
   polling requirements, runtime model, wallet fields, agent readiness,
   OpenAPI-imported operation defaults, and visibility before posting to the
   product API route. The OpenAPI importer detects operation-level or
-  document-level security schemes and 202 Accepted job operations so the listing
-  form marks required provider auth and polling fields accurately.
+  document-level security schemes and 202 Accepted job operations, links async
+  job-creation operations to matching status endpoints from the imported spec,
+  and marks required provider auth and polling fields accurately.
 - `/provider/products/[productId]` shows product operations, payable request
   links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,

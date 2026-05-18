@@ -7,7 +7,10 @@ import { FormEvent, type ReactNode, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import type { OpenApiImportCandidate } from '@/features/marketplace/openapi-import'
+import type {
+  OpenApiImportCandidate,
+  OpenApiPollingCandidate
+} from '@/features/marketplace/openapi-import'
 import type {
   ApiProductAuthType,
   ApiProductExecutionMode
@@ -113,7 +116,7 @@ export function ProviderProductForm() {
     setFormValue(form, 'resultDelivery', candidate.resultDelivery)
     setFormValue(form, 'estimatedLatency', candidate.estimatedLatency)
     setFormValue(form, 'statusEndpointUrl', candidate.statusEndpointUrl)
-    setFormValue(form, 'statusMethod', 'GET')
+    setFormValue(form, 'statusMethod', candidate.statusMethod)
     setFormValue(form, 'externalJobIdPath', candidate.externalJobIdPath)
     setFormValue(form, 'statusPath', candidate.statusPath)
     setFormValue(form, 'resultUrlPath', candidate.resultUrlPath)
@@ -513,6 +516,7 @@ function OpenApiImportPanel({
   const [specText, setSpecText] = useState('')
   const [candidates, setCandidates] = useState<OpenApiImportCandidate[]>([])
   const [selectedOperationId, setSelectedOperationId] = useState('')
+  const [selectedPollingId, setSelectedPollingId] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [isImporting, setIsImporting] = useState(false)
@@ -521,6 +525,10 @@ function OpenApiImportPanel({
     candidates.find(
       candidate => candidate.operationId === selectedOperationId
     ) ?? candidates[0]
+  const selectedPollingCandidate =
+    selectedCandidate?.pollingOptions.find(
+      pollingOption => pollingOption.id === selectedPollingId
+    ) ?? selectedCandidate?.pollingOptions[0]
 
   async function handleFile(file: File | undefined) {
     if (!file) {
@@ -555,6 +563,7 @@ function OpenApiImportPanel({
       const nextCandidates = data.candidates ?? []
       setCandidates(nextCandidates)
       setSelectedOperationId(nextCandidates[0]?.operationId ?? '')
+      setSelectedPollingId(nextCandidates[0]?.pollingOptions[0]?.id ?? '')
       setStatus(
         `Imported ${nextCandidates.length} operation${nextCandidates.length === 1 ? '' : 's'} from ${data.info?.title ?? 'OpenAPI'}.`
       )
@@ -578,11 +587,12 @@ function OpenApiImportPanel({
         <h2 className='font-display mt-2 text-2xl'>Import OpenAPI</h2>
         <p className='text-foreground/65 mt-2 text-sm leading-6'>
           Paste an OpenAPI JSON/YAML URL or upload a spec file. Tollora reads
-          the operations, detects auth and async jobs, then fills the listing
-          fields for the selected endpoint.
+          the operations, detects auth and async jobs, links job-creation
+          endpoints to status endpoints, then fills the listing fields for the
+          selected endpoint.
         </p>
       </div>
-      <div className='grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end'>
+      <div className='grid gap-4 xl:grid-cols-[1fr_1fr_1fr_auto] xl:items-end'>
         <Field
           label='OpenAPI URL'
           name='openApiUrlPreview'
@@ -628,7 +638,13 @@ function OpenApiImportPanel({
           required={false}
           help='Choose which imported endpoint should become this paid marketplace listing.'
           value={selectedOperationId}
-          onChange={setSelectedOperationId}
+          onChange={value => {
+            setSelectedOperationId(value)
+            const nextCandidate = candidates.find(
+              candidate => candidate.operationId === value
+            )
+            setSelectedPollingId(nextCandidate?.pollingOptions[0]?.id ?? '')
+          }}
         >
           {candidates.length === 0 ? (
             <option value=''>Import a spec first</option>
@@ -639,11 +655,35 @@ function OpenApiImportPanel({
             </option>
           ))}
         </SelectField>
+        <SelectField
+          label='Job status endpoint'
+          name='openApiPollingPreview'
+          defaultValue={selectedPollingCandidate?.id ?? ''}
+          required={false}
+          disabled={!selectedCandidate?.pollingOptions.length}
+          help='For async operations, choose the imported OpenAPI endpoint Tollora should poll with the job ID returned by the selected operation.'
+          value={selectedPollingCandidate?.id ?? ''}
+          onChange={setSelectedPollingId}
+        >
+          {selectedCandidate?.pollingOptions.length ? null : (
+            <option value=''>No status endpoint detected</option>
+          )}
+          {selectedCandidate?.pollingOptions.map(pollingOption => (
+            <option key={pollingOption.id} value={pollingOption.id}>
+              {pollingOption.label}
+            </option>
+          ))}
+        </SelectField>
         <Button
           type='button'
           variant='outline'
           disabled={!selectedCandidate}
-          onClick={() => selectedCandidate && onApply(selectedCandidate)}
+          onClick={() =>
+            selectedCandidate &&
+            onApply(
+              withSelectedPolling(selectedCandidate, selectedPollingCandidate)
+            )
+          }
         >
           Fill listing
         </Button>
@@ -660,6 +700,24 @@ function OpenApiImportPanel({
       ) : null}
     </Card>
   )
+}
+
+function withSelectedPolling(
+  candidate: OpenApiImportCandidate,
+  pollingOption?: OpenApiPollingCandidate
+): OpenApiImportCandidate {
+  if (!pollingOption) {
+    return candidate
+  }
+
+  return {
+    ...candidate,
+    statusEndpointUrl: pollingOption.statusEndpointUrl,
+    statusMethod: pollingOption.method,
+    statusPath: pollingOption.statusPath,
+    resultUrlPath: pollingOption.resultUrlPath,
+    errorMessagePath: pollingOption.errorMessagePath
+  }
 }
 
 function Field({
@@ -708,6 +766,7 @@ function SelectField({
   children,
   help,
   required = true,
+  disabled = false,
   value,
   onChange
 }: {
@@ -717,6 +776,7 @@ function SelectField({
   children: ReactNode
   help: string
   required?: boolean
+  disabled?: boolean
   value?: string
   onChange?: (value: string) => void
 }) {
@@ -731,6 +791,7 @@ function SelectField({
           onChange ? event => onChange(event.currentTarget.value) : undefined
         }
         required={required}
+        disabled={disabled}
         className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 h-11 w-full rounded-2xl border px-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
       >
         {children}
