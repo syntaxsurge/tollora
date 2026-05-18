@@ -1304,6 +1304,8 @@ function DocumentationLink({
     <a
       href={`/developers/docs#${docId}`}
       title={title}
+      target='_blank'
+      rel='noreferrer'
       className='border-border bg-background/80 text-foreground/75 hover:border-primary/50 hover:text-primary focus-visible:ring-ring focus-visible:ring-offset-background inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold tracking-normal normal-case transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
     >
       <BookOpen className='h-3.5 w-3.5' aria-hidden />
