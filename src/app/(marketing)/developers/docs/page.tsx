@@ -1,23 +1,986 @@
 import Link from 'next/link'
 
+import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { x402Network } from '@/lib/config/chains'
 
+type DocsSection = {
+  id: string
+  title: string
+  group: string
+  body: string
+}
+
+const providerDocsSections: DocsSection[] = [
+  {
+    id: 'overview',
+    group: 'Start here',
+    title: 'How Tollora sells your API',
+    body: `
+Tollora lets a provider list an existing HTTPS API as a paid marketplace product. Buyers, applications, CLIs, and autonomous agents call the hosted Tollora endpoint. Tollora handles the x402 payment requirement, MUSD settlement on Mezo, provider request forwarding, receipts, and proof metadata.
+
+You do **not** need to clone Tollora or rebuild your API around blockchain code. Your API only needs normal HTTP endpoints that Tollora can call after payment is settled or reserved.
+
+| Role | What it does |
+| --- | --- |
+| Provider API | Owns the real product logic, authentication, quotes, jobs, and results. |
+| Tollora gateway | Prices the request, collects x402 payment, calls the provider, stores receipts, and exposes buyer-facing status. |
+| Buyer or agent | Calls Tollora, pays through x402 or managed credits, then receives the provider result or a pollable job. |
+`
+  },
+  {
+    id: 'publishing-flow',
+    group: 'Start here',
+    title: 'Recommended publishing flow',
+    body: `
+1. Open **Provider -> Products -> New**.
+2. Import an OpenAPI file or paste each field manually.
+3. Choose **fixed** pricing for predictable per-call work, or **credit_metered** pricing for variable-cost work.
+4. Add provider authentication so Tollora can call your upstream API server-side.
+5. If your API is long-running, map the job ID and status endpoint.
+6. Add request/response schemas and a reference payload.
+7. Save as **draft** first, test it, then publish it when the marketplace listing is accurate.
+
+Use **draft** until the endpoint, auth, pricing, and schemas are real. Published listings can appear in marketplace pages and agent tool selection.
+`
+  },
+  {
+    id: 'section-openapi-import',
+    group: 'OpenAPI import',
+    title: 'Import OpenAPI',
+    body: `
+OpenAPI import is the fastest way to add many provider endpoints. Tollora reads the spec, detects operations, infers auth, builds schemas, picks reference payloads, and suggests async status mappings.
+
+**What your API should expose**
+
+| Item | Why it helps |
+| --- | --- |
+| OpenAPI JSON or YAML URL | Lets Tollora import operations without manual copy/paste. |
+| Security schemes | Lets Tollora mark auth fields as required. |
+| Request bodies | Lets Tollora build buyer-facing request examples. |
+| Response schemas | Lets Tollora explain what buyers receive. |
+| 202 Accepted or job response schemas | Lets Tollora detect async job creation endpoints. |
+| Status endpoints with path parameters | Lets Tollora link a job-creation endpoint to a polling endpoint. |
+
+**Good OpenAPI URL:** \`https://provider.example/api/openapi.json\`  
+**Avoid:** private localhost URLs, docs pages that return HTML, or OpenAPI specs that omit request and response schemas.
+`
+  },
+  {
+    id: 'field-openApiUrlPreview',
+    group: 'OpenAPI import',
+    title: 'OpenAPI URL',
+    body: `
+Paste a public URL that returns raw OpenAPI JSON or YAML.
+
+| Input | Use it? | Why |
+| --- | --- | --- |
+| \`https://provider.example/api/openapi.json\` | Yes | Direct machine-readable spec. |
+| \`https://provider.example/developers/openapi\` | Maybe | Only if it returns JSON/YAML, not an HTML page. |
+| \`http://localhost:3000/openapi.json\` | No for production | Tollora cannot fetch your local machine after deployment. |
+
+Validation: must be a valid URL when provided.
+`
+  },
+  {
+    id: 'field-openApiBaseUrlPreview',
+    group: 'OpenAPI import',
+    title: 'Override server URL',
+    body: `
+Use this when the imported OpenAPI spec has a relative, staging, or incorrect \`servers\` value.
+
+**Input this:** \`https://api.provider.example/v1\`  
+**Do not input this:** a product docs URL, marketplace URL, or endpoint path for one operation.
+
+Leave it blank when the OpenAPI spec already has the correct production server URL.
+`
+  },
+  {
+    id: 'field-openApiFile',
+    group: 'OpenAPI import',
+    title: 'Upload OpenAPI file',
+    body: `
+Upload a local \`.json\`, \`.yaml\`, or \`.yml\` OpenAPI file when the provider spec is not hosted yet.
+
+Use this for hackathon demos, private APIs, or local specs. Before production, prefer a hosted spec URL so future edits are easier to re-import.
+`
+  },
+  {
+    id: 'field-openApiOperationPreview',
+    group: 'OpenAPI import',
+    title: 'Imported operation',
+    body: `
+Choose which imported operation becomes the paid marketplace product.
+
+Pick one buyer-facing action per listing. For example, create one listing for **Create job** and another listing for **Summarize document**. Do not publish one listing that hides many unrelated actions behind a single vague endpoint.
+`
+  },
+  {
+    id: 'field-openApiPollingPreview',
+    group: 'OpenAPI import',
+    title: 'Job status endpoint',
+    body: `
+For async APIs, choose the imported endpoint Tollora should poll with the job ID returned by the paid call.
+
+Good status endpoints usually look like:
+
+\`\`\`http
+GET /jobs/{jobId}
+GET /renders/{renderId}
+GET /exports/{exportId}/status
+\`\`\`
+
+The status endpoint should be cheap to call. Buyers should not pay again just to poll a job they already started.
+`
+  },
+  {
+    id: 'section-product-details',
+    group: 'Product details',
+    title: 'Product details',
+    body: `
+Product details control how the listing appears in the marketplace and which upstream API Tollora calls after payment. These fields should describe a real API operation, not a placeholder.
+`
+  },
+  {
+    id: 'field-name',
+    group: 'Product details',
+    title: 'Product name',
+    body: `
+The buyer-facing name shown in marketplace cards, order pages, receipts, and agent tool lists.
+
+**Write:** \`Market Snapshot API\`, \`Video Render Job API\`, \`Document Summary API\`  
+**Avoid:** \`Test API\`, \`My endpoint\`, \`Untitled\`
+
+Validation: 3 to 90 characters.
+`
+  },
+  {
+    id: 'field-slug',
+    group: 'Product details',
+    title: 'Slug',
+    body: `
+The stable URL identifier for the hosted Tollora endpoint.
+
+\`\`\`txt
+https://yourdomain.com/api/x402/products/{slug}/call
+\`\`\`
+
+**Write:** \`market-snapshot-api\`  
+**Avoid:** spaces, uppercase letters, underscores, random IDs, or changing it after users integrate.
+
+Validation: 3 to 90 characters, lowercase letters, numbers, and hyphens only.
+`
+  },
+  {
+    id: 'field-category',
+    group: 'Product details',
+    title: 'Category',
+    body: `
+The marketplace grouping used for discovery and filtering.
+
+| Category | Use for |
+| --- | --- |
+| \`ai\` | AI generation, classification, extraction, and reasoning. |
+| \`data\` | Enrichment, search, analytics, scraping, and market data. |
+| \`media\` | Images, video, audio, rendering, and captions. |
+| \`agent\` | Tools designed mainly for autonomous workflows. |
+| \`commerce\` | Checkout, billing, invoices, customer operations. |
+| \`developer\` | CI, code, monitoring, docs, testing, infrastructure. |
+`
+  },
+  {
+    id: 'field-endpointUrl',
+    group: 'Product details',
+    title: 'Provider endpoint URL',
+    body: `
+The real upstream URL Tollora calls after payment is settled or reserved.
+
+**Input:** the provider API endpoint, not the Tollora endpoint.  
+**Good:** \`https://api.provider.example/v1/jobs\`  
+**Bad:** \`/api/jobs\`, \`localhost\`, or a browser docs page.
+
+Validation: required valid URL.
+`
+  },
+  {
+    id: 'field-method',
+    group: 'Product details',
+    title: 'HTTP method',
+    body: `
+Choose the upstream method Tollora should use.
+
+Use \`POST\` for actions that create work, transform input, or start jobs. Use \`GET\` for read-only lookups where request values can safely be sent as query parameters.
+`
+  },
+  {
+    id: 'field-ownerWallet',
+    group: 'Product details',
+    title: 'Owner wallet',
+    body: `
+The wallet that manages this provider listing in Tollora.
+
+This should be a real provider/admin wallet, not a random test address.
+
+Validation: must be a valid \`0x\` address with 40 hex characters.
+`
+  },
+  {
+    id: 'field-receivingWallet',
+    group: 'Product details',
+    title: 'Receiving wallet',
+    body: `
+The wallet that receives provider payouts for successful paid calls.
+
+Use a wallet your team controls. Do not use the buyer wallet unless the buyer and provider are intentionally the same entity.
+
+Validation: must be a valid \`0x\` address with 40 hex characters.
+`
+  },
+  {
+    id: 'field-providerDisplayName',
+    group: 'Product details',
+    title: 'Provider display name',
+    body: `
+The provider name shown on marketplace, order, receipt, and usage pages.
+
+Use the real business, product, or team name buyers should trust.
+`
+  },
+  {
+    id: 'field-status',
+    group: 'Product details',
+    title: 'Visibility',
+    body: `
+Visibility controls who can discover and run the listing.
+
+| Value | Meaning |
+| --- | --- |
+| \`draft\` | Save privately while you test fields and credentials. |
+| \`published\` | Show in marketplace and allow buyers or agents to use it. |
+| \`paused\` | Keep the listing but stop new buyer traffic. |
+
+Publish only after endpoint, auth, pricing, schemas, and polling are real.
+`
+  },
+  {
+    id: 'field-description',
+    group: 'Product details',
+    title: 'Description',
+    body: `
+Explain what the buyer gets and when they should use it.
+
+**Good:** "Returns a structured market snapshot with competitors, pricing notes, and launch risks for a product category."  
+**Bad:** "This is an API."
+
+Validation: 20 to 800 characters.
+`
+  },
+  {
+    id: 'section-pricing',
+    group: 'Pricing',
+    title: 'Fixed or credit-metered pricing',
+    body: `
+Pricing decides how Tollora calculates the x402 payment requirement.
+
+| Model | Best for | Payment timing |
+| --- | --- | --- |
+| \`fixed\` | Predictable per-call work | One exact price per call. |
+| \`credit_metered\` | Variable work based on duration, tokens, output size, or provider credits | Quote first, pay before expensive work, compare final usage later. |
+
+Credit-metered products should expose a cheap quote endpoint or a deterministic request field. Tollora converts that number into MUSD with your configured rate and multiplier.
+`
+  },
+  {
+    id: 'field-pricingModel',
+    group: 'Pricing',
+    title: 'Pricing model',
+    body: `
+Choose \`fixed\` when every successful call costs the same. Choose \`credit_metered\` when price depends on usage.
+
+**Use fixed for:** text cleanup, metadata lookup, basic summary, simple validation.  
+**Use credit-metered for:** long-running generation, render duration, token-counted analysis, large exports, usage-based provider plans.
+`
+  },
+  {
+    id: 'field-priceUsd',
+    group: 'Pricing',
+    title: 'Price in MUSD or fallback price',
+    body: `
+For fixed pricing, this is the exact MUSD price per paid call. For credit-metered pricing, this is the fallback price if quote calculation is unavailable.
+
+**Input:** numeric MUSD amount such as \`0.08\`, \`1\`, or \`25\`.  
+**Avoid:** currency symbols, text, negative numbers, or zero.
+
+Validation: positive number up to 100000.
+`
+  },
+  {
+    id: 'field-pricingQuoteEndpointUrl',
+    group: 'Pricing',
+    title: 'Quote endpoint URL',
+    body: `
+Optional endpoint Tollora calls before payment to calculate a usage-based price.
+
+The quote endpoint must be cheap and side-effect free. It should not start the job, call expensive models, render media, deduct credits, or mutate provider state.
+
+Example response:
+
+\`\`\`json
+{
+  "estimatedCredits": 180,
+  "billing": { "unit": "credit", "estimatedCredits": 180 }
+}
+\`\`\`
+
+Validation: valid URL when provided.
+`
+  },
+  {
+    id: 'field-pricingQuoteMethod',
+    group: 'Pricing',
+    title: 'Quote method',
+    body: `
+The HTTP method used for the quote endpoint.
+
+Use \`POST\` when the quote needs the same JSON payload as the paid request. Use \`GET\` only for simple query-based quote APIs.
+`
+  },
+  {
+    id: 'field-pricingCreditUnitPath',
+    group: 'Pricing',
+    title: 'Credit value path',
+    body: `
+Dot-path to the numeric usage estimate in the quote response, provider response, or request payload.
+
+Examples:
+
+\`\`\`txt
+estimatedCredits
+billing.estimatedCredits
+usage.estimatedCredits
+quote.units
+\`\`\`
+
+If your quote response is \`{ "billing": { "estimatedCredits": 180 } }\`, enter \`billing.estimatedCredits\`.
+
+Required when pricing model is \`credit_metered\`.
+`
+  },
+  {
+    id: 'field-pricingUsageCreditPath',
+    group: 'Pricing',
+    title: 'Actual usage path',
+    body: `
+Optional dot-path to final usage in the provider job result or status response.
+
+Use this when final cost can be lower or higher than the quote.
+
+Example:
+
+\`\`\`json
+{
+  "chargedCredits": 160,
+  "refundedCredits": 20,
+  "billingStatus": "partially_refunded"
+}
+\`\`\`
+
+If actual usage is higher than the prepaid quote, Tollora can lock the final result until the buyer pays the delta.
+`
+  },
+  {
+    id: 'field-pricingCreditToMusdRate',
+    group: 'Pricing',
+    title: 'MUSD per credit',
+    body: `
+Conversion rate from provider usage units to MUSD.
+
+Example: if 100 credits should cost 1 MUSD, enter \`0.01\`.
+
+\`\`\`txt
+credits * MUSD per credit * multiplier = quoted MUSD
+180 * 0.01 * 1.2 = 2.16 MUSD
+\`\`\`
+
+Required for credit-metered pricing.
+`
+  },
+  {
+    id: 'field-pricingMultiplier',
+    group: 'Pricing',
+    title: 'Pricing multiplier',
+    body: `
+Optional markup or discount applied after the credit-to-MUSD conversion.
+
+| Value | Meaning |
+| --- | --- |
+| \`1\` | No markup or discount. |
+| \`1.2\` | Adds 20%. |
+| \`0.9\` | Applies a 10% discount. |
+
+Validation: positive number.
+`
+  },
+  {
+    id: 'field-pricingMinimumChargeUsd',
+    group: 'Pricing',
+    title: 'Minimum charge MUSD',
+    body: `
+Optional floor so very small jobs still cover provider and gateway overhead.
+
+Use \`0\` when you do not need a minimum. Use values like \`0.05\` or \`1\` when every call has fixed infrastructure cost.
+`
+  },
+  {
+    id: 'field-pricingMaximumChargeUsd',
+    group: 'Pricing',
+    title: 'Maximum charge MUSD',
+    body: `
+Optional cap for buyer safety.
+
+Leave blank for no cap. Set a cap when the quote formula could produce unexpectedly high values.
+
+Validation: if provided, it must be greater than the minimum charge.
+`
+  },
+  {
+    id: 'section-provider-authentication',
+    group: 'Authentication',
+    title: 'Provider authentication',
+    body: `
+Provider authentication is how Tollora calls your upstream API. The buyer never sees these credentials. Tollora stores them server-side and applies them only when forwarding a paid or reserved request.
+
+Never put a provider API key in buyer-side JavaScript. Use these fields so Tollora can keep the secret on the server.
+`
+  },
+  {
+    id: 'field-authType',
+    group: 'Authentication',
+    title: 'Auth type',
+    body: `
+Choose how Tollora authenticates to the provider API.
+
+| Type | Use when |
+| --- | --- |
+| \`none\` | The provider endpoint is public or protected elsewhere. |
+| \`bearer\` | Header looks like \`Authorization: Bearer secret\`. |
+| \`api_key_header\` | Header looks like \`x-api-key: secret\`. |
+| \`api_key_query\` | URL has \`?api_key=secret\`. |
+| \`basic\` | Provider uses username and password. |
+`
+  },
+  {
+    id: 'field-authSecret',
+    group: 'Authentication',
+    title: 'Auth secret or API key',
+    body: `
+The provider API key or token Tollora uses server-side.
+
+Required for \`bearer\`, \`api_key_header\`, and \`api_key_query\`.
+
+**Input:** the raw secret value.  
+**Do not input:** \`Bearer \` prefix unless your provider specifically expects it as part of the secret. Tollora handles auth formatting based on auth type.
+`
+  },
+  {
+    id: 'field-authHeaderName',
+    group: 'Authentication',
+    title: 'Header name',
+    body: `
+Header used for bearer or header API-key auth.
+
+Common values:
+
+\`\`\`txt
+Authorization
+x-api-key
+X-API-Key
+\`\`\`
+
+Required for \`bearer\` and \`api_key_header\`.
+`
+  },
+  {
+    id: 'field-authQueryParam',
+    group: 'Authentication',
+    title: 'Query parameter name',
+    body: `
+Query parameter used for \`api_key_query\` authentication.
+
+Example: if the upstream URL needs \`?api_key=secret\`, enter \`api_key\`.
+
+Prefer header auth when possible because query strings can appear in logs.
+`
+  },
+  {
+    id: 'field-authUsername',
+    group: 'Authentication',
+    title: 'Basic auth username',
+    body: `
+Username used only when auth type is \`basic\`.
+
+Required when auth type is \`basic\`.
+`
+  },
+  {
+    id: 'field-authPassword',
+    group: 'Authentication',
+    title: 'Basic auth password',
+    body: `
+Password used only when auth type is \`basic\`.
+
+Required when auth type is \`basic\`. Use the eye button in the form to verify the value before saving.
+`
+  },
+  {
+    id: 'section-runtime-model',
+    group: 'Runtime',
+    title: 'Runtime model',
+    body: `
+Runtime fields tell Tollora whether the provider returns a final result immediately or creates a job that needs polling.
+`
+  },
+  {
+    id: 'field-executionMode',
+    group: 'Runtime',
+    title: 'Execution mode',
+    body: `
+Use \`synchronous\` when the upstream response contains the final result. Use \`asynchronous\` when the upstream response contains a job ID and work continues in the provider system.
+`
+  },
+  {
+    id: 'field-settlementModel',
+    group: 'Runtime',
+    title: 'Settlement model',
+    body: `
+Choose when the buyer should pay relative to provider work.
+
+| Model | Use when |
+| --- | --- |
+| \`pay_on_successful_response\` | Fast synchronous APIs with no expensive work before success. |
+| \`pay_on_job_acceptance\` | Async or variable-cost jobs where provider cost starts after job acceptance. |
+| \`pay_to_claim_result\` | Buyer should pay only before revealing a completed result. |
+`
+  },
+  {
+    id: 'field-resultDelivery',
+    group: 'Runtime',
+    title: 'Result delivery',
+    body: `
+How buyers retrieve the usable result.
+
+| Value | Meaning |
+| --- | --- |
+| \`direct_response\` | Provider returns the final result in the paid response. |
+| \`poll_or_webhook\` | Provider returns a job ID; Tollora polls or receives updates. |
+| \`claim_after_completion\` | Final payload can stay locked until a claim payment is complete. |
+`
+  },
+  {
+    id: 'field-estimatedLatency',
+    group: 'Runtime',
+    title: 'Estimated latency',
+    body: `
+Human-readable timing shown to buyers.
+
+Good examples: \`2 seconds\`, \`1-3 minutes\`, \`Depends on file size\`.  
+Avoid fake precision such as \`0.0001 seconds\` for long-running APIs.
+`
+  },
+  {
+    id: 'field-timeoutSeconds',
+    group: 'Runtime',
+    title: 'Timeout seconds',
+    body: `
+Maximum time Tollora waits for the upstream provider response.
+
+Use short values for synchronous APIs. Use longer values for job creation endpoints only if the provider can take time to accept the job.
+
+Validation: integer from 1 to 900.
+`
+  },
+  {
+    id: 'field-idempotencyHeader',
+    group: 'Runtime',
+    title: 'Idempotency header',
+    body: `
+Optional upstream header Tollora sends so duplicate retries do not create duplicate provider jobs.
+
+Common value: \`Idempotency-Key\`.
+
+Your provider should store this key and return the same job for repeated requests with the same key.
+`
+  },
+  {
+    id: 'section-async-polling',
+    group: 'Async polling',
+    title: 'Async polling',
+    body: `
+Async polling is required when the paid call creates a provider job instead of returning the final result.
+
+The paid call starts the job. Polling should be free because it only reads the status of work already paid for or reserved.
+`
+  },
+  {
+    id: 'field-statusEndpointUrl',
+    group: 'Async polling',
+    title: 'Status endpoint URL',
+    body: `
+Polling URL for async jobs. Use \`{externalJobId}\` where the provider job ID belongs.
+
+Example:
+
+\`\`\`txt
+https://api.provider.example/v1/jobs/{externalJobId}
+\`\`\`
+
+Required when execution mode is \`asynchronous\`.
+`
+  },
+  {
+    id: 'field-statusMethod',
+    group: 'Async polling',
+    title: 'Status method',
+    body: `
+HTTP method Tollora uses to poll status.
+
+Most providers should use \`GET\`. Use \`POST\` only when the provider status API requires a JSON body.
+`
+  },
+  {
+    id: 'field-externalJobIdPath',
+    group: 'Async polling',
+    title: 'External job ID path',
+    body: `
+Dot-path where Tollora finds the provider job ID in the job creation response.
+
+Examples:
+
+\`\`\`txt
+jobId
+data.id
+result.job.id
+videoJobId
+\`\`\`
+
+Required for async APIs.
+`
+  },
+  {
+    id: 'field-statusPath',
+    group: 'Async polling',
+    title: 'Status path',
+    body: `
+Dot-path where Tollora reads the provider job status in polling responses.
+
+Examples:
+
+\`\`\`txt
+status
+data.status
+job.state
+\`\`\`
+
+Tollora expects values that can be mapped to processing, ready, completed, failed, or cancelled behavior.
+`
+  },
+  {
+    id: 'field-resultUrlPath',
+    group: 'Async polling',
+    title: 'Result URL path',
+    body: `
+Optional dot-path where Tollora reads the final output URL.
+
+Examples: \`resultUrl\`, \`output.url\`, \`data.assets.videoUrl\`.
+`
+  },
+  {
+    id: 'field-errorMessagePath',
+    group: 'Async polling',
+    title: 'Error message path',
+    body: `
+Optional dot-path where Tollora reads provider error details.
+
+Use this so buyers see a useful failure reason instead of a generic failed status.
+`
+  },
+  {
+    id: 'section-schemas',
+    group: 'Schemas',
+    title: 'Schemas and examples',
+    body: `
+Schemas make the marketplace understandable. They also help agents decide which tools fit a task.
+
+Use simple JSON objects that describe field names and expected values. You do not need a perfect formal JSON Schema for the first listing, but the examples should match the real API.
+`
+  },
+  {
+    id: 'field-requestSchemaJson',
+    group: 'Schemas',
+    title: 'Request schema',
+    body: `
+JSON object describing what buyers should send.
+
+Good example:
+
+\`\`\`json
+{
+  "prompt": "string",
+  "durationSeconds": "number",
+  "quality": "720p | 1080p | 4k"
+}
+\`\`\`
+
+Avoid empty objects for published listings.
+`
+  },
+  {
+    id: 'field-responseSchemaJson',
+    group: 'Schemas',
+    title: 'Response schema',
+    body: `
+JSON object describing what buyers receive.
+
+For async products, include job and status fields. For credit-metered products, include final usage fields when available.
+
+\`\`\`json
+{
+  "jobId": "string",
+  "status": "queued | processing | completed | failed",
+  "resultUrl": "string | undefined",
+  "chargedCredits": "number | undefined"
+}
+\`\`\`
+`
+  },
+  {
+    id: 'field-referencePayloadJson',
+    group: 'Schemas',
+    title: 'Reference payload',
+    body: `
+Example request shown to buyers and used by agent runs as a starting payload.
+
+Use real-looking values that can succeed in demo mode. Do not include private provider API keys here.
+
+\`\`\`json
+{
+  "prompt": "Create a product launch asset.",
+  "durationSeconds": 30,
+  "quality": "1080p"
+}
+\`\`\`
+`
+  },
+  {
+    id: 'section-automation',
+    group: 'Automation',
+    title: 'Webhooks and agent availability',
+    body: `
+Automation fields help Tollora keep long-running work updated and make products available to autonomous agents.
+`
+  },
+  {
+    id: 'field-webhookUrl',
+    group: 'Automation',
+    title: 'Webhook URL',
+    body: `
+Optional provider callback URL for future webhook coordination.
+
+Use a URL your provider controls. Leave blank when polling is enough.
+
+Validation: valid URL when provided.
+`
+  },
+  {
+    id: 'field-isAgentReady',
+    group: 'Automation',
+    title: 'Agent-ready listing',
+    body: `
+When enabled, the product can appear as a selectable tool in autonomous agent runs.
+
+Only enable this when:
+
+- The request schema is clear.
+- The reference payload is safe.
+- Pricing is predictable or quote-first.
+- The provider endpoint can handle autonomous calls without manual approval.
+`
+  },
+  {
+    id: 'provider-code-changes',
+    group: 'Provider code',
+    title: 'What to add to your own API codebase',
+    body: `
+You can integrate a provider API with Tollora using normal HTTP patterns.
+
+## Fixed-price API
+
+Fixed-price APIs only need the real paid endpoint:
+
+\`\`\`ts
+app.post("/api/summarize", async (req, res) => {
+  const result = await summarize(req.body.text)
+  res.json({
+    summary: result.summary,
+    requestId: result.requestId
+  })
+})
+\`\`\`
+
+List this as \`pricingModel: "fixed"\`. Tollora charges the configured MUSD amount when the paid request succeeds.
+
+## Credit-metered async API
+
+Variable-cost APIs should expose a quote endpoint and a job endpoint:
+
+\`\`\`ts
+app.post("/api/quote", async (req, res) => {
+  const estimatedCredits = estimateCredits(req.body)
+  res.json({
+    estimatedCredits,
+    billing: {
+      unit: "credit",
+      estimatedCredits
+    }
+  })
+})
+
+app.post("/api/jobs", async (req, res) => {
+  const job = await createJob({
+    input: req.body,
+    billingMode: req.body.billingMode,
+    externalReference: req.body.externalReference
+  })
+
+  res.status(202).json({
+    jobId: job.id,
+    status: "queued",
+    estimatedCredits: job.estimatedCredits
+  })
+})
+
+app.get("/api/jobs/:jobId", async (req, res) => {
+  const job = await getJob(req.params.jobId)
+  res.json({
+    jobId: job.id,
+    status: job.status,
+    progress: job.progress,
+    resultUrl: job.resultUrl,
+    estimatedCredits: job.estimatedCredits,
+    chargedCredits: job.chargedCredits,
+    refundedCredits: job.refundedCredits,
+    billingStatus: job.billingStatus,
+    refundReason: job.refundReason
+  })
+})
+\`\`\`
+
+The provider API should stay generic. It reports credits and job state. Tollora maps those credits to x402 payments, receipts, refunds, deltas, and proofs.
+`
+  }
+]
+
+const markdownComponents: Components = {
+  p: ({ children }) => (
+    <p className='text-foreground/75 my-3 text-sm leading-7'>{children}</p>
+  ),
+  h2: ({ children }) => (
+    <h3 className='font-display text-foreground mt-7 text-2xl'>{children}</h3>
+  ),
+  h3: ({ children }) => (
+    <h4 className='text-foreground mt-6 text-lg font-semibold'>{children}</h4>
+  ),
+  ul: ({ children }) => (
+    <ul className='text-foreground/75 my-3 list-disc space-y-2 pl-5 text-sm leading-7'>
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className='text-foreground/75 my-3 list-decimal space-y-2 pl-5 text-sm leading-7'>
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => <li>{children}</li>,
+  code: ({ children, className }) => {
+    const isBlock = className?.includes('language-')
+
+    if (isBlock) {
+      return <code className={className}>{children}</code>
+    }
+
+    return (
+      <code className='bg-muted text-foreground rounded px-1.5 py-0.5 text-[0.85em]'>
+        {children}
+      </code>
+    )
+  },
+  pre: ({ children }) => (
+    <pre className='bg-muted text-foreground my-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
+      {children}
+    </pre>
+  ),
+  table: ({ children }) => (
+    <div className='my-4 overflow-x-auto'>
+      <table className='border-border w-full min-w-[520px] border-collapse text-sm'>
+        {children}
+      </table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className='border-border bg-muted text-foreground border px-3 py-2 text-left font-semibold'>
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className='border-border text-foreground/75 border px-3 py-2 align-top'>
+      {children}
+    </td>
+  ),
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      className='text-primary font-semibold underline-offset-4 hover:underline'
+    >
+      {children}
+    </a>
+  )
+}
+
 export default function DeveloperDocsPage() {
+  const groupedSections = providerDocsSections.reduce<
+    Record<string, DocsSection[]>
+  >((groups, section) => {
+    groups[section.group] = groups[section.group] ?? []
+    groups[section.group].push(section)
+    return groups
+  }, {})
+
   return (
-    <div className='mx-auto w-full max-w-5xl space-y-8 px-6 py-16'>
+    <div className='mx-auto w-full max-w-7xl px-6 py-14'>
       <section className='space-y-4'>
-        <Badge>Docs</Badge>
-        <h1 className='font-display text-4xl'>Tollora API gateway</h1>
+        <Badge>GitHub-flavored docs</Badge>
+        <h1 className='font-display max-w-3xl text-4xl leading-tight'>
+          Tollora provider integration guide
+        </h1>
         <p className='text-foreground/70 max-w-3xl text-sm leading-6'>
-          Tollora routes paid API calls through HTTP 402 payment requirements,
-          MUSD settlement on Mezo, provider request forwarding, and receipt
-          records for buyers, providers, and programmatic clients.
+          A field-by-field guide for listing paid APIs, importing OpenAPI specs,
+          supporting fixed and usage-metered pricing, and preparing provider
+          endpoints for x402-paid calls on {x402Network}.
         </p>
         <div className='flex flex-col gap-3 sm:flex-row'>
-          <Link href='/api/reference' className={buttonClasses({ size: 'sm' })}>
+          <Link
+            href='/provider/products/new'
+            className={buttonClasses({ size: 'sm' })}
+          >
+            List a paid API
+          </Link>
+          <Link
+            href='/api/reference'
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+          >
             Open API reference
           </Link>
           <Link
@@ -29,315 +992,57 @@ export default function DeveloperDocsPage() {
         </div>
       </section>
 
-      <section className='grid gap-5'>
-        <DocSection
-          title='Calling a paid Tollora API'
-          body='A buyer integrates against the hosted Tollora product endpoint, not this repository. Their backend, CLI, or autonomous agent uses an x402 buyer client to handle the 402 response, sign the MUSD payment, retry the request, and read the paid response.'
-        />
-        <DocSection
-          title='x402 payments'
-          body={`Tollora uses ${x402Network} for Mezo Testnet payment requirements. Prices are expressed as dollar strings and resolve to MUSD through the x402 EVM stablecoin registry.`}
-        />
-        <DocSection
-          title='Plain curl vs paid clients'
-          body='A plain curl request is only a diagnostic check; it should return HTTP 402 with payment requirements. Production callers use @x402/fetch, @x402/axios, the x402 Go client, or the x402 Python client with a funded Mezo MUSD signer.'
-        />
-        <DocSection
-          title='Where buyer code runs'
-          body='Keep buyer private keys in a backend, CLI, worker, or autonomous-agent runtime. Browser frontends should call their own backend or use a wallet/paywall flow; they should not embed private keys in React code.'
-        />
-        <DocSection
-          title='Managed credits'
-          body='x402 is the native path. Managed credits are a convenience layer for teams that want API keys: create a credit account, record a MUSD top-up transaction, then call credit-backed product endpoints with a Tollora API key while Tollora debits the off-chain balance and records usage receipts.'
-        />
-        <DocSection
-          title='Provider onboarding'
-          body='Providers do not need to rebuild their API around x402. They list an existing HTTPS endpoint, schema, provider authentication, pricing model, receiving wallet, execution mode, settlement model, result delivery model, and optional webhook. Tollora handles the 402 payment flow, then forwards only paid or reserved requests to the provider adapter or configured endpoint.'
-        />
-        <DocSection
-          title='Fixed pricing'
-          body='Use fixed pricing when the API has a predictable cost per request: text transforms, enrichment calls, short synchronous lookups, simple data APIs, or any operation where the provider can safely charge the same MUSD amount for every successful call. Tollora returns one exact x402 payment requirement for the configured price.'
-        />
-        <DocSection
-          title='Credit-metered pricing'
-          body='Use credit-metered pricing when cost depends on duration, token count, generated assets, processing tier, output size, or another provider-defined usage unit. The provider exposes either a cheap quote endpoint or a deterministic numeric field in the request. Tollora reads that number, applies the configured MUSD-per-credit rate, multiplier, minimum, and maximum, then requests x402 payment before expensive work starts.'
-        />
-        <DocSection
-          title='Provider quote contract'
-          body='A quote endpoint must be cheap and side-effect free. It should not create jobs, render media, call expensive models, or deduct provider credits. It should return a numeric estimate such as estimatedCredits, usage.estimatedCredits, or billing.estimatedCredits. Tollora maps the configured dot-path to an exact MUSD quote.'
-        />
-        <DocSection
-          title='External prepaid jobs'
-          body='For long-running credit-metered APIs, Tollora forwards billingMode: external_prepaid and a generic externalReference object after x402 settlement. Providers should record the external reference and reservation metadata, start work only for that accepted request, and return generic billing fields such as estimatedCredits, chargedCredits, refundedCredits, billingStatus, and refundReason.'
-        />
-        <DocSection
-          title='Final usage and deltas'
-          body='When final usage equals the quote, Tollora releases the result. When final usage is lower, Tollora records the unused amount as buyer credit or refundable value. When final usage is higher, Tollora keeps the final payload locked and asks the buyer or agent to pay the delta through another x402 claim before revealing the result.'
-        />
-        <DocSection
-          title='Long-running API billing'
-          body='Fast APIs can use pay-after-successful-response when no provider cost is incurred before success. Long-running or variable-cost APIs should use quote-first, pay-before-work: Tollora quotes the request, settles or reserves MUSD through x402, starts the provider job, then polls or receives webhook updates until the result is ready.'
-        />
-        <DocSection
-          title='Receipt format'
-          body='Receipts include product, provider, buyer wallet, provider wallet, amount in MUSD, network, transaction hash, request ID, timestamp, and result URL when the provider response exposes one.'
-        />
-        <DocSection
-          title='External API adapter'
-          body='Provider-created listings use a generic HTTP adapter. Tollora forwards paid requests to the configured upstream endpoint, applies server-side provider credentials, sends idempotency headers, extracts job IDs and result URLs from configured JSON paths, and polls status endpoints for async products.'
-        />
-        <DocSection
-          title='Autonomous agent runs'
-          body='Agent runs accept an objective, source context, budget cap, max paid actions, owner wallet, allowed tools, and signer mode. The runner plans a launch-pack workflow, spends only through selected x402 product endpoints, and returns deliverables plus receipt metadata.'
-        />
-        <DocSection
-          title='Mezo proof attestation'
-          body='Completed agent runs hash the objective, selected tools, paid action log, response hashes, receipt IDs, and final deliverables. Tollora writes that proof hash to AgentRunAttestor on Mezo so the public proof page can be audited without publishing private content on-chain.'
-        />
-        <DocSection
-          title='OpenAPI import'
-          body='Providers can import hosted or uploaded OpenAPI JSON/YAML documents from the List a paid API page. Tollora turns operations into listing candidates and pre-fills endpoint URL, method, auth type, request schema, response schema, reference payload, async polling, and result-path fields.'
-        />
-      </section>
+      <div className='mt-10 grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)]'>
+        <aside className='lg:sticky lg:top-28 lg:self-start'>
+          <nav className='border-border bg-card/70 max-h-[calc(100vh-8rem)] overflow-auto rounded-lg border p-4'>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              On this page
+            </p>
+            <div className='mt-4 space-y-5'>
+              {Object.entries(groupedSections).map(([group, sections]) => (
+                <div key={group}>
+                  <p className='text-foreground text-sm font-semibold'>
+                    {group}
+                  </p>
+                  <ul className='mt-2 space-y-1'>
+                    {sections.map(section => (
+                      <li key={section.id}>
+                        <a
+                          href={`#${section.id}`}
+                          className='text-foreground/65 hover:text-primary block rounded-md px-2 py-1 text-sm transition'
+                        >
+                          {section.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </nav>
+        </aside>
 
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Agent run
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`POST /api/agents/runs
-Content-Type: application/json
-
-{
-  "objective": "Create a launch pack for my paid API product.",
-  "ownerWallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
-  "budgetCapMusd": 20,
-  "maxPaidActions": 3,
-  "allowedTools": ["media-launch-job-api"],
-  "mode": "local"
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Fixed-price provider response
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "summary": "The buyer receives the completed synchronous result.",
-  "requestId": "provider_req_123"
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Credit-metered quote response
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "estimatedCredits": 180,
-  "breakdown": [
-    { "label": "duration", "credits": 120 },
-    { "label": "qualityTier", "credits": 60 }
-  ],
-  "billing": {
-    "unit": "credit",
-    "estimatedCredits": 180
-  }
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          External prepaid job request
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`{
-  "prompt": "Create a product launch asset.",
-  "durationSeconds": 30,
-  "quality": "1080p",
-  "billingMode": "external_prepaid",
-  "externalReference": {
-    "orderId": "ord_abc123",
-    "receiptId": "rcpt_def456",
-    "buyerReference": "0xBuyer...",
-    "settlementReference": "rcpt_def456"
-  }
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Async job status response
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jobId": "job_123",
-  "status": "completed",
-  "progress": 100,
-  "resultUrl": "https://provider.example/results/job_123",
-  "estimatedCredits": 180,
-  "chargedCredits": 160,
-  "refundedCredits": 20,
-  "billingStatus": "partially_refunded",
-  "refundReason": "Actual usage was lower than the estimate.",
-  "externalReference": {
-    "orderId": "ord_abc123",
-    "receiptId": "rcpt_def456"
-  }
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Buyer integration
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`npm install @x402/fetch @x402/evm viem
-
-import { x402Client, wrapFetchWithPayment } from "@x402/fetch";
-import { registerExactEvmScheme } from "@x402/evm/exact/client";
-import { privateKeyToAccount } from "viem/accounts";
-
-const privateKey = process.env.EVM_PRIVATE_KEY;
-
-if (!privateKey) {
-  throw new Error("Set EVM_PRIVATE_KEY to a Mezo MUSD-funded wallet.");
-}
-
-const signer = privateKeyToAccount(privateKey);
-const client = new x402Client();
-
-registerExactEvmScheme(client, { signer });
-
-const fetchWithPayment = wrapFetchWithPayment(fetch, client);
-const response = await fetchWithPayment(
-  "https://tollora.vercel.app/api/x402/products/media-launch-job-api/call",
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      prompt: "Create a product launch video.",
-      format: "portrait",
-      durationSeconds: 30
-    })
-  }
-);
-
-console.log(await response.json());`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Managed-credit API key
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`POST /api/credits/accounts
-Content-Type: application/json
-
-{ "wallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688" }
-
-POST /api/credits/top-ups
-Content-Type: application/json
-
-{
-  "wallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
-  "amountMusd": 25,
-  "settlementTxHash": "0x1111111111111111111111111111111111111111111111111111111111111111"
-}
-
-POST /api/credits/products/media-launch-job-api/call
-Authorization: Bearer tlr_your_api_key
-Content-Type: application/json
-
-{
-  "prompt": "Create a product launch video.",
-  "format": "portrait",
-  "durationSeconds": 30
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          Provider integration
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`POST /api/providers/self/products
-Content-Type: application/json
-
-{
-  "name": "Media Launch Job API",
-  "slug": "media-launch-job-api",
-  "category": "media",
-  "pricingModel": "credit_metered",
-  "priceUsd": 2,
-  "pricingQuoteEndpointUrl": "https://provider.example/api/quote",
-  "pricingCreditUnitPath": "estimatedCredits",
-  "pricingUsageCreditPath": "chargedCredits",
-  "pricingCreditToMusdRate": 0.01,
-  "pricingMultiplier": 1.2,
-  "pricingMinimumChargeUsd": 1,
-  "pricingMaximumChargeUsd": 50,
-  "method": "POST",
-  "endpointUrl": "https://provider.example/api/jobs",
-  "authType": "bearer",
-  "authSecret": "provider_api_key",
-  "executionMode": "asynchronous",
-  "settlementModel": "pay_on_job_acceptance",
-  "resultDelivery": "poll_or_webhook",
-  "statusEndpointUrl": "https://provider.example/api/jobs/{externalJobId}",
-  "externalJobIdPath": "jobId",
-  "statusPath": "status",
-  "resultUrlPath": "resultUrl",
-  "receivingWallet": "0x7CE33579392AEAF1791c9B0c8302a502B5867688",
-  "requestSchemaJson": "{\\"prompt\\":\\"string\\",\\"format\\":\\"portrait | landscape | square\\"}",
-  "responseSchemaJson": "{\\"jobId\\":\\"string\\",\\"status\\":\\"string\\",\\"resultUrl\\":\\"string | undefined\\"}",
-  "referencePayloadJson": "{\\"prompt\\":\\"Create a product launch video.\\",\\"format\\":\\"portrait\\",\\"durationSeconds\\":30}",
-  "status": "published",
-  "isAgentReady": true
-}`}
-        </pre>
-      </Card>
-
-      <Card>
-        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-          OpenAPI import
-        </p>
-        <pre className='bg-muted mt-4 overflow-auto rounded-lg p-4 text-xs leading-6'>
-          {`POST /api/providers/openapi/preview
-Content-Type: application/json
-
-{
-  "specUrl": "https://provider.example/api/openapi.json",
-  "baseUrl": "https://provider.example/api"
-}`}
-        </pre>
-      </Card>
+        <main className='space-y-5'>
+          {providerDocsSections.map(section => (
+            <section
+              key={section.id}
+              id={section.id}
+              className='border-border bg-card scroll-mt-28 rounded-lg border p-6 shadow-sm'
+            >
+              <p className='text-foreground/50 text-xs tracking-[0.16em] uppercase'>
+                {section.group}
+              </p>
+              <h2 className='font-display mt-2 text-3xl'>{section.title}</h2>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
+                {section.body}
+              </ReactMarkdown>
+            </section>
+          ))}
+        </main>
+      </div>
     </div>
-  )
-}
-
-function DocSection({ title, body }: { title: string; body: string }) {
-  return (
-    <Card>
-      <h2 className='font-display text-2xl'>{title}</h2>
-      <p className='text-foreground/70 mt-3 text-sm leading-6'>{body}</p>
-    </Card>
   )
 }

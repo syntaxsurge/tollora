@@ -517,13 +517,16 @@ Before creating a new helper or service file:
   schemas, upstream endpoint URL, upstream authentication requirements, async
   polling requirements, runtime model, fixed or credit-metered MUSD pricing,
   wallet fields, agent readiness, OpenAPI-imported operation defaults, and
-  visibility before posting to the product API route. The provider form uses the
-  shared product input schema for client-side field errors before submission,
-  and the API route uses the same schema as the server guard. The OpenAPI
-  importer detects operation-level or document-level security schemes, credit
-  fields such as `estimatedCredits`, and 202 Accepted job operations, links
-  async job-creation operations to matching status endpoints from the imported
-  spec, and marks required provider auth and polling fields accurately.
+  visibility before posting to the product API route. Provider form labels link
+  to field-specific anchors on `/developers/docs` instead of hover-only help,
+  including OpenAPI import, pricing, authentication, runtime, polling, schema,
+  webhook, and agent-readiness documentation. The provider form uses the shared
+  product input schema for client-side field errors before submission, and the
+  API route uses the same schema as the server guard. The OpenAPI importer
+  detects operation-level or document-level security schemes, credit fields such
+  as `estimatedCredits`, and 202 Accepted job operations, links async
+  job-creation operations to matching status endpoints from the imported spec,
+  and marks required provider auth and polling fields accurately.
 - `/provider/products/[productId]` shows product operations, payable request
   links, usage links, endpoint copy support, and schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
@@ -566,7 +569,10 @@ Before creating a new helper or service file:
   quote-first provider contracts, external prepaid async job metadata, final
   usage delta handling, autonomous agent runs, Mezo proof attestations, gateway
   forwarding, receipt records, external HTTP adapter behavior, OpenAPI JSON, and
-  the Scalar API reference.
+  the Scalar API reference. The developer docs page renders GitHub-flavored
+  Markdown with `react-markdown` and `remark-gfm`, uses a sticky table of
+  contents, and exposes stable section and field anchors used by provider form
+  documentation links.
 - Admin routes use `src/components/layout/admin-sidebar.tsx`; the users table is
   server-rendered from URL search, filter, sort, and pagination parameters.
 - Admin user row actions use three-dot menus with reusable responsive dialogs

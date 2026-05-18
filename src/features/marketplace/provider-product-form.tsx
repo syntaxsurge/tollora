@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { FormEvent, type ReactNode, useRef, useState } from 'react'
 
-import { Eye, EyeOff, HelpCircle } from 'lucide-react'
+import { BookOpen, Eye, EyeOff } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -207,12 +207,11 @@ export function ProviderProductForm() {
       <OpenApiImportPanel onApply={applyOpenApiCandidate} />
 
       <Card className='space-y-5'>
-        <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Product details
-          </p>
-          <h2 className='font-display mt-2 text-2xl'>API listing</h2>
-        </div>
+        <SectionHeader
+          eyebrow='Product details'
+          title='API listing'
+          docId='section-product-details'
+        />
         <div className='grid gap-4 md:grid-cols-2'>
           <Field
             label='Product name'
@@ -306,12 +305,11 @@ export function ProviderProductForm() {
       <Card className='space-y-5'>
         <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
           <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Pricing
-            </p>
-            <h2 className='font-display mt-2 text-2xl'>
-              Fixed or usage-based MUSD
-            </h2>
+            <SectionHeader
+              eyebrow='Pricing'
+              title='Fixed or usage-based MUSD'
+              docId='section-pricing'
+            />
             <p className='text-foreground/65 mt-2 max-w-3xl text-sm leading-6'>
               Use fixed pricing for simple APIs. Use credit-metered pricing for
               variable-cost APIs where a quote or job response returns a numeric
@@ -428,10 +426,11 @@ export function ProviderProductForm() {
 
       <Card className='space-y-5'>
         <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Provider authentication
-          </p>
-          <h2 className='font-display mt-2 text-2xl'>Private upstream API</h2>
+          <SectionHeader
+            eyebrow='Provider authentication'
+            title='Private upstream API'
+            docId='section-provider-authentication'
+          />
           <p className='text-foreground/65 mt-2 text-sm leading-6'>
             Tollora keeps this credential server-side and uses it only when a
             paid buyer request is forwarded to the provider API.
@@ -499,14 +498,11 @@ export function ProviderProductForm() {
       </Card>
 
       <Card className='space-y-5'>
-        <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Runtime model
-          </p>
-          <h2 className='font-display mt-2 text-2xl'>
-            Sync, async, and settlement behavior
-          </h2>
-        </div>
+        <SectionHeader
+          eyebrow='Runtime model'
+          title='Sync, async, and settlement behavior'
+          docId='section-runtime-model'
+        />
         <div className='grid gap-4 md:grid-cols-2'>
           <SelectField
             label='Execution mode'
@@ -579,10 +575,11 @@ export function ProviderProductForm() {
 
       <Card className='space-y-5'>
         <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Async polling
-          </p>
-          <h2 className='font-display mt-2 text-2xl'>Job status mapping</h2>
+          <SectionHeader
+            eyebrow='Async polling'
+            title='Job status mapping'
+            docId='section-async-polling'
+          />
           <p className='text-foreground/65 mt-2 text-sm leading-6'>
             Fill this only for async APIs that return a provider job ID. For
             long-running generation, rendering, data export, or enrichment jobs,
@@ -647,57 +644,72 @@ export function ProviderProductForm() {
         </div>
       </Card>
 
-      <Card className='grid gap-4 lg:grid-cols-3'>
-        <JsonField
-          label='Request schema'
-          name='requestSchemaJson'
-          defaultValue={emptyJsonObject}
-          error={fieldErrors.requestSchemaJson}
-          help='JSON object mapping request field names to simple type descriptions.'
+      <Card className='space-y-5'>
+        <SectionHeader
+          eyebrow='Schemas and examples'
+          title='Request, response, and payload'
+          docId='section-schemas'
         />
-        <JsonField
-          label='Response schema'
-          name='responseSchemaJson'
-          defaultValue={emptyJsonObject}
-          error={fieldErrors.responseSchemaJson}
-          help='JSON object mapping response field names to simple type descriptions.'
-        />
-        <JsonField
-          label='Reference payload'
-          name='referencePayloadJson'
-          defaultValue={emptyJsonObject}
-          error={fieldErrors.referencePayloadJson}
-          help='Example JSON request shown to buyers and used by agent runs as a starting payload.'
-        />
+        <div className='grid gap-4 lg:grid-cols-3'>
+          <JsonField
+            label='Request schema'
+            name='requestSchemaJson'
+            defaultValue={emptyJsonObject}
+            error={fieldErrors.requestSchemaJson}
+            help='JSON object mapping request field names to simple type descriptions.'
+          />
+          <JsonField
+            label='Response schema'
+            name='responseSchemaJson'
+            defaultValue={emptyJsonObject}
+            error={fieldErrors.responseSchemaJson}
+            help='JSON object mapping response field names to simple type descriptions.'
+          />
+          <JsonField
+            label='Reference payload'
+            name='referencePayloadJson'
+            defaultValue={emptyJsonObject}
+            error={fieldErrors.referencePayloadJson}
+            help='Example JSON request shown to buyers and used by agent runs as a starting payload.'
+          />
+        </div>
       </Card>
 
-      <Field
-        label='Webhook URL'
-        name='webhookUrl'
-        type='url'
-        defaultValue=''
-        required={false}
-        error={fieldErrors.webhookUrl}
-        help='Optional provider callback URL for future webhook coordination.'
-      />
-
-      <label className='border-foreground/10 flex items-start gap-3 rounded-lg border p-4 text-sm'>
-        <input
-          type='checkbox'
-          name='isAgentReady'
-          defaultChecked
-          className='mt-1'
+      <Card className='space-y-5'>
+        <SectionHeader
+          eyebrow='Automation'
+          title='Webhooks and agent availability'
+          docId='section-automation'
         />
-        <span>
-          <span className='block font-semibold'>
-            Make this listing available to autonomous agents
+        <Field
+          label='Webhook URL'
+          name='webhookUrl'
+          type='url'
+          defaultValue=''
+          required={false}
+          error={fieldErrors.webhookUrl}
+          help='Optional provider callback URL for future webhook coordination.'
+        />
+
+        <label className='border-foreground/10 flex items-start gap-3 rounded-lg border p-4 text-sm'>
+          <input
+            type='checkbox'
+            name='isAgentReady'
+            defaultChecked
+            className='mt-1'
+          />
+          <span>
+            <span className='flex flex-wrap items-center gap-2 font-semibold'>
+              Make this listing available to autonomous agents
+              <DocumentationLink docId='field-isAgentReady' label='Docs' />
+            </span>
+            <span className='text-foreground/65 mt-1 block leading-6'>
+              Agent-ready products appear as selectable tools in the agent run
+              builder after they are published.
+            </span>
           </span>
-          <span className='text-foreground/65 mt-1 block leading-6'>
-            Agent-ready products appear as selectable tools in the agent run
-            builder after they are published.
-          </span>
-        </span>
-      </label>
+        </label>
+      </Card>
 
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
         <Button type='submit' disabled={isSubmitting}>
@@ -805,9 +817,7 @@ function OpenApiImportPanel({
             selected endpoint.
           </p>
         </div>
-        <span className='border-border bg-background/70 text-foreground/70 inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold'>
-          OpenAPI autofill
-        </span>
+        <DocumentationLink docId='section-openapi-import' label='Open docs' />
       </div>
 
       <div className='border-border/70 bg-background/40 space-y-4 rounded-lg border p-4'>
@@ -852,19 +862,22 @@ function OpenApiImportPanel({
             {isImporting ? 'Importing' : 'Import spec'}
           </Button>
         </div>
-        <label className='block max-w-2xl space-y-2'>
+        <div className='block max-w-2xl space-y-2'>
           <HelpLabel
             label='Upload OpenAPI file'
             required={false}
             help='Use this when the provider spec is local instead of hosted at a URL.'
+            docId='field-openApiFile'
+            htmlFor='openApiFile'
           />
           <Input
+            id='openApiFile'
             type='file'
             accept='.json,.yaml,.yml,application/json,text/yaml,application/yaml'
             className='file:bg-muted file:text-foreground hover:file:bg-accent/10 flex h-16 cursor-pointer items-center py-0 leading-[4rem] file:mr-4 file:h-9 file:rounded-md file:border-0 file:px-4 file:text-sm file:font-semibold'
             onChange={event => handleFile(event.target.files?.[0])}
           />
-        </label>
+        </div>
       </div>
 
       <div className='border-border/70 bg-background/40 space-y-4 rounded-lg border p-4'>
@@ -1017,10 +1030,17 @@ function Field({
         : type
 
   return (
-    <label className='space-y-2'>
-      <HelpLabel label={label} help={help} required={required} />
+    <div className='space-y-2'>
+      <HelpLabel
+        label={label}
+        help={help}
+        required={required}
+        docId={`field-${name}`}
+        htmlFor={name}
+      />
       <span className='relative block'>
         <Input
+          id={name}
           name={name}
           type={inputType}
           step={step}
@@ -1058,7 +1078,7 @@ function Field({
           {error}
         </p>
       ) : null}
-    </label>
+    </div>
   )
 }
 
@@ -1088,9 +1108,16 @@ function SelectField({
   const errorId = `${name}-error`
 
   return (
-    <label className='space-y-2'>
-      <HelpLabel label={label} help={help} required={required} />
+    <div className='space-y-2'>
+      <HelpLabel
+        label={label}
+        help={help}
+        required={required}
+        docId={`field-${name}`}
+        htmlFor={name}
+      />
       <select
+        id={name}
         name={name}
         defaultValue={onChange ? undefined : defaultValue}
         value={onChange ? value : undefined}
@@ -1113,7 +1140,7 @@ function SelectField({
           {error}
         </p>
       ) : null}
-    </label>
+    </div>
   )
 }
 
@@ -1133,9 +1160,16 @@ function JsonField({
   const errorId = `${name}-error`
 
   return (
-    <label className='space-y-2'>
-      <HelpLabel label={label} help={help} required={false} />
+    <div className='space-y-2'>
+      <HelpLabel
+        label={label}
+        help={help}
+        required={false}
+        docId={`field-${name}`}
+        htmlFor={name}
+      />
       <textarea
+        id={name}
         name={name}
         defaultValue={defaultValue}
         aria-invalid={Boolean(error)}
@@ -1150,7 +1184,7 @@ function JsonField({
           {error}
         </p>
       ) : null}
-    </label>
+    </div>
   )
 }
 
@@ -1174,9 +1208,16 @@ function JsonTextField({
   const errorId = `${name}-error`
 
   return (
-    <label className='space-y-2'>
-      <HelpLabel label={label} help={help} required={required} />
+    <div className='space-y-2'>
+      <HelpLabel
+        label={label}
+        help={help}
+        required={required}
+        docId={`field-${name}`}
+        htmlFor={name}
+      />
       <textarea
+        id={name}
         name={name}
         defaultValue={defaultValue}
         required={required}
@@ -1193,34 +1234,81 @@ function JsonTextField({
           {error}
         </p>
       ) : null}
-    </label>
+    </div>
   )
 }
 
 function HelpLabel({
   label,
   help,
-  required = true
+  required = true,
+  docId,
+  htmlFor
 }: {
   label: string
   help: string
   required?: boolean
+  docId: string
+  htmlFor: string
 }) {
   return (
-    <span className='text-foreground/60 flex items-center gap-2 text-xs tracking-[0.16em] uppercase'>
-      {label}
-      {required ? (
-        <span className='text-red-500' aria-label='required'>
-          *
-        </span>
-      ) : null}
-      <span className='group relative inline-flex'>
-        <HelpCircle className='text-foreground/45 h-3.5 w-3.5' aria-hidden />
-        <span className='bg-card text-card-foreground border-border ring-foreground/10 pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-72 -translate-x-1/2 rounded-lg border p-3 text-xs leading-5 tracking-normal normal-case opacity-100 shadow-xl ring-1 shadow-black/30 group-focus-within:block group-hover:block dark:bg-slate-950 dark:text-white dark:ring-white/10'>
-          {help}
-        </span>
-      </span>
+    <span className='flex items-center justify-between gap-3'>
+      <label
+        htmlFor={htmlFor}
+        className='text-foreground/60 flex min-w-0 items-center gap-2 text-xs tracking-[0.16em] uppercase'
+      >
+        {label}
+        {required ? (
+          <span className='text-red-500' aria-label='required'>
+            *
+          </span>
+        ) : null}
+      </label>
+      <DocumentationLink docId={docId} label='Docs' title={help} />
     </span>
+  )
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  docId
+}: {
+  eyebrow: string
+  title: string
+  docId: string
+}) {
+  return (
+    <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+      <div>
+        <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          {eyebrow}
+        </p>
+        <h2 className='font-display mt-2 text-2xl'>{title}</h2>
+      </div>
+      <DocumentationLink docId={docId} label='Open docs' />
+    </div>
+  )
+}
+
+function DocumentationLink({
+  docId,
+  label,
+  title
+}: {
+  docId: string
+  label: string
+  title?: string
+}) {
+  return (
+    <a
+      href={`/developers/docs#${docId}`}
+      title={title}
+      className='border-border bg-background/80 text-foreground/75 hover:border-primary/50 hover:text-primary focus-visible:ring-ring focus-visible:ring-offset-background inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold tracking-normal normal-case transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+    >
+      <BookOpen className='h-3.5 w-3.5' aria-hidden />
+      {label}
+    </a>
   )
 }
 
