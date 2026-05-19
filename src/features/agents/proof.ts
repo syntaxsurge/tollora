@@ -12,6 +12,8 @@ export function hashAgentRunProof(run: AgentRun): `0x${string}` {
       id: action.id,
       productSlug: action.productSlug,
       status: action.status,
+      planningRationale: action.planningRationale,
+      plannerScore: action.plannerScore,
       orderId: action.orderId,
       receiptId: action.receipt?.id,
       responseHash: action.responsePayload

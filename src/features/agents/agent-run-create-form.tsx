@@ -81,10 +81,8 @@ export function AgentRunCreateForm({
     )
   }
 
-  function letAgentChoose(maxActions: number) {
-    setSelectedTools(
-      agentReadyProducts.slice(0, maxActions).map(product => product.slug)
-    )
+  function allowAgentToChoose() {
+    setSelectedTools(agentReadyProducts.map(product => product.slug))
   }
 
   return (
@@ -156,8 +154,9 @@ export function AgentRunCreateForm({
             Allowed paid tools
           </p>
           <p className='text-foreground/65 mt-2 text-sm leading-6'>
-            The agent may autonomously spend MUSD only on the selected
-            marketplace APIs.
+            Select the tools the agent is allowed to consider. The planner will
+            rank this allowed set, choose the best tools for the objective, and
+            stop at the max paid action count.
           </p>
         </div>
         <div className='grid gap-3 md:grid-cols-2'>
@@ -194,10 +193,10 @@ export function AgentRunCreateForm({
           type='button'
           variant='outline'
           disabled={agentReadyProducts.length === 0}
-          onClick={() => letAgentChoose(3)}
+          onClick={allowAgentToChoose}
         >
           <Sparkles className='h-4 w-4' aria-hidden />
-          Let agent choose tools
+          Allow agent to choose from all tools
         </Button>
         <fieldset className='flex flex-wrap gap-3'>
           <legend className='sr-only'>Agent execution mode</legend>

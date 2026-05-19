@@ -209,6 +209,19 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
             <p className='text-foreground/70 text-sm leading-6'>
               {action.objective}
             </p>
+            {action.planningRationale ? (
+              <div className='border-foreground/10 bg-muted/40 rounded-lg border p-3 text-sm'>
+                <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
+                  Planner rationale
+                </p>
+                <p className='mt-1 leading-6'>{action.planningRationale}</p>
+                {typeof action.plannerScore === 'number' ? (
+                  <p className='text-foreground/60 mt-1'>
+                    Score: {action.plannerScore}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {action.receipt ? (
               <div className='grid gap-3 text-sm md:grid-cols-3'>
                 <Link

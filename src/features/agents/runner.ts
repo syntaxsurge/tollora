@@ -5,40 +5,17 @@ import { privateKeyToAccount } from 'viem/accounts'
 
 import type {
   AgentAction,
-  AgentRun,
-  AgentToolSlug
+  AgentRun
 } from '@/features/agents/types'
+import {
+  buildAgentPlan,
+  buildPlannerSummary
+} from '@/features/agents/planner'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
-
-export function buildAgentPlan(run: AgentRun): AgentAction[] {
-  const now = new Date().toISOString()
-  const selectedTools = run.allowedTools.slice(0, run.maxPaidActions)
-
-  return selectedTools.map((tool, index) => {
-    const product = getProductBySlug(tool)
-
-    if (!product) {
-      throw new Error(`Unknown agent tool: ${tool}`)
-    }
-
-    return {
-      id: `act_${run.id.slice(4)}_${index + 1}`,
-      runId: run.id,
-      productSlug: tool,
-      productName: product.name,
-      providerName: product.providerName,
-      status: 'planned',
-      amountMusd: product.priceLabel,
-      objective: `Use ${product.name} to advance the goal: ${run.objective}`,
-      requestPayload: buildPayloadForTool(tool, run),
-      startedAt: now
-    }
-  })
-}
 
 export async function executeAgentRunActions(run: AgentRun) {
   const actions = run.actions.length > 0 ? run.actions : buildAgentPlan(run)
@@ -204,16 +181,6 @@ async function callPaidProductWithAgentWallet(action: AgentAction) {
   }
 }
 
-function buildPayloadForTool(tool: AgentToolSlug, run: AgentRun) {
-  const product = getProductBySlug(tool)
-  const source = run.sourceText?.trim() || run.objective
-
-  return enrichReferencePayload(product?.referencePayload ?? {}, {
-    objective: run.objective,
-    source
-  })
-}
-
 function buildLocalResponse(action: AgentAction, objective: string) {
   return {
     status: 'completed',
@@ -235,6 +202,7 @@ function buildDeliverables(run: AgentRun, actions: AgentAction[]) {
   )
 
   return {
+    ...buildPlannerSummary(run, actions),
     launchBrief: `The agent used ${completedActions.length} selected marketplace APIs for: ${run.objective}`,
     developerCopy: completedActions
       .map(action => `${action.productName}: ${action.status}`)
@@ -245,40 +213,4 @@ function buildDeliverables(run: AgentRun, actions: AgentAction[]) {
         : undefined,
     videoResultUrl: String(asyncAction?.responsePayload?.resultUrl ?? '')
   }
-}
-
-function enrichReferencePayload(
-  payload: Record<string, unknown>,
-  context: { objective: string; source: string }
-) {
-  const nextPayload = { ...payload }
-
-  for (const key of Object.keys(nextPayload)) {
-    const normalized = key.toLowerCase()
-
-    if (
-      normalized.includes('prompt') ||
-      normalized.includes('objective') ||
-      normalized.includes('topic')
-    ) {
-      nextPayload[key] = context.objective
-    }
-
-    if (
-      normalized.includes('document') ||
-      normalized.includes('source') ||
-      normalized.includes('text')
-    ) {
-      nextPayload[key] = context.source
-    }
-  }
-
-  if (Object.keys(nextPayload).length === 0) {
-    return {
-      objective: context.objective,
-      sourceText: context.source
-    }
-  }
-
-  return nextPayload
 }

@@ -29,6 +29,8 @@ export type AgentAction = {
   status: AgentActionStatus
   amountMusd: string
   objective: string
+  planningRationale?: string
+  plannerScore?: number
   requestPayload: Record<string, unknown>
   responsePayload?: Record<string, unknown>
   receipt?: MarketplaceReceipt
@@ -67,6 +69,9 @@ export type AgentRun = {
   status: AgentRunStatus
   summary: string
   deliverables: {
+    planningPrompt?: string
+    toolSelectionRationale?: string
+    budgetInstruction?: string
     launchBrief?: string
     developerCopy?: string
     marketSignal?: string

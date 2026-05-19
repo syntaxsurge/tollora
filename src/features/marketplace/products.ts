@@ -101,7 +101,148 @@ const providerProductsStorePath = join(
   'provider-products.json'
 )
 
-export const marketplaceProducts: ApiProduct[] = []
+const tolloraPublicProviderWallet =
+  '0x7CE33579392AEAF1791c9B0c8302a502B5867688' as const
+
+export const marketplaceProducts: ApiProduct[] = [
+  {
+    slug: 'public-wikipedia-context',
+    name: 'Wikipedia Context Search',
+    providerName: 'Tollora Public Data',
+    providerSlug: 'tollora-public-data',
+    providerWallet: tolloraPublicProviderWallet,
+    category: 'data',
+    description:
+      'Searches public Wikipedia pages for factual context the agent can use in launch briefs, market summaries, and positioning copy.',
+    priceUsd: 0.03,
+    priceLabel: '0.03 MUSD',
+    pricing: { model: 'fixed' },
+    method: 'GET',
+    endpointPath: '/api/x402/products/public-wikipedia-context/call',
+    providerEndpointUrl: 'https://en.wikipedia.org/w/api.php',
+    providerAuth: { type: 'none' },
+    timeoutSeconds: 20,
+    estimatedLatency: '1-3s',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
+    requestSchema: {
+      action: '"query"',
+      list: '"search"',
+      format: '"json"',
+      srsearch: 'string',
+      srlimit: 'number | undefined'
+    },
+    responseSchema: {
+      query: 'object',
+      search: 'array',
+      searchinfo: 'object'
+    },
+    referencePayload: {
+      action: 'query',
+      list: 'search',
+      format: 'json',
+      srsearch: 'AI API marketplace',
+      srlimit: 5,
+      origin: '*'
+    },
+    isX402Protected: true,
+    isAgentReady: true,
+    status: 'published',
+    featured: true,
+    calls: 0,
+    successRate: '100%',
+    revenueMusd: '0.00'
+  },
+  {
+    slug: 'public-hn-trend-scan',
+    name: 'Hacker News Trend Scan',
+    providerName: 'Tollora Public Data',
+    providerSlug: 'tollora-public-data',
+    providerWallet: tolloraPublicProviderWallet,
+    category: 'data',
+    description:
+      'Searches public Hacker News story metadata for recent developer interest around a launch topic, technology, or market category.',
+    priceUsd: 0.04,
+    priceLabel: '0.04 MUSD',
+    pricing: { model: 'fixed' },
+    method: 'GET',
+    endpointPath: '/api/x402/products/public-hn-trend-scan/call',
+    providerEndpointUrl: 'https://hn.algolia.com/api/v1/search_by_date',
+    providerAuth: { type: 'none' },
+    timeoutSeconds: 20,
+    estimatedLatency: '1-3s',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
+    requestSchema: {
+      query: 'string',
+      tags: 'string | undefined',
+      hitsPerPage: 'number | undefined'
+    },
+    responseSchema: {
+      hits: 'array',
+      nbHits: 'number',
+      page: 'number'
+    },
+    referencePayload: {
+      query: 'AI agents API marketplace',
+      tags: 'story',
+      hitsPerPage: 5
+    },
+    isX402Protected: true,
+    isAgentReady: true,
+    status: 'published',
+    calls: 0,
+    successRate: '100%',
+    revenueMusd: '0.00'
+  },
+  {
+    slug: 'public-github-repo-search',
+    name: 'GitHub Repository Signal',
+    providerName: 'Tollora Public Data',
+    providerSlug: 'tollora-public-data',
+    providerWallet: tolloraPublicProviderWallet,
+    category: 'developer',
+    description:
+      'Searches public GitHub repositories for developer traction signals, related projects, languages, stars, forks, and repo descriptions.',
+    priceUsd: 0.04,
+    priceLabel: '0.04 MUSD',
+    pricing: { model: 'fixed' },
+    method: 'GET',
+    endpointPath: '/api/x402/products/public-github-repo-search/call',
+    providerEndpointUrl: 'https://api.github.com/search/repositories',
+    providerAuth: { type: 'none' },
+    timeoutSeconds: 20,
+    estimatedLatency: '1-3s',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
+    requestSchema: {
+      q: 'string',
+      sort: '"stars" | "updated" | undefined',
+      order: '"desc" | "asc" | undefined',
+      per_page: 'number | undefined'
+    },
+    responseSchema: {
+      total_count: 'number',
+      items: 'array',
+      incomplete_results: 'boolean'
+    },
+    referencePayload: {
+      q: 'AI agent API marketplace in:name,description,readme',
+      sort: 'stars',
+      order: 'desc',
+      per_page: 5
+    },
+    isX402Protected: true,
+    isAgentReady: true,
+    status: 'published',
+    calls: 0,
+    successRate: '100%',
+    revenueMusd: '0.00'
+  }
+]
 
 export const providerCreatedProducts =
   globalForMarketplaceProducts.__tolloraProviderProducts ??

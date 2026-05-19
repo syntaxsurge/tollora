@@ -487,18 +487,26 @@ Before creating a new helper or service file:
   schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
   and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
+  Platform-owned public data wrappers for Wikipedia search, Hacker News trend
+  search, and GitHub repository search use no upstream account or API key, stay
+  x402-protected as paid Tollora marketplace products, and are agent-ready for
+  no-key demo runs.
   Provider-created listings are persisted to the workspace-local
   `.tollora/provider-products.json` catalog so draft, paused, and published
   products remain manageable across local server restarts.
-- Autonomous Launch Pack Agent models, run storage, paid action execution, proof
-  hashing, status labels, and UI clients live in `src/features/agents`.
+- Autonomous Launch Pack Agent models, deterministic planning, run storage, paid
+  action execution, proof hashing, status labels, and UI clients live in
+  `src/features/agents`. The planner ranks the allowed marketplace tools from
+  the objective and source context, prefers cheap public data/research tools
+  before expensive media tools, stops at the max paid action count, and records
+  its prompt, rationale, and scores in the run deliverables and action cards.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
   failed work; `/agents/new` configures objective, source context, owner wallet,
   budget cap, max paid actions, allowed paid tools, and local/production signer
-  mode with all marketplace tools deselected until the user selects them or lets
-  the agent choose from published agent-ready listings; `/agents/[runId]`
-  executes paid actions, shows receipts and deliverables, and writes Mezo proof
-  attestations.
+  mode with all marketplace tools deselected until the user selects them or
+  allows the agent to consider all published agent-ready listings;
+  `/agents/[runId]` executes the ranked plan, shows planner rationale, receipts,
+  and deliverables, and writes Mezo proof attestations.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, total MUSD spend, attestation transaction,
   and Mezo explorer link.
