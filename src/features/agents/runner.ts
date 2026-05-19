@@ -1,6 +1,20 @@
 import { x402Client } from '@x402/core/client'
+import {
+  createPermit2ApprovalTx,
+  getPermit2AllowanceReadParams
+} from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
 import { wrapFetchWithPayment } from '@x402/fetch'
+import {
+  createPublicClient,
+  createWalletClient,
+  formatUnits,
+  http,
+  parseAbi,
+  parseUnits,
+  type Address,
+  type Hex
+} from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 import {
@@ -13,12 +27,14 @@ import type { AgentAction, AgentRun } from '@/features/agents/types'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
+import { defaultAppChain, mezoMusdTokenAddress } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
 export async function executeAgentRunActions(
   run: AgentRun,
-  shouldStop: () => boolean = () => false
+  shouldStop: () => boolean = () => false,
+  appUrl = envClient.NEXT_PUBLIC_APP_URL
 ) {
   const plan =
     run.actions.length > 0
@@ -42,7 +58,7 @@ export async function executeAgentRunActions(
       break
     }
 
-    const result = await executeAgentAction(run, action, spendUsd)
+    const result = await executeAgentAction(run, action, spendUsd, appUrl)
 
     if (result.receipt) {
       spendUsd = Number(
@@ -82,7 +98,8 @@ export async function executeAgentRunActions(
 async function executeAgentAction(
   run: AgentRun,
   action: AgentAction,
-  currentSpendUsd: number
+  currentSpendUsd: number,
+  appUrl?: string
 ) {
   const product = getProductBySlug(action.productSlug)
 
@@ -134,7 +151,7 @@ async function executeAgentAction(
     startedAt: action.startedAt ?? new Date().toISOString()
   } satisfies AgentAction
 
-  if (!envServer.AGENT_SPENDER_PRIVATE_KEY || !envClient.NEXT_PUBLIC_APP_URL) {
+  if (!envServer.AGENT_SPENDER_PRIVATE_KEY || !appUrl) {
     return {
       ...started,
       status: 'failed',
@@ -145,7 +162,8 @@ async function executeAgentAction(
   }
 
   try {
-    const paidResult = await callPaidProductWithAgentWallet(started)
+    await ensureAgentCanPayWithPermit2(quotedPrice.amountUsd)
+    const paidResult = await callPaidProductWithAgentWallet(started, appUrl)
 
     return {
       ...started,
@@ -175,14 +193,23 @@ function parseMusdLabel(value: string) {
   return Number.isFinite(amount) ? amount : 0
 }
 
-async function callPaidProductWithAgentWallet(action: AgentAction) {
+async function callPaidProductWithAgentWallet(
+  action: AgentAction,
+  appUrl: string
+) {
+  const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
+
+  if (!privateKey) {
+    throw new Error('AGENT_SPENDER_PRIVATE_KEY is not configured.')
+  }
+
   const account = privateKeyToAccount(
-    envServer.AGENT_SPENDER_PRIVATE_KEY as `0x${string}`
+    (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
   const client = registerExactEvmScheme(new x402Client(), { signer: account })
   const paidFetch = wrapFetchWithPayment(fetch, client)
   const response = await paidFetch(
-    `${envClient.NEXT_PUBLIC_APP_URL}/api/x402/products/${action.productSlug}/call`,
+    `${appUrl}/api/x402/products/${action.productSlug}/call`,
     {
       method: 'POST',
       headers: {
@@ -192,10 +219,10 @@ async function callPaidProductWithAgentWallet(action: AgentAction) {
       body: JSON.stringify(action.requestPayload)
     }
   )
-  const body = await response.json()
+  const body = await readJsonResponse(response)
 
   if (!response.ok) {
-    throw new Error(body.error ?? 'Paid product call failed.')
+    throw new Error(describePaidCallFailure(response, body))
   }
 
   return body as {
@@ -203,6 +230,159 @@ async function callPaidProductWithAgentWallet(action: AgentAction) {
     receipt: MarketplaceReceipt
     data: Record<string, unknown>
   }
+}
+
+const agentPublicClient = createPublicClient({
+  chain: defaultAppChain.viemChain,
+  transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
+})
+
+const musdBalanceAbi = parseAbi([
+  'function balanceOf(address owner) view returns (uint256)'
+])
+
+async function ensureAgentCanPayWithPermit2(amountUsd: number) {
+  const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
+
+  if (!privateKey) {
+    throw new Error('AGENT_SPENDER_PRIVATE_KEY is not configured.')
+  }
+
+  const requiredAmount = parseUnits(amountUsd.toFixed(6), 18)
+
+  if (requiredAmount <= 0n) {
+    return
+  }
+
+  const account = privateKeyToAccount(
+    (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
+  )
+  const tokenAddress = mezoMusdTokenAddress as Address
+  const [balance, allowance] = await Promise.all([
+    agentPublicClient.readContract({
+      address: tokenAddress,
+      abi: musdBalanceAbi,
+      functionName: 'balanceOf',
+      args: [account.address]
+    }),
+    agentPublicClient.readContract(
+      getPermit2AllowanceReadParams({
+        tokenAddress,
+        ownerAddress: account.address
+      })
+    )
+  ])
+
+  if (balance < requiredAmount) {
+    throw new Error(
+      `Agent signer has insufficient MUSD. Required ${formatMusdAmount(
+        requiredAmount
+      )}, available ${formatMusdAmount(balance)}. Fund AGENT_SPENDER_PRIVATE_KEY on Mezo Testnet before running paid actions.`
+    )
+  }
+
+  if (allowance >= requiredAmount) {
+    return
+  }
+
+  const walletClient = createWalletClient({
+    account,
+    chain: defaultAppChain.viemChain,
+    transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
+  })
+  const approval = createPermit2ApprovalTx(tokenAddress)
+  const txHash = await walletClient.sendTransaction({
+    account,
+    chain: defaultAppChain.viemChain,
+    to: approval.to,
+    data: approval.data
+  })
+  const receipt = await agentPublicClient.waitForTransactionReceipt({
+    hash: txHash
+  })
+
+  if (receipt.status !== 'success') {
+    throw new Error(`Agent MUSD Permit2 approval failed: ${txHash}`)
+  }
+
+  await waitForAgentPermit2Allowance({
+    tokenAddress,
+    ownerAddress: account.address,
+    requiredAmount
+  })
+}
+
+async function waitForAgentPermit2Allowance({
+  tokenAddress,
+  ownerAddress,
+  requiredAmount
+}: {
+  tokenAddress: Address
+  ownerAddress: Address
+  requiredAmount: bigint
+}) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const allowance = await agentPublicClient.readContract(
+      getPermit2AllowanceReadParams({
+        tokenAddress,
+        ownerAddress
+      })
+    )
+
+    if (allowance >= requiredAmount) {
+      return
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1200))
+  }
+
+  throw new Error(
+    'Agent MUSD Permit2 approval was submitted, but the allowance is not readable yet. Retry the agent run in a moment.'
+  )
+}
+
+function formatMusdAmount(amount: bigint) {
+  return `${Number(formatUnits(amount, 18)).toLocaleString(undefined, {
+    maximumFractionDigits: 6
+  })} MUSD`
+}
+
+async function readJsonResponse(response: Response) {
+  const text = await response.text().catch(() => '')
+
+  if (!text) {
+    return {} as Record<string, unknown>
+  }
+
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return { message: text }
+  }
+}
+
+function describePaidCallFailure(
+  response: Response,
+  body: Record<string, unknown>
+) {
+  const values = [
+    body.error,
+    body.message,
+    body.guidance,
+    typeof body.settlement === 'object' && body.settlement
+      ? JSON.stringify(body.settlement)
+      : undefined,
+    typeof body.details === 'object' && body.details
+      ? JSON.stringify(body.details)
+      : undefined
+  ].filter(
+    (value): value is string => typeof value === 'string' && value.length > 0
+  )
+
+  return (
+    values.join(' ') ||
+    `Paid product call failed with ${response.status} ${response.statusText}.`
+  )
 }
 
 async function buildDeliverables(

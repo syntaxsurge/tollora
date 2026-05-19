@@ -439,7 +439,9 @@ Before creating a new helper or service file:
   refund state after a production run reaches a terminal state.
 - `POST /api/agents/runs/[runId]/execute` — runs the autonomous workflow,
   calling selected Tollora x402 product endpoints with the configured funded
-  production agent spender.
+  production agent spender, using the current app origin for hosted x402 calls,
+  preparing the agent signer's MUSD Permit2 allowance when required, and
+  returning detailed payment or provider failures for action diagnostics.
 - `POST /api/agents/runs/[runId]/attest` — hashes completed run metadata and
   writes the proof to the configured Mezo AgentRunAttestor when available.
 - `GET /api/proofs/[proofId]` — returns a public proof package for a completed
@@ -511,7 +513,12 @@ Before creating a new helper or service file:
   action execution, proof hashing, status labels, and UI clients live in
   `src/features/agents`. Agent runs require the owner to fund the
   `AgentRunVault` with MUSD before the configured agent signer can execute x402
-  paid actions. When
+  paid actions. Before an agent spends, the runner verifies the production
+  agent signer's MUSD balance, submits the required Permit2 approval when the
+  allowance is insufficient, waits until the allowance is readable, and then
+  executes the hosted x402 call from the same origin that triggered the run.
+  Paid action failures preserve the response body, settlement guidance, and
+  provider details in action diagnostics. When
   `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
   with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
   payloads, skip unrelated tools, set a budget strategy, and synthesize the

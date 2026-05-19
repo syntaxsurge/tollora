@@ -1,9 +1,24 @@
+import {
+  createPermit2ApprovalTx,
+  getPermit2AllowanceReadParams
+} from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
 import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
 import { config } from 'dotenv'
+import {
+  createPublicClient,
+  createWalletClient,
+  formatUnits,
+  http,
+  parseAbi,
+  parseUnits,
+  type Address,
+  type Hex
+} from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 import { getProductBySlug } from '../src/features/marketplace/products'
+import { defaultAppChain, mezoMusdTokenAddress } from '../src/lib/config/chains'
 
 config({ path: '.env.local' })
 config()
@@ -46,6 +61,112 @@ function getPrivateKey() {
   return privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`
 }
 
+const publicClient = createPublicClient({
+  chain: defaultAppChain.viemChain,
+  transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
+})
+const musdBalanceAbi = parseAbi([
+  'function balanceOf(address owner) view returns (uint256)'
+])
+
+async function ensurePermit2Allowance(amountUsd: number) {
+  const account = privateKeyToAccount(getPrivateKey() as Hex)
+  const requiredAmount = parseUnits(amountUsd.toFixed(6), 18)
+
+  if (requiredAmount <= 0n) {
+    return
+  }
+
+  const tokenAddress = mezoMusdTokenAddress as Address
+  const [balance, allowance] = await Promise.all([
+    publicClient.readContract({
+      address: tokenAddress,
+      abi: musdBalanceAbi,
+      functionName: 'balanceOf',
+      args: [account.address]
+    }),
+    publicClient.readContract(
+      getPermit2AllowanceReadParams({
+        tokenAddress,
+        ownerAddress: account.address
+      })
+    )
+  ])
+
+  if (balance < requiredAmount) {
+    throw new Error(
+      `Signer has insufficient MUSD. Required ${formatMusdAmount(
+        requiredAmount
+      )}, available ${formatMusdAmount(balance)}.`
+    )
+  }
+
+  if (allowance >= requiredAmount) {
+    return
+  }
+
+  console.log('Submitting MUSD Permit2 approval for this signer...')
+
+  const walletClient = createWalletClient({
+    account,
+    chain: defaultAppChain.viemChain,
+    transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
+  })
+  const approval = createPermit2ApprovalTx(tokenAddress)
+  const txHash = await walletClient.sendTransaction({
+    account,
+    chain: defaultAppChain.viemChain,
+    to: approval.to,
+    data: approval.data
+  })
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+  if (receipt.status !== 'success') {
+    throw new Error(`MUSD Permit2 approval failed: ${txHash}`)
+  }
+
+  await waitForPermit2Allowance({
+    tokenAddress,
+    ownerAddress: account.address,
+    requiredAmount
+  })
+}
+
+async function waitForPermit2Allowance({
+  tokenAddress,
+  ownerAddress,
+  requiredAmount
+}: {
+  tokenAddress: Address
+  ownerAddress: Address
+  requiredAmount: bigint
+}) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const allowance = await publicClient.readContract(
+      getPermit2AllowanceReadParams({
+        tokenAddress,
+        ownerAddress
+      })
+    )
+
+    if (allowance >= requiredAmount) {
+      return
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1200))
+  }
+
+  throw new Error(
+    'MUSD Permit2 approval was submitted, but the updated allowance is not readable yet. Retry the paid call in a moment.'
+  )
+}
+
+function formatMusdAmount(amount: bigint) {
+  return `${Number(formatUnits(amount, 18)).toLocaleString(undefined, {
+    maximumFractionDigits: 6
+  })} MUSD`
+}
+
 async function main() {
   const { slug, payload, url } = parseArgs()
   const product = getProductBySlug(slug)
@@ -60,22 +181,36 @@ async function main() {
   const requestPayload = payload
     ? (JSON.parse(payload) as unknown)
     : (product?.referencePayload ?? {})
+  const method = product?.method ?? 'POST'
+  const requestUrl = new URL(endpointUrl)
+
+  if (method === 'GET') {
+    for (const [key, value] of Object.entries(asRecord(requestPayload))) {
+      if (value !== undefined && value !== null) {
+        requestUrl.searchParams.set(key, String(value))
+      }
+    }
+  }
+
   const signer = privateKeyToAccount(getPrivateKey() as `0x${string}`)
+  const estimatedPrice = product?.priceUsd ?? 0
+
+  if (estimatedPrice > 0) {
+    await ensurePermit2Allowance(estimatedPrice)
+  }
+
   const client = new x402Client()
 
   registerExactEvmScheme(client, { signer })
 
   const paidFetch = wrapFetchWithPayment(fetch, client)
-  const response = await paidFetch(endpointUrl, {
-    method: product?.method ?? 'POST',
+  const response = await paidFetch(requestUrl, {
+    method,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json'
     },
-    body:
-      (product?.method ?? 'POST') === 'POST'
-        ? JSON.stringify(requestPayload)
-        : undefined
+    body: method === 'POST' ? JSON.stringify(requestPayload) : undefined
   })
   const body = await response.json().catch(() => null)
   const httpClient = new x402HTTPClient(client)
@@ -88,7 +223,7 @@ async function main() {
       {
         status: response.status,
         ok: response.ok,
-        endpointUrl,
+        endpointUrl: requestUrl.toString(),
         body,
         payment: paymentResponse
       },
@@ -100,6 +235,12 @@ async function main() {
   if (!response.ok) {
     process.exit(1)
   }
+}
+
+function asRecord(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
 }
 
 main().catch(error => {

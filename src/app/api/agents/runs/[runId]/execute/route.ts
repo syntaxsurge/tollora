@@ -11,10 +11,13 @@ type ExecuteAgentRunRouteProps = {
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: ExecuteAgentRunRouteProps
 ) {
-  const run = await executeStoredAgentRun((await params).runId)
+  const run = await executeStoredAgentRun(
+    (await params).runId,
+    new URL(request.url).origin
+  )
 
   if (!run) {
     return NextResponse.json(

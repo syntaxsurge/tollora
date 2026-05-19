@@ -141,7 +141,7 @@ export function isAgentRunCancelled(runId: string) {
   return cancelledRuns.has(runId)
 }
 
-export async function executeStoredAgentRun(runId: string) {
+export async function executeStoredAgentRun(runId: string, appUrl?: string) {
   const run = getAgentRun(runId)
 
   if (!run) {
@@ -180,8 +180,10 @@ export async function executeStoredAgentRun(runId: string) {
     args: [getAgentRunBytes32(run.id)]
   }).catch(() => null)
 
-  const result = await executeAgentRunActions(running, () =>
-    isAgentRunCancelled(run.id)
+  const result = await executeAgentRunActions(
+    running,
+    () => isAgentRunCancelled(run.id),
+    appUrl
   )
 
   if (isAgentRunCancelled(run.id)) {
