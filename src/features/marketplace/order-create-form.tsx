@@ -723,16 +723,29 @@ function isRequiredField(typeLabel: string) {
 function getLiteralOptions(typeLabel: string) {
   return stripRequirementLabel(typeLabel)
     .split('|')
-    .map(option => option.trim().replace(/^['"]|['"]$/g, ''))
+    .map(option => {
+      const rawOption = option.trim()
+      const isQuotedLiteral =
+        /^"[^"]*"$/.test(rawOption) || /^'[^']*'$/.test(rawOption)
+
+      return {
+        value: rawOption.replace(/^['"]|['"]$/g, ''),
+        isQuotedLiteral
+      }
+    })
     .filter(option => {
-      if (!option || /undefined|optional|null/i.test(option)) {
+      if (!option.value || /undefined|optional|null/i.test(option.value)) {
         return false
       }
 
-      return !/^(string|number|integer|float|boolean|object|array|json)$/i.test(
-        option
+      return (
+        option.isQuotedLiteral ||
+        !/^(string|number|integer|float|boolean|object|array|json)$/i.test(
+          option.value
+        )
       )
     })
+    .map(option => option.value)
 }
 
 function isArrayType(lowerTypeLabel: string) {
