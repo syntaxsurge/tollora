@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { Bot, ExternalLink } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -18,19 +20,17 @@ export default function OrdersPage() {
         <Badge>Orders</Badge>
         <div className='mt-4 flex flex-col justify-between gap-5 lg:flex-row lg:items-end'>
           <div className='max-w-3xl space-y-3'>
-            <h1 className='font-display text-4xl'>Buyer order lifecycle</h1>
+            <h1 className='font-display text-4xl'>Orders</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Track paid API requests from payment requirement through provider
-              processing, completion, failure, or expiration. Autonomous agent
-              orders link the same lifecycle to launch-pack runs and proof
-              pages.
+              Track paid API requests, provider status, and receipts.
             </p>
           </div>
           <Link
             href='/agents'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Open agents
+            <Bot className='h-4 w-4' aria-hidden />
+            Agents
           </Link>
         </div>
       </section>
@@ -75,7 +75,8 @@ export default function OrdersPage() {
                 href={`/orders/${order.id}`}
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                Open order
+                <ExternalLink className='h-4 w-4' aria-hidden />
+                Open
               </Link>
             </Card>
           ))
@@ -85,8 +86,7 @@ export default function OrdersPage() {
               No paid API orders have been created.
             </p>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Create an order from the marketplace or execute an agent run to
-              populate this lifecycle view with real request records.
+              Create an order from the marketplace or run an agent.
             </p>
           </Card>
         )}

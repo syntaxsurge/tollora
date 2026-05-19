@@ -81,11 +81,10 @@ export default function PricingPage() {
         <div className='mb-10 max-w-3xl space-y-4'>
           <Badge>Pricing</Badge>
           <h1 className='font-display text-4xl leading-tight sm:text-5xl'>
-            Transparent fees for MUSD-paid API commerce.
+            Simple fees for paid APIs.
           </h1>
           <p className='text-foreground/70 text-base leading-7'>
-            Tollora charges a small marketplace fee on successful paid calls.
-            Providers keep the rest and receive clear usage records for every
+            Providers keep 95% of successful paid calls, with receipts for each
             request.
           </p>
         </div>
@@ -131,8 +130,8 @@ export default function PricingPage() {
                   {card.name === 'Buyers'
                     ? 'Explore APIs'
                     : card.name === 'Agents'
-                      ? 'Open agents'
-                      : 'Open provider'}
+                      ? 'Agents'
+                      : 'Provider'}
                 </Link>
               </div>
               <ul className='mt-6 space-y-3 text-sm'>
@@ -152,7 +151,7 @@ export default function PricingPage() {
         <div className='space-y-3'>
           <Badge>Buyer and provider clarity</Badge>
           <h2 className='font-display text-3xl'>
-            Every successful request has an auditable fee story.
+            Every request has a receipt.
           </h2>
         </div>
         <div className='grid gap-4'>

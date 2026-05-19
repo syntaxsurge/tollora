@@ -9,38 +9,31 @@ export default function DevelopersPage() {
   const steps = [
     {
       title: 'List an API',
-      detail:
-        'Register product metadata, request and response schemas, price in MUSD, and the provider endpoint Tollora forwards to.'
+      detail: 'Add metadata, schemas, price, and upstream endpoint.'
     },
     {
       title: 'Protect the call',
-      detail:
-        'Expose a Tollora endpoint that returns HTTP 402 payment requirements until the client provides a valid MUSD payment payload.'
+      detail: 'Return HTTP 402 until the MUSD payment is valid.'
     },
     {
       title: 'Use x402 directly',
-      detail:
-        'Call the hosted Tollora endpoint from your backend or agent with an x402 buyer client. No repository clone or Tollora API key is required.'
+      detail: 'Call the hosted endpoint with an x402 buyer client.'
     },
     {
       title: 'Use credits',
-      detail:
-        'Teams that prefer API-key ergonomics can top up MUSD credits once and let Tollora debit usage from a managed balance.'
+      detail: 'Top up once, then debit usage from a managed balance.'
     },
     {
       title: 'Forward the request',
-      detail:
-        'After verification, Tollora forwards the request, stores usage, and returns the provider response to the buyer or agent.'
+      detail: 'Forward paid requests and return provider responses.'
     },
     {
       title: 'Serve agents',
-      detail:
-        'Agent-ready listings can be selected by Launch Pack Agent, paid with x402, and included in a public Mezo proof.'
+      detail: 'Let agents select, pay for, and prove tool calls.'
     },
     {
       title: 'Record the receipt',
-      detail:
-        'Receipts store buyer wallet, provider wallet, amount, network, transaction hash, request ID, and explorer URL.'
+      detail: 'Store wallet, amount, transaction, and request details.'
     }
   ]
 
@@ -50,13 +43,11 @@ export default function DevelopersPage() {
         <div className='space-y-6'>
           <Badge>Developers</Badge>
           <h1 className='font-display max-w-3xl text-4xl leading-tight sm:text-5xl'>
-            Build paid tools for humans and autonomous agents.
+            Build paid tools for agents.
           </h1>
           <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-            Tollora gives providers a marketplace listing, stable gateway
-            endpoint, MUSD payment verification, request forwarding, receipts,
-            usage logs, agent-ready HTTP semantics, and proof-backed run records
-            on Mezo.
+            Add a listing, protect it with x402, forward requests, and keep
+            receipts on Mezo.
           </p>
           <div className='flex flex-col gap-3 sm:flex-row'>
             <Link href='/marketplace' className={buttonClasses({ size: 'sm' })}>
@@ -66,13 +57,13 @@ export default function DevelopersPage() {
               href='/agents'
               className={buttonClasses({ variant: 'outline', size: 'sm' })}
             >
-              Open agents
+              Agents
             </Link>
             <Link
               href='/developers/docs'
               className={buttonClasses({ variant: 'outline', size: 'sm' })}
             >
-              Open docs
+              Docs
             </Link>
           </div>
         </div>

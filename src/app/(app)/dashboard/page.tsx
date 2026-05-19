@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { Bot, Gauge, Store } from 'lucide-react'
+
 import { AccountSummary } from '@/components/dashboard/account-summary'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
@@ -26,27 +28,29 @@ export default function DashboardPage() {
             <Badge>Buyer dashboard</Badge>
             <h1 className='font-display text-4xl'>Your MUSD API workspace</h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Browse paid APIs, inspect x402-ready listings, monitor usage, and
-              keep MUSD receipts tied to your connected wallet.
+              Browse APIs, launch agents, and track receipts from one place.
             </p>
             <div className='flex flex-col gap-3 pt-2 sm:flex-row'>
               <Link
                 href='/marketplace'
                 className={buttonClasses({ variant: 'primary', size: 'sm' })}
               >
-                Explore marketplace
+                <Store className='h-4 w-4' aria-hidden />
+                Browse APIs
               </Link>
               <Link
                 href='/agents/new'
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                Create agent run
+                <Bot className='h-4 w-4' aria-hidden />
+                New agent
               </Link>
               <Link
                 href='/provider'
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                Provider dashboard
+                <Gauge className='h-4 w-4' aria-hidden />
+                Provider
               </Link>
             </div>
           </div>
@@ -59,8 +63,8 @@ export default function DashboardPage() {
             </p>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
               {featuredProduct
-                ? `${featuredProduct.priceLabel} per request through a MUSD-protected Tollora endpoint.`
-                : 'Create and publish a provider product to make it available for buyers and agents.'}
+                ? `${featuredProduct.priceLabel} per request.`
+                : 'Publish a product to make it available.'}
             </p>
           </Card>
         </div>

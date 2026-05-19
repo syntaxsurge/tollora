@@ -22,8 +22,7 @@ export default function ProviderProductsPage() {
           <div className='max-w-3xl space-y-3'>
             <h1 className='font-display text-4xl'>API product management</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Publish draft APIs, run payable tests, inspect gateway paths, and
-              track which listings are ready for marketplace buyers and agents.
+              Publish, pause, test, and inspect provider listings.
             </p>
           </div>
           <Link
@@ -40,9 +39,7 @@ export default function ProviderProductsPage() {
           <Card className='space-y-3'>
             <h2 className='text-xl font-semibold'>No API products yet</h2>
             <p className='text-foreground/65 text-sm leading-6'>
-              Create a product to expose an external API through Tollora, attach
-              private provider credentials, set a MUSD price, and make it
-              available in the marketplace.
+              Create a listing to expose an external API through Tollora.
             </p>
             <Link
               href='/provider/products/new'
@@ -79,13 +76,13 @@ export default function ProviderProductsPage() {
                 href={`/provider/products/${product.slug}`}
                 className={buttonClasses({ size: 'sm' })}
               >
-                Manage and test
+                Manage
               </Link>
               <Link
                 href={`/marketplace/${product.slug}`}
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                View listing
+                Listing
               </Link>
               <DeleteProductButton
                 productSlug={product.slug}

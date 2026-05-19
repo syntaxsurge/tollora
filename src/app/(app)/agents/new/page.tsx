@@ -23,12 +23,10 @@ export default function NewAgentRunPage() {
         <div className='mt-4 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end'>
           <div className='space-y-3'>
             <h1 className='font-display text-4xl'>
-              Configure an autonomous paid workflow.
+              Configure a paid workflow.
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Set the goal, budget, tool allowance, and signer mode. The agent
-              will spend only through selected x402-protected Tollora products
-              and prepare a public proof package after completion.
+              Set the goal, budget, tool access, and signer mode.
             </p>
           </div>
           <Card className='bg-background/85'>
@@ -37,8 +35,7 @@ export default function NewAgentRunPage() {
             </p>
             <p className='mt-2 text-2xl font-semibold'>Per-action MUSD fees</p>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Providers earn 95% of paid API revenue while Tollora earns the
-              platform fee and can charge orchestration for agent runs.
+              Providers earn 95% of paid API revenue.
             </p>
           </Card>
         </div>

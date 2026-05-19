@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { Bot, ExternalLink, ShieldCheck } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -11,26 +13,36 @@ type ProductCardProps = {
 
 export function ProductCard({ product }: ProductCardProps) {
   return (
-    <Card className='flex min-h-[260px] flex-col gap-5'>
+    <Card className='flex min-h-[240px] flex-col gap-5'>
       <div className='flex flex-wrap items-center gap-2'>
-        <Badge>{product.category}</Badge>
-        {product.isX402Protected ? <Badge>x402 protected</Badge> : null}
-        {product.isAgentReady ? <Badge>Agent-ready</Badge> : null}
+        <Badge className='capitalize'>{product.category}</Badge>
+        {product.isX402Protected ? (
+          <Badge>
+            <ShieldCheck className='h-3.5 w-3.5' aria-hidden />
+            x402
+          </Badge>
+        ) : null}
+        {product.isAgentReady ? (
+          <Badge>
+            <Bot className='h-3.5 w-3.5' aria-hidden />
+            Agent
+          </Badge>
+        ) : null}
       </div>
       <div className='space-y-2'>
         <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          <p className='text-foreground/60 text-xs font-semibold'>
             {product.providerName}
           </p>
           <h2 className='font-display mt-2 text-2xl'>{product.name}</h2>
         </div>
-        <p className='text-foreground/70 text-sm leading-6'>
+        <p className='text-foreground/70 line-clamp-2 text-sm leading-6'>
           {product.description}
         </p>
       </div>
       <div className='border-foreground/10 mt-auto flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between'>
         <div>
-          <p className='text-foreground/60 text-xs uppercase'>Price</p>
+          <p className='text-foreground/60 text-xs font-semibold'>Price</p>
           <p className='text-lg font-semibold'>{product.priceLabel}</p>
         </div>
         <div className='flex flex-wrap gap-2'>
@@ -38,13 +50,15 @@ export function ProductCard({ product }: ProductCardProps) {
             href={`/agents/new?tool=${product.slug}`}
             className={buttonClasses({ variant: 'primary', size: 'sm' })}
           >
-            Use in agent
+            <Bot className='h-4 w-4' aria-hidden />
+            Run agent
           </Link>
           <Link
             href={`/marketplace/${product.slug}`}
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            View API
+            <ExternalLink className='h-4 w-4' aria-hidden />
+            Details
           </Link>
         </div>
       </div>

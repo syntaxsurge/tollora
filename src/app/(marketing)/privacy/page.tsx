@@ -24,8 +24,8 @@ export default function PrivacyPage() {
           <Badge>Privacy</Badge>
           <h1 className='font-display text-4xl'>Privacy policy</h1>
           <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-            This page describes the product data surfaces that support paid API
-            discovery, wallet-protected routes, receipts, and provider records.
+            Product data surfaces for wallet routes, receipts, and provider
+            records.
           </p>
         </div>
         <div className='grid gap-4'>

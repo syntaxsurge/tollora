@@ -9,8 +9,7 @@ export default function SettingsPage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>Account settings</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Configure your profile, workspace preferences, notifications, and
-            privacy defaults from a single production-ready settings surface.
+            Update profile, workspace, notification, and privacy preferences.
           </p>
         </div>
       </section>

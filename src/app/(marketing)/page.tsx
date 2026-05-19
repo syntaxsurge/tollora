@@ -26,22 +26,19 @@ export default async function MarketingPage({
   const flow = [
     {
       title: 'Plan',
-      detail: 'Give the agent a goal, budget, tool allowance, and signer mode.'
+      detail: 'Set goal, budget, tools, and signer mode.'
     },
     {
       title: 'Spend',
-      detail:
-        'The agent buys x402-protected APIs with MUSD on Mezo without per-action approvals.'
+      detail: 'Pay x402-protected APIs with MUSD on Mezo.'
     },
     {
       title: 'Deliver',
-      detail:
-        'Tollora forwards paid requests, records receipts, and returns launch-pack outputs.'
+      detail: 'Forward requests and return useful outputs.'
     },
     {
       title: 'Prove',
-      detail:
-        'The run publishes a public proof page with a Mezo attestation transaction.'
+      detail: 'Publish a proof page with receipt links.'
     }
   ]
 
@@ -62,18 +59,16 @@ export default async function MarketingPage({
           <Badge>MUSD API marketplace</Badge>
           <div className='space-y-5'>
             <h1 className='font-display max-w-3xl text-4xl leading-tight font-semibold text-balance sm:text-5xl lg:text-6xl'>
-              Autonomous AI agents that spend MUSD and prove work on Mezo.
+              Paid APIs for agents on Mezo.
             </h1>
             <p className='text-lead'>
-              {siteConfig.description} Providers list paid endpoints, buyers and
-              agents pay per request, and Tollora handles autonomous execution,
-              payment verification, request forwarding, receipts, and Mezo
-              proofs.
+              {siteConfig.description} List tools, pay per request, forward
+              work, and keep receipts attached to every run.
             </p>
           </div>
           <div className='flex flex-wrap gap-3'>
             <Link href='/agents' className={buttonClasses({ size: 'lg' })}>
-              Run launch agent
+              Run agent
             </Link>
             <Link
               href='/marketplace'
@@ -84,7 +79,7 @@ export default async function MarketingPage({
                   'hover:border-brand-orange/80 hover:bg-brand-orange/10 hover:shadow-brand-orange/25 focus-visible:ring-brand-orange/60 hover:shadow-md'
               })}
             >
-              Explore marketplace
+              Browse APIs
             </Link>
           </div>
           <div className='grid gap-3 sm:grid-cols-3'>
@@ -146,7 +141,7 @@ export default async function MarketingPage({
                   href={`/marketplace/${featuredProduct.slug}`}
                   className={buttonClasses({ variant: 'primary', size: 'sm' })}
                 >
-                  Open paid API
+                  Open API
                 </Link>
               </div>
             </div>
@@ -159,12 +154,12 @@ export default async function MarketingPage({
           <div className='space-y-3'>
             <Badge>Payment flow</Badge>
             <h2 className='font-display text-3xl font-semibold'>
-              Plan, spend, deliver, and prove through one gateway.
+              One gateway for paid work.
             </h2>
           </div>
           <p className='text-muted-foreground max-w-md text-sm leading-6'>
-            Tollora makes Bitcoin-backed MUSD usable for agent workflows that
-            buy paid tools, return useful work, and publish an audit trail.
+            MUSD payments, request forwarding, receipts, and proofs stay in one
+            flow.
           </p>
         </div>
         <div className='grid gap-4 md:grid-cols-4'>
@@ -187,11 +182,11 @@ export default async function MarketingPage({
           <div className='space-y-3'>
             <Badge>Use cases</Badge>
             <h2 className='font-display text-3xl font-semibold'>
-              API commerce for products that need instant settlement.
+              API commerce with instant settlement.
             </h2>
             <p className='text-muted-foreground text-sm leading-6'>
-              MUSD is the medium of exchange across every listing, receipt, and
-              provider dashboard.
+              MUSD is the payment rail across listings, receipts, and provider
+              dashboards.
             </p>
           </div>
           <div className='grid gap-4 sm:grid-cols-2'>

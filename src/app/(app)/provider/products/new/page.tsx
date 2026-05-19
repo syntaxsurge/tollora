@@ -9,8 +9,7 @@ export default function NewProviderProductPage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>List a paid API</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Define product metadata, pricing, endpoint behavior, schemas,
-            payload examples, wallet settlement details, and visibility.
+            Add pricing, schemas, auth, settlement, and visibility.
           </p>
         </div>
       </section>

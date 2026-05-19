@@ -53,9 +53,7 @@ export default async function ProviderProductPage({
                 <StatusPill status={product.status} />
               </div>
               <p className='text-foreground/70 max-w-3xl text-sm leading-6'>
-                Publish the listing, run a paid test, and inspect the gateway
-                contract for this API. Draft listings stay private until you
-                publish them.
+                Publish, test, and inspect this listing.
               </p>
             </div>
           </div>
@@ -64,7 +62,7 @@ export default async function ProviderProductPage({
               href={`/orders/new?product=${product.slug}`}
               className={buttonClasses({ variant: 'outline', size: 'sm' })}
             >
-              Test payable flow
+              Test
             </Link>
             <Link
               href={`/marketplace/${product.slug}`}

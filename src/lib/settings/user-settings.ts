@@ -62,10 +62,12 @@ export function writeUserSettings(settings: UserSettings) {
     userSettingsStorageKey,
     JSON.stringify(normalizeUserSettings(settings))
   )
+  window.dispatchEvent(new Event('tollora:user-settings-updated'))
 }
 
 export function clearUserSettings() {
   window.localStorage.removeItem(userSettingsStorageKey)
+  window.dispatchEvent(new Event('tollora:user-settings-updated'))
 }
 
 export function userDisplayName(settings: UserSettings) {

@@ -64,7 +64,7 @@ export function WalletConnectButton({
   }
 
   if (walletProvider === 'rainbow-kit') {
-    return <RainbowWalletConnect />
+    return <RainbowWalletConnect className={className} />
   }
 
   return <ThirdwebWalletConnect />

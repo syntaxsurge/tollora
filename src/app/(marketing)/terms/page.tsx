@@ -24,8 +24,8 @@ export default function TermsPage() {
           <Badge>Terms</Badge>
           <h1 className='font-display text-4xl'>Terms of service</h1>
           <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-            These terms describe marketplace usage, provider responsibilities,
-            buyer access, and payment-related risk surfaces.
+            Marketplace usage, provider responsibilities, buyer access, and
+            payment risk.
           </p>
         </div>
         <div className='grid gap-4'>

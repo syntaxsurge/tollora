@@ -16,8 +16,7 @@ export default function ProviderUsagePage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>API calls and revenue</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Monitor call volume, revenue, autonomous agent calls, buyer wallets,
-            latency, and request IDs across provider listings.
+            Monitor calls, revenue, buyers, and status.
           </p>
         </div>
       </section>

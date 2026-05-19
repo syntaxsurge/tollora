@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { Bot, Plus } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,18 +19,17 @@ export default function AgentsPage() {
           <div className='space-y-4'>
             <Badge>Autonomous agents</Badge>
             <h1 className='font-display text-4xl'>
-              AI agents that buy APIs and prove work on Mezo.
+              Agents that buy APIs and prove work.
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Launch Pack Agent plans a useful workflow, spends MUSD through
-              x402-protected Tollora APIs, returns deliverables, and publishes a
-              Mezo proof that links paid actions to receipts.
+              Run paid workflows, collect receipts, and publish proof.
             </p>
             <Link
               href='/agents/new'
               className={buttonClasses({ variant: 'primary', size: 'sm' })}
             >
-              Create agent run
+              <Plus className='h-4 w-4' aria-hidden />
+              New run
             </Link>
           </div>
           <Card className='bg-background/85 space-y-4'>
@@ -58,15 +59,15 @@ export default function AgentsPage() {
             <h2 className='font-display mt-2 text-2xl'>Launch Pack Agent</h2>
           </div>
           <p className='text-foreground/70 text-sm leading-6'>
-            The agent buys prompt, document, data, and media APIs to produce a
-            launch brief, developer copy, market signal, optional video result,
-            and public Mezo proof.
+            Start from a lean workflow that selects tools, spends within budget,
+            and returns a proof package.
           </p>
           <Link
             href='/agents/new'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Configure template
+            <Bot className='h-4 w-4' aria-hidden />
+            Configure
           </Link>
         </Card>
         <Card className='space-y-5'>

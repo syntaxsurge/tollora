@@ -7,7 +7,7 @@ import { envClient } from '@/lib/env/env.client'
 import { cn } from '@/lib/utils/cn'
 import { rainbowConfig } from '@/lib/wallet/rainbow'
 
-export function RainbowWalletConnect() {
+export function RainbowWalletConnect({ className }: { className?: string }) {
   if (!envClient.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || !rainbowConfig) {
     return (
       <button
@@ -39,7 +39,8 @@ export function RainbowWalletConnect() {
               type='button'
               className={cn(
                 buttonClasses({ variant: 'outline', size: 'md' }),
-                'border-accent/40 bg-accent text-accent-foreground shadow-brand-cyan/20 hover:bg-accent/90 min-w-[11rem] px-5 whitespace-nowrap shadow-sm hover:shadow-md'
+                'border-accent/40 bg-accent text-accent-foreground shadow-brand-cyan/20 hover:bg-accent/90 min-w-[11rem] px-5 whitespace-nowrap shadow-sm hover:shadow-md',
+                className
               )}
               onClick={openConnectModal}
             >
@@ -54,7 +55,8 @@ export function RainbowWalletConnect() {
               type='button'
               className={cn(
                 buttonClasses({ variant: 'outline', size: 'md' }),
-                'border-accent/40 bg-accent text-accent-foreground shadow-brand-cyan/20 hover:bg-accent/90 min-w-[11rem] px-5 whitespace-nowrap shadow-sm'
+                'border-accent/40 bg-accent text-accent-foreground shadow-brand-cyan/20 hover:bg-accent/90 min-w-[11rem] px-5 whitespace-nowrap shadow-sm',
+                className
               )}
               onClick={openChainModal}
             >
@@ -68,7 +70,8 @@ export function RainbowWalletConnect() {
             type='button'
             className={cn(
               buttonClasses({ variant: 'outline', size: 'md' }),
-              'max-w-[12rem] whitespace-nowrap'
+              'max-w-[12rem] whitespace-nowrap',
+              className
             )}
             onClick={openAccountModal}
           >

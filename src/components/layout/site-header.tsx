@@ -3,64 +3,55 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import * as React from 'react'
 
-import { Menu, Search, UserRound } from 'lucide-react'
+import {
+  ChevronDown,
+  LayoutDashboard,
+  Menu,
+  Settings,
+  UserRound
+} from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import { primaryNav } from '@/lib/config/navigation'
 import { siteConfig } from '@/lib/config/site'
+import {
+  defaultUserSettings,
+  readUserSettings,
+  userDisplayName,
+  userInitials
+} from '@/lib/settings/user-settings'
 import { cn } from '@/lib/utils/cn'
 
 export function SiteHeader() {
   const pathname = usePathname()
 
   return (
-    <header className='border-border bg-background sticky top-0 z-50 border-b'>
-      <div className='mx-auto flex min-h-[6.25rem] w-full max-w-[98rem] items-center gap-6 px-4 py-4 sm:px-6 lg:px-8'>
-        <Link href='/' className='group flex w-44 shrink-0 items-center gap-3'>
-          <span className='logo-mark-surface ring-border grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center rounded-lg p-2 ring-1 transition group-hover:scale-[1.02]'>
+    <header className='border-border bg-background/95 sticky top-0 z-50 border-b backdrop-blur'>
+      <div className='mx-auto flex min-h-20 w-full max-w-[98rem] items-center gap-5 px-4 py-3 sm:px-6 lg:px-8'>
+        <Link href='/' className='group flex shrink-0 items-center gap-3'>
+          <span className='logo-mark-surface ring-border grid h-12 w-12 shrink-0 place-items-center rounded-lg p-1.5 ring-1 transition group-hover:scale-[1.02]'>
             <Image
               src='/images/tollora-logo.png'
               alt='Tollora'
-              width={64}
-              height={64}
+              width={44}
+              height={44}
               priority
-              className='h-14 w-14 object-contain'
+              className='h-10 w-10 object-contain'
             />
           </span>
           <div className='min-w-0 text-left'>
-            <p className='truncate text-lg leading-5 font-semibold'>
+            <p className='truncate text-xl leading-6 font-semibold'>
               {siteConfig.name}
-            </p>
-            <p className='text-muted-foreground text-sm leading-5'>
-              MUSD API commerce
             </p>
           </div>
         </Link>
 
-        <form
-          action='/marketplace'
-          className='border-border bg-card focus-within:ring-ring/35 hidden h-14 max-w-[18rem] min-w-[14rem] flex-1 items-center gap-3 rounded-lg border px-4 shadow-sm transition focus-within:ring-2 md:flex xl:w-[20rem] xl:max-w-none xl:flex-none 2xl:w-[30rem]'
-          role='search'
-        >
-          <Search
-            className='text-muted-foreground h-5 w-5 shrink-0'
-            aria-hidden
-          />
-          <label htmlFor='global-search' className='sr-only'>
-            Search marketplace
-          </label>
-          <input
-            id='global-search'
-            name='q'
-            className='placeholder:text-muted-foreground h-12 min-w-0 flex-1 bg-transparent text-base outline-none'
-            placeholder='Search paid APIs'
-          />
-        </form>
-
         <nav
-          className='hidden min-w-0 flex-1 items-center justify-center gap-6 text-sm xl:flex 2xl:gap-8'
+          className='hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm xl:flex 2xl:gap-7'
           aria-label='Primary'
         >
           {primaryNav.map(item => {
@@ -88,7 +79,10 @@ export function SiteHeader() {
         </nav>
         <div className='ml-auto flex shrink-0 items-center gap-3'>
           <details className='relative xl:hidden'>
-            <summary className='border-border bg-card text-foreground hover:border-brand-cyan/60 flex h-12 w-12 cursor-pointer list-none items-center justify-center rounded-lg border transition'>
+            <summary
+              aria-label='Open navigation menu'
+              className='border-border bg-card text-foreground hover:border-brand-cyan/60 flex h-12 w-12 cursor-pointer list-none items-center justify-center rounded-lg border transition'
+            >
               <Menu className='h-4 w-4' aria-hidden />
               <span className='sr-only'>Open navigation menu</span>
             </summary>
@@ -119,16 +113,108 @@ export function SiteHeader() {
             </div>
           </details>
           <ThemeToggle />
-          <Link
-            href='/profile'
-            aria-label='Open profile'
-            className='border-border bg-card text-foreground hover:border-brand-purple/60 hidden h-12 w-12 items-center justify-center rounded-lg border shadow-sm transition sm:flex'
-          >
-            <UserRound className='h-4 w-4' aria-hidden />
-          </Link>
-          <WalletConnectButton />
+          <ProfileMenu />
         </div>
       </div>
     </header>
+  )
+}
+
+function ProfileMenu() {
+  const [settings, setSettings] = React.useState(defaultUserSettings)
+
+  React.useEffect(() => {
+    setSettings(readUserSettings())
+
+    function syncSettings() {
+      setSettings(readUserSettings())
+    }
+
+    window.addEventListener('storage', syncSettings)
+    window.addEventListener('tollora:user-settings-updated', syncSettings)
+
+    return () => {
+      window.removeEventListener('storage', syncSettings)
+      window.removeEventListener('tollora:user-settings-updated', syncSettings)
+    }
+  }, [])
+
+  const displayName = userDisplayName(settings)
+  const username = settings.username ? `@${settings.username}` : 'Set username'
+  const initials = userInitials(settings) || 'T'
+
+  return (
+    <details className='group relative'>
+      <summary
+        aria-label='Open account menu'
+        className='border-border bg-card hover:border-brand-cyan/60 flex h-12 cursor-pointer list-none items-center gap-2 rounded-lg border px-2 shadow-sm transition'
+      >
+        <span className='bg-primary text-primary-foreground grid h-8 w-8 place-items-center rounded-full text-xs font-semibold'>
+          {initials}
+        </span>
+        <ChevronDown
+          className='text-muted-foreground h-4 w-4 transition group-open:rotate-180'
+          aria-hidden
+        />
+        <span className='sr-only'>Open account menu</span>
+      </summary>
+      <div className='border-border bg-card absolute right-0 mt-2 w-[19rem] rounded-lg border p-3 shadow-xl'>
+        <div className='bg-muted/60 flex items-center gap-3 rounded-md p-3'>
+          <span className='bg-primary text-primary-foreground grid h-11 w-11 place-items-center rounded-full text-sm font-semibold'>
+            {initials}
+          </span>
+          <div className='min-w-0'>
+            <p className='truncate text-sm font-semibold'>{displayName}</p>
+            <p className='text-muted-foreground truncate text-xs'>{username}</p>
+          </div>
+        </div>
+        <div className='my-3 grid gap-1'>
+          <MenuLink href='/dashboard' icon={LayoutDashboard}>
+            Dashboard
+          </MenuLink>
+          <MenuLink href='/profile' icon={UserRound}>
+            Profile
+          </MenuLink>
+          <MenuLink href='/settings' icon={Settings}>
+            Settings
+          </MenuLink>
+        </div>
+        <div className='border-border border-t pt-3'>
+          <p className='text-muted-foreground mb-2 text-xs font-semibold'>
+            Wallet
+          </p>
+          <WalletAddressConsumer>
+            {wallet => (
+              <div className='space-y-2'>
+                <WalletConnectButton className='w-full max-w-none justify-center' />
+                <p className='text-muted-foreground truncate text-xs'>
+                  {wallet.address ?? 'Connect to view address'}
+                </p>
+              </div>
+            )}
+          </WalletAddressConsumer>
+        </div>
+      </div>
+    </details>
+  )
+}
+
+function MenuLink({
+  children,
+  href,
+  icon: Icon
+}: {
+  children: React.ReactNode
+  href: string
+  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+}) {
+  return (
+    <Link
+      href={href}
+      className='hover:bg-accent/10 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition'
+    >
+      <Icon className='text-muted-foreground h-4 w-4' aria-hidden />
+      {children}
+    </Link>
   )
 }

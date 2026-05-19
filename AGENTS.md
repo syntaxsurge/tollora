@@ -472,15 +472,17 @@ Before creating a new helper or service file:
   normalization for provider responses, request previews, agent deliverables,
   and public proof payloads.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
-  and app shells, with Tollora logo branding, marketplace search, profile
-  access, theme controls, wallet controls, and public navigation. The header
-  uses an opaque sticky surface, fixed brand sizing, responsive search
-  visibility, and non-overlapping action controls.
+  and app shells, with Tollora logo branding, public navigation, theme controls,
+  and an avatar account menu. The account menu shows profile identity,
+  dashboard/profile/settings shortcuts, and the active wallet control so
+  RainbowKit account actions stay available without occupying persistent header
+  space.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
-- Authenticated app routes use `src/components/layout/app-sidebar.tsx` for
-  dashboard, marketplace, provider, profile, billing, and settings navigation.
+- Authenticated app routes use compact icon-led sidebars in
+  `src/components/layout/app-sidebar.tsx` and
+  `src/components/layout/admin-sidebar.tsx` for workspace and admin navigation.
 - Tollora marketplace product registry, provider-created listings, product
   schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
   and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
@@ -506,12 +508,11 @@ Before creating a new helper or service file:
   applies bearer, API-key, query-key, or basic auth server-side, sends
   idempotency headers, extracts external job IDs, result URLs, public project
   handoff URLs, and clone URLs through configured and conventional JSON paths,
-  and polls provider status endpoints for async products.
-  Credit-metered async providers always receive
-  `billingMode: "external_prepaid"` plus generic external prepaid metadata with
-  order, receipt, buyer, requested billing mode, and settlement references so
-  provider APIs can report estimated, charged, and refunded usage without
-  importing Tollora settlement logic.
+  and polls provider status endpoints for async products. Credit-metered async
+  providers always receive `billingMode: "external_prepaid"` plus generic
+  external prepaid metadata with order, receipt, buyer, requested billing mode,
+  and settlement references so provider APIs can report estimated, charged, and
+  refunded usage without importing Tollora settlement logic.
 - `/marketplace` lists published provider-created MUSD-paid API products with
   category filters, price badges, provider names, x402 protection badges,
   agent-ready badges, and entry points for autonomous agent runs.
@@ -580,19 +581,18 @@ Before creating a new helper or service file:
   provider-marked retryable responses until the 24-hour retry window expires,
   complete async orders when a provider returns a completed status or cloneable
   handoff URL, keep manual polling available, keep 402 inspection as a
-  diagnostic action, persist
-  receipt metadata in browser session storage, show quote/reservation/final
-  usage amounts for credit-metered calls, claim metered deltas through x402
-  before revealing locked results, show escrow reserve/release/refund
-  transaction links when a credit-metered async payment uses escrow, and link to
-  the settlement receipt and Mezo explorer transaction. Draft products stay
-  hidden from public marketplace usage but can be tested through provider
-  management by creating provider-test order records; locally persisted draft
-  listings created before owner metadata exists can still be tested through
-  matching order records. Browser session order snapshots use compact
-  session-safe storage so large provider payloads cannot block the visible order
-  state, and provider payload normalization removes malformed indexed-character
-  maps while preserving handoff URLs and billing metadata.
+  diagnostic action, persist receipt metadata in browser session storage, show
+  quote/reservation/final usage amounts for credit-metered calls, claim metered
+  deltas through x402 before revealing locked results, show escrow
+  reserve/release/refund transaction links when a credit-metered async payment
+  uses escrow, and link to the settlement receipt and Mezo explorer transaction.
+  Draft products stay hidden from public marketplace usage but can be tested
+  through provider management by creating provider-test order records; locally
+  persisted draft listings created before owner metadata exists can still be
+  tested through matching order records. Browser session order snapshots use
+  compact session-safe storage so large provider payloads cannot block the
+  visible order state, and provider payload normalization removes malformed
+  indexed-character maps while preserving handoff URLs and billing metadata.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned
@@ -619,13 +619,12 @@ Before creating a new helper or service file:
 - `/developers` and `/developers/docs` describe provider onboarding, OpenAPI
   import, x402 paid calls, fixed-price provider contracts, credit-metered
   quote-first provider contracts, external prepaid async job metadata, public
-  handoff and clone URL result contracts, final usage delta handling,
-  autonomous agent runs, Mezo proof attestations, gateway forwarding, receipt
-  records, external HTTP adapter behavior, OpenAPI JSON, and
-  the Scalar API reference. The developer docs page renders GitHub-flavored
-  Markdown with `react-markdown` and `remark-gfm`, uses a sticky table of
-  contents, and exposes stable section and field anchors used by provider form
-  documentation links.
+  handoff and clone URL result contracts, final usage delta handling, autonomous
+  agent runs, Mezo proof attestations, gateway forwarding, receipt records,
+  external HTTP adapter behavior, OpenAPI JSON, and the Scalar API reference.
+  The developer docs page renders GitHub-flavored Markdown with `react-markdown`
+  and `remark-gfm`, uses a sticky table of contents, and exposes stable section
+  and field anchors used by provider form documentation links.
 - Admin routes use `src/components/layout/admin-sidebar.tsx`; the users table is
   server-rendered from URL search, filter, sort, and pagination parameters.
 - Admin user row actions use three-dot menus with reusable responsive dialogs
@@ -660,8 +659,9 @@ Before creating a new helper or service file:
 - RainbowKit configuration uses the shared Mezo Testnet chain registry when
   `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is configured, and initializes on Mezo
   Testnet.
-- RainbowKit wallet buttons show the connected address inline and keep balance
-  details inside the wallet dialog.
+- RainbowKit wallet controls live inside the shared header account menu, where
+  the connected address is shown below the wallet button and balance/disconnect
+  actions remain in the RainbowKit dialog.
 - Wallet configuration helpers in `src/lib/wallet`.
 - App route protection uses `src/middleware.ts`,
   `src/lib/auth/wallet-session.ts`, and

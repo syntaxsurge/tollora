@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { Bot, ReceiptText } from 'lucide-react'
+
 import { BillingOverview } from '@/components/billing/billing-overview'
 import { ManagedCreditsPanel } from '@/components/billing/managed-credits-panel'
 import { Badge } from '@/components/ui/badge'
@@ -9,11 +11,7 @@ import { getAgentMetrics } from '@/features/agents/store'
 import { settlementReceipts } from '@/features/marketplace/receipts'
 import { getProjectSnapshot } from '@/lib/config/project'
 
-const checklist = [
-  'x402 paid calls settle through the configured Mezo facilitator.',
-  'Receipts show MUSD amount, fee split, transaction hash, and explorer URL.',
-  'Provider dashboards calculate the 95% provider share and 5% platform fee.'
-]
+const checklist = ['x402 settlement', 'MUSD receipts', '95% provider share']
 
 export default async function BillingPage() {
   const snapshot = await getProjectSnapshot()
@@ -27,8 +25,7 @@ export default async function BillingPage() {
           <div className='max-w-3xl space-y-3'>
             <h1 className='font-display text-4xl'>Plan and usage</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Review wallet ownership, workspace plan context, and MUSD usage
-              records for paid API activity.
+              Review plan state, managed credits, and paid API spend.
             </p>
           </div>
           <Link
@@ -39,7 +36,8 @@ export default async function BillingPage() {
               className: 'whitespace-nowrap'
             })}
           >
-            View pricing
+            <ReceiptText className='h-4 w-4' aria-hidden />
+            Pricing
           </Link>
         </div>
       </section>
@@ -64,7 +62,8 @@ export default async function BillingPage() {
             href='/agents'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Open agents
+            <Bot className='h-4 w-4' aria-hidden />
+            Agents
           </Link>
         </div>
         <div className='grid gap-3 md:grid-cols-4'>

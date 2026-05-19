@@ -3,8 +3,30 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import {
+  Bot,
+  CreditCard,
+  LayoutDashboard,
+  PackageSearch,
+  ReceiptText,
+  Settings,
+  Store,
+  UserRound
+} from 'lucide-react'
+
 import { appNav } from '@/lib/config/navigation'
 import { cn } from '@/lib/utils/cn'
+
+const appNavIcons = {
+  Dashboard: LayoutDashboard,
+  Agents: Bot,
+  Marketplace: Store,
+  Provider: PackageSearch,
+  Orders: ReceiptText,
+  Profile: UserRound,
+  Billing: CreditCard,
+  Settings
+}
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -15,8 +37,9 @@ export function AppSidebar() {
         aria-label='Workspace'
         className='border-border/80 bg-card/90 shadow-brand-blue/5 rounded-lg border p-2 shadow-sm backdrop-blur'
       >
-        <div className='px-3 py-2'>
-          <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
+        <div className='flex items-center gap-2 px-3 py-2'>
+          <LayoutDashboard className='text-accent h-4 w-4' aria-hidden />
+          <p className='text-muted-foreground text-xs font-semibold'>
             Workspace
           </p>
         </div>
@@ -24,6 +47,9 @@ export function AppSidebar() {
           {appNav.map(item => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const Icon =
+              appNavIcons[item.label as keyof typeof appNavIcons] ??
+              LayoutDashboard
 
             return (
               <Link
@@ -31,25 +57,14 @@ export function AppSidebar() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'rounded-md px-3 py-3 transition duration-200',
+                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition duration-200',
                   isActive
                     ? 'border-primary/25 bg-primary text-primary-foreground border shadow-sm'
                     : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >
-                <span className='block text-sm font-semibold'>
-                  {item.label}
-                </span>
-                <span
-                  className={cn(
-                    'mt-1 block text-xs leading-5',
-                    isActive
-                      ? 'text-primary-foreground/85'
-                      : 'text-muted-foreground'
-                  )}
-                >
-                  {item.description}
-                </span>
+                <Icon className='h-4 w-4 shrink-0' aria-hidden />
+                <span>{item.label}</span>
               </Link>
             )
           })}

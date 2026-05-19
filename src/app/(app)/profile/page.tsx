@@ -9,8 +9,7 @@ export default function ProfilePage() {
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>Builder profile</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Review the identity that collaborators see, then update the source
-            values from settings when the project needs richer account data.
+            Preview your public identity and connected account details.
           </p>
         </div>
       </section>

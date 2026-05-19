@@ -25,15 +25,14 @@ export default async function AgentRunPage({ params }: AgentRunPageProps) {
               {run?.title ?? 'Agent run'}
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Watch the agent plan, execute paid API calls, collect MUSD
-              receipts, produce deliverables, and publish a Mezo proof.
+              Track paid actions, deliverables, receipts, and proof state.
             </p>
           </div>
           <Link
             href='/agents'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Back to agents
+            Agents
           </Link>
         </div>
       </section>

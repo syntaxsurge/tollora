@@ -26,16 +26,14 @@ export default async function ReceiptDetailPage({
           <div className='max-w-3xl space-y-3'>
             <h1 className='font-display text-4xl'>Settlement receipt</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Confirm the product, buyer wallet, provider wallet, MUSD amount,
-              Mezo network, transaction hash, and platform fee split for a paid
-              Tollora API call.
+              Confirm payment, network, transaction, and fee split.
             </p>
           </div>
           <Link
             href='/orders'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Back to orders
+            Orders
           </Link>
         </div>
       </section>

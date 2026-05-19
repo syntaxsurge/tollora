@@ -3,10 +3,27 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { ShieldCheck } from 'lucide-react'
+import {
+  ClipboardList,
+  Home,
+  PackageSearch,
+  RadioTower,
+  ShieldCheck,
+  UserCog,
+  WalletCards
+} from 'lucide-react'
 
 import { adminNav } from '@/lib/config/navigation'
 import { cn } from '@/lib/utils/cn'
+
+const adminNavIcons = {
+  Overview: Home,
+  Users: UserCog,
+  Products: PackageSearch,
+  Orders: ClipboardList,
+  Subscriptions: WalletCards,
+  Operations: RadioTower
+}
 
 export function AdminSidebar() {
   const pathname = usePathname()
@@ -19,7 +36,7 @@ export function AdminSidebar() {
       >
         <div className='flex items-center gap-2 px-3 py-2'>
           <ShieldCheck className='text-accent h-4 w-4' aria-hidden />
-          <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
+          <p className='text-muted-foreground text-xs font-semibold'>
             Admin panel
           </p>
         </div>
@@ -29,6 +46,9 @@ export function AdminSidebar() {
               item.href === '/admin'
                 ? pathname === '/admin'
                 : pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const Icon =
+              adminNavIcons[item.label as keyof typeof adminNavIcons] ??
+              ShieldCheck
 
             return (
               <Link
@@ -36,25 +56,14 @@ export function AdminSidebar() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'rounded-md px-3 py-3 transition duration-200',
+                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition duration-200',
                   isActive
                     ? 'border-primary/25 bg-primary text-primary-foreground border shadow-sm'
                     : 'text-foreground hover:bg-accent/10 hover:text-primary dark:hover:text-accent'
                 )}
               >
-                <span className='block text-sm font-semibold'>
-                  {item.label}
-                </span>
-                <span
-                  className={cn(
-                    'mt-1 block text-xs leading-5',
-                    isActive
-                      ? 'text-primary-foreground/85'
-                      : 'text-muted-foreground'
-                  )}
-                >
-                  {item.description}
-                </span>
+                <Icon className='h-4 w-4 shrink-0' aria-hidden />
+                <span>{item.label}</span>
               </Link>
             )
           })}

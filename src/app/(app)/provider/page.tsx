@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { BarChart3, PackageSearch } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -25,26 +27,25 @@ export default function ProviderPage() {
           <div className='space-y-4'>
             <Badge>Provider dashboard</Badge>
             <h1 className='font-display text-4xl'>
-              Sell paid APIs with MUSD settlement.
+              Sell APIs with MUSD settlement.
             </h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Track API products, call volume, autonomous agent demand, MUSD
-              earnings, and gateway health from one provider workspace. Tollora
-              records a 5% platform fee and shows the 95% provider share for
-              each successful paid request.
+              Manage listings, usage, revenue, and gateway health.
             </p>
             <div className='flex flex-col gap-3 pt-2 sm:flex-row'>
               <Link
                 href='/provider/products'
                 className={buttonClasses({ variant: 'primary', size: 'sm' })}
               >
-                Manage products
+                <PackageSearch className='h-4 w-4' aria-hidden />
+                Products
               </Link>
               <Link
                 href='/provider/usage'
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                View usage
+                <BarChart3 className='h-4 w-4' aria-hidden />
+                Usage
               </Link>
             </div>
           </div>
@@ -58,7 +59,7 @@ export default function ProviderPage() {
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
               {topProduct
                 ? `${topProduct.revenueMusd} MUSD recorded across ${topProduct.calls} calls.`
-                : 'Create and publish an API product to start earning MUSD from paid requests.'}
+                : 'Publish a product to start earning.'}
             </p>
           </Card>
         </div>
@@ -135,9 +136,7 @@ export default function ProviderPage() {
             </p>
             <h2 className='font-display mt-2 text-2xl'>Fee split</h2>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Tollora records a transparent revenue split for every MUSD-paid
-              request. Provider payout automation can build on the same receipt
-              and usage records.
+              Every paid request records provider revenue and platform fees.
             </p>
           </div>
           <div className='grid gap-3'>
@@ -201,9 +200,7 @@ export default function ProviderPage() {
             </p>
             <h2 className='font-display mt-2 text-2xl'>Production narrative</h2>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Providers can show how a listing becomes a paid x402 endpoint, how
-              Tollora records the MUSD receipt, and how the dashboard separates
-              provider earnings from the platform fee.
+              Check the gateway setup before sending buyers to a listing.
             </p>
           </div>
           <Link

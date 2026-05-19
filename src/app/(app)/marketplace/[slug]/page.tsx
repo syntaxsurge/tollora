@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { Bot, Code2, Wallet } from 'lucide-react'
+
 import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
@@ -120,19 +122,22 @@ console.log({ body, payment });`
                 href={`/orders/new?product=${product.slug}`}
                 className={buttonClasses({ size: 'sm' })}
               >
-                Run with wallet
+                <Wallet className='h-4 w-4' aria-hidden />
+                Run
               </Link>
               <a
                 href='#use-from-code'
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                Use from code
+                <Code2 className='h-4 w-4' aria-hidden />
+                Code
               </a>
               <Link
                 href={`/agents/new?tool=${product.slug}`}
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                Use in agent run
+                <Bot className='h-4 w-4' aria-hidden />
+                Agent
               </Link>
             </div>
           </div>
@@ -179,8 +184,8 @@ console.log({ body, payment });`
           </h2>
           <p className='text-foreground/70 mt-2 text-sm leading-6'>
             {product.executionMode === 'asynchronous'
-              ? 'The paid response returns a provider job id. Final output is fetched later through polling or webhooks.'
-              : 'The paid response contains the completed API result in the same request.'}
+              ? 'Returns a job first, then final output later.'
+              : 'Returns the completed result immediately.'}
           </p>
         </Card>
         <Card className='min-w-0'>
@@ -217,12 +222,8 @@ console.log({ body, payment });`
               External app integration
             </p>
             <p className='text-foreground/70 text-sm leading-6'>
-              Developers do not clone Tollora to use this API. Their backend,
-              CLI, or agent calls this hosted endpoint with an x402 buyer
-              client; the client reads the 402 payment requirement, signs the
-              MUSD payment, retries, and receives the paid response. Keep the
-              signer on a server or agent runtime, not in client-side browser
-              code.
+              Call this hosted endpoint from a backend, CLI, or agent with an
+              x402 buyer client. Keep the signer server-side.
             </p>
           </div>
 
