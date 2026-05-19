@@ -1,14 +1,9 @@
-import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  Search
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react'
 
+import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
+import { ServerDataTableSearch } from '@/components/data-display/server-data-table-search'
 import {
   ServerDataTableSelection,
   type ServerDataTableBulkAction
@@ -68,26 +63,15 @@ export function ServerDataTable<T>({
     <div className='border-border bg-card/90 overflow-hidden rounded-lg border shadow-sm'>
       <div className='border-border bg-background/50 border-b p-4'>
         <div className='flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
-          <form action={basePath} className='min-w-0 flex-1' role='search'>
-            {Object.entries(preserveParams).map(([key, value]) =>
-              value ? (
-                <input key={key} type='hidden' name={key} value={value} />
-              ) : null
-            )}
-            <input type='hidden' name='sort' value={sort} />
-            <input type='hidden' name='dir' value={dir} />
-            <input type='hidden' name='pageSize' value={pageSize} />
-            <label className='border-border bg-card focus-within:ring-ring/35 flex min-h-11 items-center gap-3 rounded-lg border px-3 transition focus-within:ring-2'>
-              <Search className='text-foreground/50 h-4 w-4' aria-hidden />
-              <span className='sr-only'>Search table</span>
-              <input
-                name='q'
-                defaultValue={query}
-                placeholder={searchPlaceholder}
-                className='placeholder:text-muted-foreground h-10 min-w-0 flex-1 bg-transparent text-sm outline-none'
-              />
-            </label>
-          </form>
+          <ServerDataTableSearch
+            basePath={basePath}
+            preserveParams={preserveParams}
+            query={query}
+            sort={sort}
+            dir={dir}
+            pageSize={pageSize}
+            searchPlaceholder={searchPlaceholder}
+          />
           <div className='text-muted-foreground text-sm'>
             {totalRows.toLocaleString()} result{totalRows === 1 ? '' : 's'}
           </div>
@@ -117,7 +101,7 @@ export function ServerDataTable<T>({
                   )}
                 >
                   {column.sortKey ? (
-                    <Link
+                    <ServerDataTableNavButton
                       href={buildHref({
                         basePath,
                         preserveParams,
@@ -140,7 +124,7 @@ export function ServerDataTable<T>({
                           <ArrowUp className='h-3.5 w-3.5' aria-hidden />
                         )
                       ) : null}
-                    </Link>
+                    </ServerDataTableNavButton>
                   ) : (
                     column.label
                   )}
@@ -195,8 +179,8 @@ export function ServerDataTable<T>({
           Page {page} of {totalPages}
         </p>
         <div className='flex gap-2'>
-          <Link
-            aria-disabled={page <= 1}
+          <ServerDataTableNavButton
+            disabled={page <= 1}
             href={buildHref({
               basePath,
               preserveParams,
@@ -214,9 +198,9 @@ export function ServerDataTable<T>({
           >
             <ChevronLeft className='h-4 w-4' aria-hidden />
             Previous
-          </Link>
-          <Link
-            aria-disabled={page >= totalPages}
+          </ServerDataTableNavButton>
+          <ServerDataTableNavButton
+            disabled={page >= totalPages}
             href={buildHref({
               basePath,
               preserveParams,
@@ -235,7 +219,7 @@ export function ServerDataTable<T>({
           >
             Next
             <ChevronRight className='h-4 w-4' aria-hidden />
-          </Link>
+          </ServerDataTableNavButton>
         </div>
       </div>
     </div>

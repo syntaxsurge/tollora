@@ -6,6 +6,7 @@ import {
   ServerDataTable,
   type ServerDataTableColumn
 } from '@/components/data-display/server-data-table'
+import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import {
@@ -235,7 +236,7 @@ function CategoryLink({
   children: React.ReactNode
 }) {
   return (
-    <Link
+    <ServerDataTableNavButton
       href={href}
       className={cn(
         'border-border bg-card hover:border-brand-cyan/60 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition',
@@ -243,6 +244,6 @@ function CategoryLink({
       )}
     >
       {children}
-    </Link>
+    </ServerDataTableNavButton>
   )
 }

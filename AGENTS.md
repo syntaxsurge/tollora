@@ -496,8 +496,10 @@ Before creating a new helper or service file:
 - Shared server-fed table rendering lives in
   `src/components/data-display/server-data-table.tsx` with URL-driven search,
   sorting, pagination, optional current-page row selection, and optional bulk
-  actions. Selection is enabled only for tables that need row-level or bulk
-  operations.
+  actions. Table search, sort, pagination, and filter controls update the URL
+  with client-side router pushes that preserve scroll position so server-fed
+  table interactions feel local instead of page-jumping. Selection is enabled
+  only for tables that need row-level or bulk operations.
   Server-side query helpers live in `src/lib/table/server-table.ts` and are
   used by agent templates/runs, marketplace products, orders, and provider
   product management.

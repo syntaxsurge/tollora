@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter as useSmoothRouter } from 'next/navigation'
 import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -15,8 +15,9 @@ import {
   Sparkles,
   Wallet
 } from 'lucide-react'
-import { useRouter } from 'nextjs-toploader/app'
+import { useRouter as useTopLoaderRouter } from 'nextjs-toploader/app'
 
+import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -54,7 +55,8 @@ export function AgentRunCreateForm({
   products: ToolRow[]
   toolTable: ToolTableState
 }) {
-  const router = useRouter()
+  const router = useTopLoaderRouter()
+  const smoothRouter = useSmoothRouter()
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toolSearch, setToolSearch] = useState(toolTable.query)
@@ -140,11 +142,15 @@ export function AgentRunCreateForm({
   }, [selectedTools, selectionStorageKey])
 
   function goToToolsPage(page: number) {
-    router.push(buildToolsHref({ page, query: toolTable.query }))
+    smoothRouter.push(buildToolsHref({ page, query: toolTable.query }), {
+      scroll: false
+    })
   }
 
   function searchTools() {
-    router.push(buildToolsHref({ page: 1, query: toolSearch.trim() }))
+    smoothRouter.push(buildToolsHref({ page: 1, query: toolSearch.trim() }), {
+      scroll: false
+    })
   }
 
   return (
@@ -490,7 +496,7 @@ function ManualToolTable({
                   key={sort}
                   className='px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase'
                 >
-                  <Link
+                  <ServerDataTableNavButton
                     href={buildToolsHref({
                       page: 1,
                       sort,
@@ -502,7 +508,7 @@ function ManualToolTable({
                     className='hover:text-foreground transition'
                   >
                     {label}
-                  </Link>
+                  </ServerDataTableNavButton>
                 </th>
               ))}
             </tr>
