@@ -79,6 +79,10 @@
     outline: 2px solid hsl(var(--ring));
     outline-offset: 3px;
   }
+
+  a {
+    text-underline-offset: 0.2em;
+  }
 }
 
 @layer utilities {
@@ -142,6 +146,14 @@
 
   .brand-flame-text-gradient {
     color: hsl(var(--warning));
+  }
+
+  .dark .text-primary {
+    color: hsl(var(--accent));
+  }
+
+  .dark .hover\:text-primary:hover {
+    color: hsl(var(--accent));
   }
 
   .text-lead {

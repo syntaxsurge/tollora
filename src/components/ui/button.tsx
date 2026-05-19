@@ -12,14 +12,15 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 const baseStyles =
-  'inline-flex items-center justify-center gap-2 rounded-lg text-center font-semibold whitespace-normal transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-60'
+  'inline-flex items-center justify-center gap-2 rounded-lg text-center font-semibold whitespace-normal transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:translate-y-0 disabled:shadow-none'
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary text-primary-foreground shadow-sm shadow-brand-blue/20 hover:bg-primary/90 hover:translate-y-[-1px] hover:shadow-md hover:shadow-brand-blue/25 active:translate-y-0 active:shadow-sm',
+    'bg-primary text-primary-foreground shadow-sm shadow-brand-blue/20 hover:bg-primary/90 hover:translate-y-[-1px] hover:shadow-md hover:shadow-brand-blue/25 active:translate-y-0 active:shadow-sm disabled:bg-muted disabled:text-muted-foreground disabled:hover:bg-muted',
   outline:
-    'border border-border bg-card/80 text-foreground shadow-sm hover:border-brand-cyan/70 hover:bg-accent/10',
-  ghost: 'text-foreground hover:bg-accent/10 hover:text-primary'
+    'border border-border bg-card/80 text-foreground shadow-sm hover:border-brand-cyan/70 hover:bg-accent/10 disabled:bg-muted/40 disabled:text-muted-foreground disabled:hover:border-border disabled:hover:bg-muted/40',
+  ghost:
+    'text-foreground hover:bg-accent/10 hover:text-primary disabled:text-muted-foreground disabled:hover:bg-transparent'
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
