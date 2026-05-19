@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Trash2 } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
@@ -16,14 +16,35 @@ export type ServerDataTableBulkAction = {
 
 export function ServerDataTableSelection({
   tableId,
-  bulkActions = []
+  bulkActions = [],
+  selectedIds,
+  onSelectionChange,
+  currentPageIds,
+  selectedLabel = 'selected on this page'
 }: {
   tableId: string
   bulkActions?: ServerDataTableBulkAction[]
+  selectedIds?: string[]
+  onSelectionChange?: (ids: string[]) => void
+  currentPageIds?: string[]
+  selectedLabel?: string
 }) {
   const router = useRouter()
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
+  const masterCheckboxRef = useRef<HTMLInputElement>(null)
+  const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([])
+  const effectiveSelectedIds = selectedIds ?? internalSelectedIds
+  const selectedSet = useMemo(
+    () => new Set(effectiveSelectedIds),
+    [effectiveSelectedIds]
+  )
+  const visibleIds = currentPageIds ?? []
+  const selectedVisibleCount = visibleIds.filter(id =>
+    selectedSet.has(id)
+  ).length
+  const allVisibleSelected =
+    visibleIds.length > 0 && selectedVisibleCount === visibleIds.length
+  const hasPartialVisibleSelection =
+    selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length
 
   function getCheckboxes() {
     return Array.from(
@@ -47,25 +68,59 @@ export function ServerDataTableSelection({
     }
   })
 
-  function syncFromDom() {
-    setSelectedIds(
-      getCheckboxes()
-        .filter(checkbox => checkbox.checked)
-        .map(checkbox => checkbox.value)
-    )
-  }
-
-  function toggleCurrentPage(checked: boolean) {
+  useEffect(() => {
     const checkboxes = getCheckboxes()
 
     checkboxes.forEach(checkbox => {
-      checkbox.checked = checked
+      checkbox.checked = selectedSet.has(checkbox.value)
     })
-    setSelectedIds(checked ? checkboxes.map(checkbox => checkbox.value) : [])
+
+    if (masterCheckboxRef.current) {
+      masterCheckboxRef.current.checked = allVisibleSelected
+      masterCheckboxRef.current.indeterminate = hasPartialVisibleSelection
+    }
+  }, [
+    allVisibleSelected,
+    hasPartialVisibleSelection,
+    selectedSet,
+    tableId,
+    visibleIds
+  ])
+
+  function syncFromDom() {
+    const checkboxes = getCheckboxes()
+    const pageIds = checkboxes.map(checkbox => checkbox.value)
+    const visibleSelectedIds = checkboxes
+      .filter(checkbox => checkbox.checked)
+      .map(checkbox => checkbox.value)
+    const nextIds = [
+      ...effectiveSelectedIds.filter(id => !pageIds.includes(id)),
+      ...visibleSelectedIds
+    ]
+
+    updateSelection(dedupeIds(nextIds))
+  }
+
+  function updateSelection(nextIds: string[]) {
+    if (onSelectionChange) {
+      onSelectionChange(nextIds)
+      return
+    }
+
+    setInternalSelectedIds(nextIds)
+  }
+
+  function toggleCurrentPage(checked: boolean) {
+    const pageIds = getCheckboxes().map(checkbox => checkbox.value)
+    const nextIds = checked
+      ? dedupeIds([...effectiveSelectedIds, ...pageIds])
+      : effectiveSelectedIds.filter(id => !pageIds.includes(id))
+
+    updateSelection(nextIds)
   }
 
   async function runBulkAction(action: ServerDataTableBulkAction) {
-    if (selectedIds.length === 0) {
+    if (effectiveSelectedIds.length === 0) {
       return
     }
 
@@ -76,7 +131,7 @@ export function ServerDataTableSelection({
     const response = await fetch(action.endpoint, {
       method: action.method ?? 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: selectedIds })
+      body: JSON.stringify({ ids: effectiveSelectedIds })
     })
 
     if (!response.ok) {
@@ -88,7 +143,7 @@ export function ServerDataTableSelection({
       return
     }
 
-    setSelectedIds([])
+    updateSelection([])
     router.refresh()
   }
 
@@ -96,12 +151,15 @@ export function ServerDataTableSelection({
     <div className='border-border bg-card/90 flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between'>
       <label className='flex items-center gap-3 text-sm font-semibold'>
         <input
+          ref={masterCheckboxRef}
           type='checkbox'
           className='border-border text-primary focus:ring-ring h-4 w-4 rounded'
           aria-label='Select all rows on this page'
           onChange={event => toggleCurrentPage(event.currentTarget.checked)}
         />
-        <span>{selectedIds.length} selected on this page</span>
+        <span>
+          {effectiveSelectedIds.length} {selectedLabel}
+        </span>
       </label>
       {bulkActions.length > 0 ? (
         <div className='flex flex-wrap gap-2'>
@@ -121,8 +179,12 @@ export function ServerDataTableSelection({
         </div>
       ) : null}
       <span className='sr-only' aria-live='polite'>
-        {selectedIds.length} rows selected
+        {effectiveSelectedIds.length} rows selected
       </span>
     </div>
   )
+}
+
+function dedupeIds(ids: string[]) {
+  return Array.from(new Set(ids))
 }

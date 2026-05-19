@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
 import { ServerDataTableSearch } from '@/components/data-display/server-data-table-search'
@@ -8,6 +8,7 @@ import {
   ServerDataTableSelection,
   type ServerDataTableBulkAction
 } from '@/components/data-display/server-data-table-selection'
+import { ServerDataTableSortButton } from '@/components/data-display/server-data-table-sort-button'
 import { buttonClasses } from '@/components/ui/button'
 import type { ServerTableDirection } from '@/lib/table/server-table'
 import { cn } from '@/lib/utils/cn'
@@ -78,7 +79,11 @@ export function ServerDataTable<T>({
         </div>
         {enableSelection ? (
           <div className='mt-3'>
-            <ServerDataTableSelection tableId={id} bulkActions={bulkActions} />
+            <ServerDataTableSelection
+              tableId={id}
+              bulkActions={bulkActions}
+              currentPageIds={rows.map(row => getRowId(row))}
+            />
           </div>
         ) : null}
       </div>
@@ -89,7 +94,7 @@ export function ServerDataTable<T>({
             <tr>
               {enableSelection ? (
                 <th className='w-12 px-4 py-3'>
-                  <span className='sr-only'>Select row</span>
+                  <span className='sr-only'>Select rows</span>
                 </th>
               ) : null}
               {columns.map(column => (
@@ -101,7 +106,7 @@ export function ServerDataTable<T>({
                   )}
                 >
                   {column.sortKey ? (
-                    <ServerDataTableNavButton
+                    <ServerDataTableSortButton
                       href={buildHref({
                         basePath,
                         preserveParams,
@@ -114,17 +119,10 @@ export function ServerDataTable<T>({
                         page: 1,
                         pageSize
                       })}
-                      className='hover:text-foreground inline-flex items-center gap-1 transition'
-                    >
-                      {column.label}
-                      {sort === column.sortKey ? (
-                        dir === 'desc' ? (
-                          <ArrowDown className='h-3.5 w-3.5' aria-hidden />
-                        ) : (
-                          <ArrowUp className='h-3.5 w-3.5' aria-hidden />
-                        )
-                      ) : null}
-                    </ServerDataTableNavButton>
+                      label={column.label}
+                      active={sort === column.sortKey}
+                      dir={dir}
+                    />
                   ) : (
                     column.label
                   )}

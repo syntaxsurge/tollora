@@ -496,10 +496,13 @@ Before creating a new helper or service file:
 - Shared server-fed table rendering lives in
   `src/components/data-display/server-data-table.tsx` with URL-driven search,
   sorting, pagination, optional current-page row selection, and optional bulk
-  actions. Table search, sort, pagination, and filter controls update the URL
-  with client-side router pushes that preserve scroll position so server-fed
-  table interactions feel local instead of page-jumping. Selection is enabled
-  only for tables that need row-level or bulk operations.
+  actions. Sortable headers use a shared icon-led sort button that shows
+  unsorted, ascending, and descending states. Table search, sort, pagination,
+  and filter controls update the URL with client-side router pushes that
+  preserve scroll position so server-fed table interactions feel local instead
+  of page-jumping. Selection is enabled only for tables that need row-level or
+  bulk operations, and the shared selection controller supports current-page
+  master selection plus controlled selection state for custom workflows.
   Server-side query helpers live in `src/lib/table/server-table.ts` and are
   used by agent templates/runs, marketplace products, orders, and provider
   product management.
@@ -566,8 +569,9 @@ Before creating a new helper or service file:
   manual mode with that tool selected. Tool access defaults to “AI decides from
   all agent-ready tools,” which resolves the catalog server-side instead of
   sending every tool slug to the browser. Manual mode uses a server-paginated,
-  searchable, sortable tool table so large catalogs do not load all APIs on the
-  page;
+  searchable, sortable tool table with the shared current-page master checkbox.
+  Manual mode selects one available tool by default when opened and blocks run
+  creation unless at least one tool remains selected;
   `/agents/[runId]` funds production runs through the agent budget vault,
   executes the ranked plan, shows planner mode/model, selected and skipped
   tools, planner rationale, budget ledger, receipt links, Markdown-rendered

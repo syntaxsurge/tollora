@@ -1,12 +1,11 @@
 'use client'
 
 import { useRouter as useSmoothRouter } from 'next/navigation'
-import type { FormEvent, ReactNode } from 'react'
+import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
 import {
   Boxes,
-  Check,
   ChevronLeft,
   ChevronRight,
   FileCheck2,
@@ -17,7 +16,8 @@ import {
 } from 'lucide-react'
 import { useRouter as useTopLoaderRouter } from 'nextjs-toploader/app'
 
-import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
+import { ServerDataTableSelection } from '@/components/data-display/server-data-table-selection'
+import { ServerDataTableSortButton } from '@/components/data-display/server-data-table-sort-button'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -86,6 +86,10 @@ export function AgentRunCreateForm({
     try {
       if (!ownerWallet) {
         throw new Error('Connect your wallet before creating an agent run.')
+      }
+
+      if (toolMode === 'manual' && selectedTools.length === 0) {
+        throw new Error('Select at least one tool for manual tool limits.')
       }
 
       const response = await fetch('/api/agents/runs', {
@@ -209,7 +213,19 @@ export function AgentRunCreateForm({
                 icon={Boxes}
                 title='Manually limit tools'
                 detail='Search, sort, and page through the catalog before selecting the exact tools this run may use.'
-                onClick={() => setToolMode('manual')}
+                onClick={() => {
+                  setToolMode('manual')
+                  setSelectedTools(current => {
+                    if (current.length > 0) {
+                      return current
+                    }
+
+                    const fallbackTool =
+                      initialAgentTool ?? (products[0]?.slug as AgentToolSlug)
+
+                    return fallbackTool ? [fallbackTool] : []
+                  })
+                }}
               />
             </div>
 
@@ -218,6 +234,7 @@ export function AgentRunCreateForm({
                 products={products}
                 selectedTools={selectedTools}
                 toggleTool={toggleTool}
+                setSelectedTools={setSelectedTools}
                 toolTable={toolTable}
                 toolSearch={toolSearch}
                 setToolSearch={setToolSearch}
@@ -425,6 +442,7 @@ function ManualToolTable({
   products,
   selectedTools,
   toggleTool,
+  setSelectedTools,
   toolTable,
   toolSearch,
   setToolSearch,
@@ -435,6 +453,7 @@ function ManualToolTable({
   products: ToolRow[]
   selectedTools: AgentToolSlug[]
   toggleTool: (tool: AgentToolSlug) => void
+  setSelectedTools: Dispatch<SetStateAction<AgentToolSlug[]>>
   toolTable: ToolTableState
   toolSearch: string
   setToolSearch: (value: string) => void
@@ -447,6 +466,9 @@ function ManualToolTable({
     dir?: ServerTableDirection
   }) => string
 }) {
+  const tableId = 'agent-manual-tools'
+  const currentPageIds = products.map(product => product.slug)
+
   return (
     <div className='border-border overflow-hidden rounded-lg border'>
       <div className='border-border bg-background/50 border-b p-4'>
@@ -471,12 +493,25 @@ function ManualToolTable({
             <Button type='button' variant='outline' onClick={searchTools}>
               Search
             </Button>
-            <Badge>{selectedTools.length} selected</Badge>
             <span className='text-muted-foreground text-sm'>
               {toolTable.totalRows.toLocaleString()} results
             </span>
           </div>
         </div>
+        <div className='mt-3'>
+          <ServerDataTableSelection
+            tableId={tableId}
+            selectedIds={selectedTools}
+            onSelectionChange={ids => setSelectedTools(ids as AgentToolSlug[])}
+            currentPageIds={currentPageIds}
+            selectedLabel='selected tools'
+          />
+        </div>
+        {selectedTools.length === 0 ? (
+          <p className='mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200'>
+            Select at least one tool before creating a manual agent run.
+          </p>
+        ) : null}
       </div>
 
       <div className='overflow-x-auto'>
@@ -496,7 +531,7 @@ function ManualToolTable({
                   key={sort}
                   className='px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase'
                 >
-                  <ServerDataTableNavButton
+                  <ServerDataTableSortButton
                     href={buildToolsHref({
                       page: 1,
                       sort,
@@ -505,10 +540,10 @@ function ManualToolTable({
                           ? 'asc'
                           : 'desc'
                     })}
-                    className='hover:text-foreground transition'
-                  >
-                    {label}
-                  </ServerDataTableNavButton>
+                    label={label}
+                    active={toolTable.sort === sort}
+                    dir={toolTable.dir}
+                  />
                 </th>
               ))}
             </tr>
@@ -520,22 +555,16 @@ function ManualToolTable({
               return (
                 <tr key={product.slug} className='hover:bg-muted/25 transition'>
                   <td className='px-4 py-4 align-top'>
-                    <button
-                      type='button'
-                      onClick={() => toggleTool(product.slug)}
-                      aria-pressed={checked}
+                    <input
+                      value={product.slug}
+                      data-table-id={tableId}
+                      data-row-checkbox
+                      type='checkbox'
+                      checked={checked}
+                      onChange={() => toggleTool(product.slug)}
                       aria-label={`Select ${product.name}`}
-                      className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-md border transition',
-                        checked
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border hover:border-primary/70'
-                      )}
-                    >
-                      {checked ? (
-                        <Check className='h-4 w-4' aria-hidden />
-                      ) : null}
-                    </button>
+                      className='border-border text-primary focus:ring-ring h-4 w-4 rounded'
+                    />
                   </td>
                   <td className='px-4 py-4 align-top'>
                     <p className='font-semibold'>{product.name}</p>
