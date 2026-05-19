@@ -626,8 +626,8 @@ function OrderStatusContent({
               'Payment settled, and Tollora is holding escrow while retrying the provider.'
           : providerFailed
             ? body.message ||
-                body.error ||
-                'Payment settled, but the provider request failed.'
+              body.error ||
+              'Payment settled, but the provider request failed.'
             : settlementTxHash
               ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
               : 'MUSD payment settled and provider response returned.'
@@ -699,7 +699,7 @@ function OrderStatusContent({
           ? 'Provider job completed. The API response is ready.'
           : body.order.resultReleaseStatus === 'provider_retrying'
             ? 'Provider returned a temporary error. Escrow is still reserved and Tollora will retry.'
-          : `Provider job is ${orderStatusLabels[body.order.status].toLowerCase()}.`
+            : `Provider job is ${orderStatusLabels[body.order.status].toLowerCase()}.`
       )
     } catch (caughtError) {
       setStatus(
@@ -878,9 +878,15 @@ function OrderStatusContent({
                     Running
                   </>
                 ) : order.status === 'payment_required' ? (
-                  'Run with wallet'
+                  <>
+                    <WalletCards className='h-4 w-4' aria-hidden />
+                    Run
+                  </>
                 ) : (
-                  'Payment complete'
+                  <>
+                    <BadgeCheck className='h-4 w-4' aria-hidden />
+                    Paid
+                  </>
                 )}
               </Button>
               <Button
@@ -888,7 +894,17 @@ function OrderStatusContent({
                 onClick={inspectPaymentRequirement}
                 disabled={order.status !== 'payment_required' || isInspecting}
               >
-                {isInspecting ? 'Checking quote' : 'Inspect quote'}
+                {isInspecting ? (
+                  <>
+                    <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                    Checking
+                  </>
+                ) : (
+                  <>
+                    <FileJson className='h-4 w-4' aria-hidden />
+                    Quote
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -1166,13 +1182,13 @@ function ProviderResponsePanel({
               ? 'Project handoff ready'
               : isProviderRetrying
                 ? 'Provider retrying'
-              : hasAsyncJob && order.status !== 'completed'
-              ? order.status === 'failed'
-                ? 'Provider failed'
-                : 'Async job accepted'
-              : hasResponse
-                ? 'Provider response received'
-                : 'No provider response yet'}
+                : hasAsyncJob && order.status !== 'completed'
+                  ? order.status === 'failed'
+                    ? 'Provider failed'
+                    : 'Async job accepted'
+                  : hasResponse
+                    ? 'Provider response received'
+                    : 'No provider response yet'}
           </h2>
         </div>
         {hasAsyncJob ? (
@@ -1422,7 +1438,9 @@ function OrderMetadataGrid({ order }: { order: MarketplaceOrder }) {
         ],
         [
           'Retry attempts',
-          order.providerRetry?.attempts ? String(order.providerRetry.attempts) : ''
+          order.providerRetry?.attempts
+            ? String(order.providerRetry.attempts)
+            : ''
         ],
         ['Refund amount', order.refundAmountMusd ?? ''],
         ['Created', new Date(order.createdAt).toLocaleString()],

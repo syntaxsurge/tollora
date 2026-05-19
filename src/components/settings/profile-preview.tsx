@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import {
   UserSettings,
   defaultUserSettings,
@@ -15,13 +16,25 @@ import {
 } from '@/lib/settings/user-settings'
 
 export function ProfilePreview() {
+  return (
+    <WalletAddressConsumer>
+      {wallet => <ProfilePreviewContent walletAddress={wallet.address} />}
+    </WalletAddressConsumer>
+  )
+}
+
+function ProfilePreviewContent({
+  walletAddress
+}: {
+  walletAddress: string | null
+}) {
   const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    setSettings(readUserSettings())
+    setSettings(readUserSettings(walletAddress))
     setIsReady(true)
-  }, [])
+  }, [walletAddress])
 
   if (!isReady) {
     return <div className='skeleton h-80 rounded-lg' />

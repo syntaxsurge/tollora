@@ -15,6 +15,7 @@ import {
 
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import { primaryNav } from '@/lib/config/navigation'
 import { siteConfig } from '@/lib/config/site'
 import {
@@ -120,13 +121,25 @@ export function SiteHeader() {
 }
 
 function ProfileMenu() {
+  return (
+    <WalletAddressConsumer>
+      {wallet => <ProfileMenuContent walletAddress={wallet.address} />}
+    </WalletAddressConsumer>
+  )
+}
+
+function ProfileMenuContent({
+  walletAddress
+}: {
+  walletAddress: string | null
+}) {
   const [settings, setSettings] = React.useState(defaultUserSettings)
 
   React.useEffect(() => {
-    setSettings(readUserSettings())
+    setSettings(readUserSettings(walletAddress))
 
     function syncSettings() {
-      setSettings(readUserSettings())
+      setSettings(readUserSettings(walletAddress))
     }
 
     window.addEventListener('storage', syncSettings)
@@ -136,7 +149,7 @@ function ProfileMenu() {
       window.removeEventListener('storage', syncSettings)
       window.removeEventListener('tollora:user-settings-updated', syncSettings)
     }
-  }, [])
+  }, [walletAddress])
 
   const displayName = userDisplayName(settings)
   const username = settings.username ? `@${settings.username}` : 'Set username'

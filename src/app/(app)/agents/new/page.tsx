@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { ArrowLeft } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -45,7 +47,8 @@ export default function NewAgentRunPage() {
         href='/agents'
         className={buttonClasses({ variant: 'outline', size: 'sm' })}
       >
-        Back to agents
+        <ArrowLeft className='h-4 w-4' aria-hidden />
+        Agents
       </Link>
     </div>
   )

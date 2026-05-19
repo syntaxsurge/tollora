@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { ArrowLeft } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { AgentRunClient } from '@/features/agents/agent-run-client'
@@ -32,6 +34,7 @@ export default async function AgentRunPage({ params }: AgentRunPageProps) {
             href='/agents'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
+            <ArrowLeft className='h-4 w-4' aria-hidden />
             Agents
           </Link>
         </div>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { Search, Sparkles } from 'lucide-react'
+import { RotateCcw, Search, Sparkles } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
@@ -50,35 +50,42 @@ export default async function MarketplacePage({
   })
 
   return (
-    <div className='space-y-8'>
-      <section className='bg-panel-sheen border-foreground/10 overflow-hidden rounded-lg border p-6'>
-        <div className='grid gap-6 lg:grid-cols-[1fr_340px] lg:items-end'>
-          <div className='space-y-4'>
+    <div className='space-y-6'>
+      <section className='border-foreground/10 bg-card/80 overflow-hidden rounded-lg border p-5 shadow-sm'>
+        <div className='flex flex-col justify-between gap-5 xl:flex-row xl:items-start'>
+          <div className='min-w-0 space-y-3'>
             <Badge>Marketplace</Badge>
-            <h1 className='font-display text-4xl'>Find paid APIs faster.</h1>
-            <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Browse wallet-ready tools for agents, data, media, and commerce.
-            </p>
+            <div className='space-y-2'>
+              <h1 className='font-display text-3xl leading-tight sm:text-4xl'>
+                Find paid APIs faster.
+              </h1>
+              <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
+                Search wallet-ready tools for agents, data, media, and commerce.
+              </p>
+            </div>
           </div>
-          <div className='grid gap-3 sm:grid-cols-3 lg:grid-cols-1'>
+          <div className='grid gap-3 sm:grid-cols-3 xl:w-[34rem]'>
             {[
-              ['Published APIs', metrics.productCount.toString()],
-              ['Recorded calls', metrics.totalCalls.toLocaleString()],
-              ['MUSD volume', metrics.totalRevenueMusd]
+              ['APIs', metrics.productCount.toString()],
+              ['Calls', metrics.totalCalls.toLocaleString()],
+              ['MUSD', metrics.totalRevenueMusd]
             ].map(([label, value]) => (
-              <div key={label} className='bg-background/80 rounded-lg p-4'>
-                <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-                <p className='mt-1 text-xl font-semibold'>{value}</p>
+              <div
+                key={label}
+                className='border-border bg-background/70 rounded-lg border p-4'
+              >
+                <p className='text-foreground/60 text-xs font-semibold uppercase'>
+                  {label}
+                </p>
+                <p className='mt-1 text-2xl font-semibold'>{value}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
 
-      <section className='space-y-3'>
         <form
           action='/marketplace'
-          className='grid gap-3 lg:grid-cols-[1fr_auto]'
+          className='mt-5 grid gap-3 lg:grid-cols-[1fr_auto]'
           role='search'
         >
           <label className='border-foreground/10 bg-card focus-within:ring-ring/35 flex min-h-12 items-center gap-3 rounded-lg border px-4 transition focus-within:ring-2'>
@@ -151,6 +158,7 @@ export default async function MarketplacePage({
               Clear the search or choose another category.
             </p>
             <Link href='/marketplace' className={buttonClasses({ size: 'sm' })}>
+              <RotateCcw className='h-4 w-4' aria-hidden />
               Reset filters
             </Link>
           </Card>
@@ -159,37 +167,6 @@ export default async function MarketplacePage({
           <ProductCard key={product.slug} product={product} />
         ))}
       </section>
-
-      <Card className='grid gap-4 md:grid-cols-3'>
-        {[
-          {
-            label: 'Payment asset',
-            value: 'MUSD',
-            detail: 'Prices are denominated in Bitcoin-backed MUSD.'
-          },
-          {
-            label: 'Network',
-            value: 'Mezo Testnet',
-            detail: 'Gateway payments settle against eip155:31611.'
-          },
-          {
-            label: 'Agent access',
-            value: 'Launch Pack',
-            detail:
-              'Autonomous agents can select tools, pay, retry, and publish proofs.'
-          }
-        ].map(item => (
-          <div key={item.label}>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              {item.label}
-            </p>
-            <p className='mt-2 text-xl font-semibold'>{item.value}</p>
-            <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              {item.detail}
-            </p>
-          </div>
-        ))}
-      </Card>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from 'react'
 
-import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { AlertTriangle, Play, RotateCcw } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
 import { JsonViewer } from '@/components/data-display/json-viewer'
@@ -203,9 +203,7 @@ function OrderCreateFormFields({
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Test request
             </p>
-            <h2 className='text-2xl font-semibold'>
-              Build a payable API call
-            </h2>
+            <h2 className='text-2xl font-semibold'>Build a payable API call</h2>
             <p className='text-foreground/65 mt-2 max-w-2xl text-sm leading-6'>
               Fill the fields generated from this listing schema. Tollora
               creates a payable order first; the wallet payment happens on the
@@ -213,7 +211,11 @@ function OrderCreateFormFields({
             </p>
           </div>
           <div className={cn(!compact && 'px-6 pt-6')}>
-            <Button type='button' variant='outline' onClick={resetSamplePayload}>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={resetSamplePayload}
+            >
               <RotateCcw className='h-4 w-4' aria-hidden />
               Use sample payload
             </Button>
@@ -221,68 +223,69 @@ function OrderCreateFormFields({
         </div>
 
         <div className={cn('space-y-6', !compact && 'p-6')}>
-        <label className='space-y-2'>
-          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Buyer wallet <span className='text-red-500'>*</span>
-          </span>
-          <Input
-            name='buyerWallet'
-            value={buyerWallet}
-            onChange={event => setBuyerWallet(event.target.value)}
-            placeholder='Connect a wallet or paste the buyer wallet address'
-            required
-            pattern='^0x[a-fA-F0-9]{40}$'
-          />
-          <span className='text-foreground/60 block text-xs leading-5'>
-            This wallet owns the request and signs the x402 payment on the next
-            page.
-          </span>
-        </label>
-
-        {hasStructuredFields ? (
-          <div className='grid gap-4 lg:grid-cols-2'>
-            {fieldEntries.map(([fieldName, fieldType]) => (
-              <RequestSchemaField
-                key={fieldName}
-                name={fieldName}
-                typeLabel={fieldType}
-                value={fieldValues[fieldName] ?? ''}
-                onChange={value => updateField(fieldName, value)}
-              />
-            ))}
-          </div>
-        ) : (
           <label className='space-y-2'>
             <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Request JSON <span className='text-red-500'>*</span>
+              Buyer wallet <span className='text-red-500'>*</span>
             </span>
-            <textarea
-              value={rawPayloadJson}
-              onChange={event => setRawPayloadJson(event.target.value)}
-              className='border-border bg-card text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-64 w-full rounded-lg border px-4 py-3 font-mono text-xs leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+            <Input
+              name='buyerWallet'
+              value={buyerWallet}
+              onChange={event => setBuyerWallet(event.target.value)}
+              placeholder='Connect a wallet or paste the buyer wallet address'
               required
+              pattern='^0x[a-fA-F0-9]{40}$'
             />
+            <span className='text-foreground/60 block text-xs leading-5'>
+              This wallet owns the request and signs the x402 payment on the
+              next page.
+            </span>
           </label>
-        )}
 
-        <JsonViewer
-          title='JSON request preview'
-          value={requestPayloadJson}
-          defaultOpen={false}
-          maxHeightClassName='max-h-80'
-          copyLabel='Copy request JSON'
-        />
+          {hasStructuredFields ? (
+            <div className='grid gap-4 lg:grid-cols-2'>
+              {fieldEntries.map(([fieldName, fieldType]) => (
+                <RequestSchemaField
+                  key={fieldName}
+                  name={fieldName}
+                  typeLabel={fieldType}
+                  value={fieldValues[fieldName] ?? ''}
+                  onChange={value => updateField(fieldName, value)}
+                />
+              ))}
+            </div>
+          ) : (
+            <label className='space-y-2'>
+              <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Request JSON <span className='text-red-500'>*</span>
+              </span>
+              <textarea
+                value={rawPayloadJson}
+                onChange={event => setRawPayloadJson(event.target.value)}
+                className='border-border bg-card text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-64 w-full rounded-lg border px-4 py-3 font-mono text-xs leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+                required
+              />
+            </label>
+          )}
+
+          <JsonViewer
+            title='JSON request preview'
+            value={requestPayloadJson}
+            defaultOpen={false}
+            maxHeightClassName='max-h-80'
+            copyLabel='Copy request JSON'
+          />
         </div>
       </Card>
 
-      <div className='flex flex-col gap-3 rounded-xl border border-border/80 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between'>
+      <div className='border-border/80 bg-card/60 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between'>
         <Button type='submit' disabled={isSubmitting}>
-          {isSubmitting ? 'Preparing request' : 'Create payable test run'}
+          <Play className='h-4 w-4' aria-hidden />
+          {isSubmitting ? 'Preparing' : 'Test run'}
         </Button>
         <div className='min-w-0 flex-1'>
           {error ? (
             <p
-              className='text-sm font-semibold text-red-600 break-words dark:text-red-300'
+              className='text-sm font-semibold break-words text-red-600 dark:text-red-300'
               role='alert'
             >
               Request failed. Review the summary below.
@@ -290,7 +293,7 @@ function OrderCreateFormFields({
           ) : null}
           {success ? (
             <p
-              className='text-sm font-semibold text-emerald-600 break-words'
+              className='text-sm font-semibold break-words text-emerald-600'
               role='status'
             >
               {success}
@@ -335,7 +338,7 @@ function RequestFailurePanel({
           <h3 className='text-xl font-semibold break-words'>
             Pricing request was rejected
           </h3>
-          <p className='text-foreground/75 max-h-40 overflow-auto text-sm leading-6 break-words whitespace-pre-wrap [overflow-wrap:anywhere]'>
+          <p className='text-foreground/75 max-h-40 overflow-auto text-sm leading-6 [overflow-wrap:anywhere] break-words whitespace-pre-wrap'>
             {providerMessage}
           </p>
         </div>

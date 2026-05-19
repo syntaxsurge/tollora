@@ -25,8 +25,8 @@ function AccountSummaryContent({ address }: { address: string | null }) {
   const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
 
   useEffect(() => {
-    setSettings(readUserSettings())
-  }, [])
+    setSettings(readUserSettings(address))
+  }, [address])
 
   return (
     <Card className='space-y-5'>

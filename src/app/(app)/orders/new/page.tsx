@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { ArrowLeft } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -88,13 +90,8 @@ export default async function NewOrderPage({
           href={`/marketplace/${product.slug}`}
           className={buttonClasses({ variant: 'outline', size: 'sm' })}
         >
-          Back to API
-        </Link>
-        <Link
-          href='/developers/docs'
-          className={buttonClasses({ variant: 'primary', size: 'sm' })}
-        >
-          Review x402 flow
+          <ArrowLeft className='h-4 w-4' aria-hidden />
+          API
         </Link>
       </div>
     </div>

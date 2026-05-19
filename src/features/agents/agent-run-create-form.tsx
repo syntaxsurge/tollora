@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 
+import { Bot, Sparkles } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
 import { Button } from '@/components/ui/button'
@@ -195,6 +196,7 @@ export function AgentRunCreateForm({
           disabled={agentReadyProducts.length === 0}
           onClick={() => letAgentChoose(3)}
         >
+          <Sparkles className='h-4 w-4' aria-hidden />
           Let agent choose tools
         </Button>
         <fieldset className='flex flex-wrap gap-3'>
@@ -223,7 +225,8 @@ export function AgentRunCreateForm({
           type='submit'
           disabled={isSubmitting || selectedTools.length === 0}
         >
-          {isSubmitting ? 'Preparing agent' : 'Start launch-pack agent'}
+          <Bot className='h-4 w-4' aria-hidden />
+          {isSubmitting ? 'Preparing' : 'Start agent'}
         </Button>
         {error ? (
           <p className='text-sm text-red-600' role='alert'>

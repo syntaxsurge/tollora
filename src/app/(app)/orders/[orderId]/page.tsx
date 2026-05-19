@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { ArrowLeft } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { OrderStatusClient } from '@/features/marketplace/order-status-client'
@@ -34,7 +36,8 @@ export default async function OrderDetailPage({
             href='/orders'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
-            Back to orders
+            <ArrowLeft className='h-4 w-4' aria-hidden />
+            Orders
           </Link>
         </div>
       </section>

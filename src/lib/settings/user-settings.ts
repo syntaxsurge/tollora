@@ -22,6 +22,14 @@ export type UserSettings = {
 
 const userSettingsStorageKey = 'tollora:user-settings'
 
+function settingsStorageKey(walletAddress?: string | null) {
+  if (!walletAddress) {
+    return `${userSettingsStorageKey}:anonymous`
+  }
+
+  return `${userSettingsStorageKey}:${walletAddress.toLowerCase()}`
+}
+
 export const defaultUserSettings: UserSettings = {
   fullName: '',
   username: '',
@@ -38,12 +46,14 @@ export const defaultUserSettings: UserSettings = {
   publicProfile: true
 }
 
-export function readUserSettings(): UserSettings {
+export function readUserSettings(walletAddress?: string | null): UserSettings {
   if (typeof window === 'undefined') {
     return defaultUserSettings
   }
 
-  const rawSettings = window.localStorage.getItem(userSettingsStorageKey)
+  const rawSettings = window.localStorage.getItem(
+    settingsStorageKey(walletAddress)
+  )
 
   if (!rawSettings) {
     return defaultUserSettings
@@ -57,16 +67,19 @@ export function readUserSettings(): UserSettings {
   }
 }
 
-export function writeUserSettings(settings: UserSettings) {
+export function writeUserSettings(
+  settings: UserSettings,
+  walletAddress?: string | null
+) {
   window.localStorage.setItem(
-    userSettingsStorageKey,
+    settingsStorageKey(walletAddress),
     JSON.stringify(normalizeUserSettings(settings))
   )
   window.dispatchEvent(new Event('tollora:user-settings-updated'))
 }
 
-export function clearUserSettings() {
-  window.localStorage.removeItem(userSettingsStorageKey)
+export function clearUserSettings(walletAddress?: string | null) {
+  window.localStorage.removeItem(settingsStorageKey(walletAddress))
   window.dispatchEvent(new Event('tollora:user-settings-updated'))
 }
 

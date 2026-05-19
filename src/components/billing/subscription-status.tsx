@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Power, RefreshCw, RotateCcw } from 'lucide-react'
 import {
   createPublicClient,
   encodeFunctionData,
@@ -75,8 +75,8 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
     subscriptionPlans[0]
 
   useEffect(() => {
-    setSettings(readUserSettings())
-  }, [])
+    setSettings(readUserSettings(address))
+  }, [address])
 
   useEffect(() => {
     if (
@@ -189,7 +189,7 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
   function updateSelectedPlan(plan: UserSettings['plan']) {
     const nextSettings = { ...settings, plan }
     setSettings(nextSettings)
-    writeUserSettings(nextSettings)
+    writeUserSettings(nextSettings, address)
   }
 
   const paidUntilDate =
@@ -302,6 +302,7 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
             )
           }
         >
+          <RefreshCw className='h-4 w-4' aria-hidden />
           Renew
         </Button>
         <Button
@@ -318,6 +319,7 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
             )
           }
         >
+          <Power className='h-4 w-4' aria-hidden />
           {subscription?.autoRenew ? 'Disable renewal' : 'Enable renewal'}
         </Button>
         <Button
@@ -333,6 +335,7 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
             )
           }
         >
+          <RotateCcw className='h-4 w-4' aria-hidden />
           Cancel
         </Button>
       </div>

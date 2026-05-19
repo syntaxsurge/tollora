@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import { Check, CreditCard } from 'lucide-react'
 import { encodeFunctionData, isAddress, numberToHex } from 'viem'
 
 import { useWalletRuntimeReady } from '@/components/providers/wallet-provider'
@@ -63,8 +64,13 @@ function SubscriptionCheckoutButton({
   }
 
   async function selectFreePlan() {
-    const settings = readUserSettings()
-    writeUserSettings({ ...settings, plan: 'free' })
+    if (!address || !isAddress(address)) {
+      setStatus('Connect a wallet first.')
+      return
+    }
+
+    const settings = readUserSettings(address)
+    writeUserSettings({ ...settings, plan: 'free' }, address)
     setStatus('Free plan selected.')
   }
 
@@ -122,8 +128,8 @@ function SubscriptionCheckoutButton({
         ]
       })
 
-      const settings = readUserSettings()
-      writeUserSettings({ ...settings, plan: plan.key })
+      const settings = readUserSettings(address)
+      writeUserSettings({ ...settings, plan: plan.key }, address)
       setStatus(`Transaction submitted: ${String(txHash)}`)
     } catch (error) {
       setStatus(
@@ -139,9 +145,14 @@ function SubscriptionCheckoutButton({
       <Button
         type='button'
         className='w-full text-center whitespace-normal sm:whitespace-nowrap'
-        disabled={isPending || (plan.key !== 'free' && !address)}
+        disabled={isPending || !address}
         onClick={plan.key === 'free' ? selectFreePlan : paySubscription}
       >
+        {plan.key === 'free' ? (
+          <Check className='h-4 w-4' aria-hidden />
+        ) : (
+          <CreditCard className='h-4 w-4' aria-hidden />
+        )}
         {isPending
           ? 'Confirming...'
           : plan.key === 'free'

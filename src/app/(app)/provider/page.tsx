@@ -155,7 +155,7 @@ export default function ProviderPage() {
         </Card>
       </section>
 
-      <section className='grid gap-5 xl:grid-cols-[0.9fr_1.1fr]'>
+      <section>
         <Card className='space-y-5'>
           <div>
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -191,24 +191,6 @@ export default function ProviderPage() {
               </div>
             )}
           </div>
-        </Card>
-
-        <Card className='space-y-5'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Gateway readiness
-            </p>
-            <h2 className='font-display mt-2 text-2xl'>Production narrative</h2>
-            <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Check the gateway setup before sending buyers to a listing.
-            </p>
-          </div>
-          <Link
-            href='/developers/docs'
-            className={buttonClasses({ variant: 'outline', size: 'sm' })}
-          >
-            Open gateway docs
-          </Link>
         </Card>
       </section>
     </div>

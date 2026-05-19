@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { ExternalLink, Plus, Settings } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -29,6 +31,7 @@ export default function ProviderProductsPage() {
             href='/provider/products/new'
             className={buttonClasses({ size: 'sm' })}
           >
+            <Plus className='h-4 w-4' aria-hidden />
             Create product
           </Link>
         </div>
@@ -45,6 +48,7 @@ export default function ProviderProductsPage() {
               href='/provider/products/new'
               className={buttonClasses({ size: 'sm' })}
             >
+              <Plus className='h-4 w-4' aria-hidden />
               Create product
             </Link>
           </Card>
@@ -76,12 +80,14 @@ export default function ProviderProductsPage() {
                 href={`/provider/products/${product.slug}`}
                 className={buttonClasses({ size: 'sm' })}
               >
+                <Settings className='h-4 w-4' aria-hidden />
                 Manage
               </Link>
               <Link
                 href={`/marketplace/${product.slug}`}
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
+                <ExternalLink className='h-4 w-4' aria-hidden />
                 Listing
               </Link>
               <DeleteProductButton

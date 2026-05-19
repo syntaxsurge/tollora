@@ -2,9 +2,12 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 
+import { RotateCcw, Save } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import {
   DashboardDensity,
   DashboardLanding,
@@ -24,14 +27,26 @@ const timezones = [
 ]
 
 export function UserSettingsForm() {
+  return (
+    <WalletAddressConsumer>
+      {wallet => <UserSettingsFormFields walletAddress={wallet.address} />}
+    </WalletAddressConsumer>
+  )
+}
+
+function UserSettingsFormFields({
+  walletAddress
+}: {
+  walletAddress: string | null
+}) {
   const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
   const [isReady, setIsReady] = useState(false)
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    setSettings(readUserSettings())
+    setSettings(readUserSettings(walletAddress))
     setIsReady(true)
-  }, [])
+  }, [walletAddress])
 
   function updateField<Field extends keyof UserSettings>(
     field: Field,
@@ -43,17 +58,17 @@ export function UserSettingsForm() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    writeUserSettings(settings)
+    writeUserSettings(settings, walletAddress)
     setStatus('Settings saved on this device.')
   }
 
   function handleReset() {
     const nextSettings = {
       ...defaultUserSettings,
-      plan: readUserSettings().plan
+      plan: readUserSettings(walletAddress).plan
     }
 
-    writeUserSettings(nextSettings)
+    writeUserSettings(nextSettings, walletAddress)
     setSettings(nextSettings)
     setStatus('Settings reset to Tollora defaults.')
   }
@@ -208,8 +223,12 @@ export function UserSettingsForm() {
       </Card>
 
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-        <Button type='submit'>Save settings</Button>
+        <Button type='submit'>
+          <Save className='h-4 w-4' aria-hidden />
+          Save
+        </Button>
         <Button type='button' variant='outline' onClick={handleReset}>
+          <RotateCcw className='h-4 w-4' aria-hidden />
           Reset
         </Button>
         {status ? (

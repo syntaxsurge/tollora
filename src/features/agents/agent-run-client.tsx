@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
+import { ExternalLink, FileCheck2, Play } from 'lucide-react'
+
 import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -161,7 +163,8 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
             onClick={executeRun}
             disabled={isRunning || !['planned', 'failed'].includes(run.status)}
           >
-            {isRunning ? 'Running agent' : 'Run paid actions'}
+            <Play className='h-4 w-4' aria-hidden />
+            {isRunning ? 'Running' : 'Run actions'}
           </Button>
           <Button
             variant='outline'
@@ -170,14 +173,16 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
               isAttesting || !['completed', 'attesting'].includes(run.status)
             }
           >
-            {isAttesting ? 'Writing proof' : 'Attest proof on Mezo'}
+            <FileCheck2 className='h-4 w-4' aria-hidden />
+            {isAttesting ? 'Writing proof' : 'Attest'}
           </Button>
           {run.proof ? (
             <Link
               href={`/proofs/${run.proof.id}`}
               className={buttonClasses({ variant: 'primary', size: 'sm' })}
             >
-              Open public proof
+              <ExternalLink className='h-4 w-4' aria-hidden />
+              Proof
             </Link>
           ) : null}
           {status ? (

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
-import { CreditCard, WalletCards } from 'lucide-react'
+import { CreditCard, Settings, WalletCards } from 'lucide-react'
 
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -42,8 +42,8 @@ function BillingOverviewContent({
   const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
 
   useEffect(() => {
-    setSettings(readUserSettings())
-  }, [])
+    setSettings(readUserSettings(address))
+  }, [address])
 
   const plan =
     subscriptionPlans.find(item => item.key === settings.plan) ??
@@ -109,7 +109,8 @@ function BillingOverviewContent({
               'w-full text-center whitespace-normal sm:whitespace-nowrap'
           })}
         >
-          Manage billing contact
+          <Settings className='h-4 w-4' aria-hidden />
+          Billing contact
         </Link>
       </Card>
 

@@ -672,9 +672,10 @@ Before creating a new helper or service file:
 - Wallet-auth redirects add an auth reason to the home page, which displays a
   dismissible notice through `src/components/feedback/auth-required-toast.tsx`.
 - Browser-local account preferences are managed in
-  `src/lib/settings/user-settings.ts` and surfaced through settings and profile
-  components. Profile settings exclude subscription tier controls; plan changes
-  are initiated from pricing and billing subscription flows.
+  `src/lib/settings/user-settings.ts` using wallet-scoped local storage keys,
+  and surfaced through the header account menu, settings, profile, dashboard,
+  and billing components. Profile settings exclude subscription tier controls;
+  plan changes are initiated from pricing and billing subscription flows.
 - Server-readable admin user records and table controls live in
   `src/lib/admin/admin-users.ts`.
 - Pricing subscription checkout, billing renewal/cancellation controls, user

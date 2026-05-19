@@ -6,7 +6,8 @@ import {
   CircleAlert,
   ExternalLink,
   PauseCircle,
-  Rocket
+  Rocket,
+  BarChart3
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -196,15 +197,8 @@ export default async function ProviderProductPage({
               href='/provider/usage'
               className={buttonClasses({ variant: 'outline', size: 'sm' })}
             >
-              View usage
-            </Link>
-            <Link
-              href='/developers/docs#provider-product-fields'
-              target='_blank'
-              rel='noreferrer'
-              className={buttonClasses({ variant: 'outline', size: 'sm' })}
-            >
-              Field guide
+              <BarChart3 className='h-4 w-4' aria-hidden />
+              Usage
             </Link>
           </div>
         </Card>

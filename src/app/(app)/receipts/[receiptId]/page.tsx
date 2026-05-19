@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { ArrowLeft } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -33,6 +35,7 @@ export default async function ReceiptDetailPage({
             href='/orders'
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
+            <ArrowLeft className='h-4 w-4' aria-hidden />
             Orders
           </Link>
         </div>
