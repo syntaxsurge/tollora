@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     priceUsd: payload.priceUsd,
     priceLabel:
       payload.pricingModel === 'credit_metered'
-        ? `Usage based from ${payload.pricingCreditUnitPath}`
+        ? 'Metered quote'
         : formatMusdAmount(payload.priceUsd),
     pricing: {
       model: payload.pricingModel,
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     productId: `product_${payload.slug}`,
     slug: payload.slug,
     status: payload.status,
-    priceLabel: formatMusdAmount(payload.priceUsd)
+    priceLabel: product.priceLabel
   })
 }
 

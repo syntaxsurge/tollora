@@ -389,7 +389,9 @@ export function getPublishedProducts() {
 }
 
 export function getAllProducts() {
-  return [...providerCreatedProducts, ...marketplaceProducts]
+  return [...providerCreatedProducts, ...marketplaceProducts].map(
+    withDisplayPriceLabel
+  )
 }
 
 export function getFeaturedProduct() {
@@ -500,9 +502,24 @@ function readProviderProducts() {
       return []
     }
 
-    return parsed.filter(isApiProduct)
+    return parsed.filter(isApiProduct).map(withDisplayPriceLabel)
   } catch {
     return []
+  }
+}
+
+function withDisplayPriceLabel(product: ApiProduct): ApiProduct {
+  if (product.pricing.model !== 'credit_metered') {
+    return product
+  }
+
+  if (product.priceLabel === 'Metered quote') {
+    return product
+  }
+
+  return {
+    ...product,
+    priceLabel: 'Metered quote'
   }
 }
 
