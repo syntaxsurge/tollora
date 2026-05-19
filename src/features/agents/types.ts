@@ -91,7 +91,7 @@ export type AgentProof = {
 
 export type AgentRun = {
   id: string
-  template: 'launch-pack'
+  template: string
   title: string
   objective: string
   sourceText?: string
@@ -145,6 +145,7 @@ export type AgentRun = {
 }
 
 export type CreateAgentRunInput = {
+  template?: string
   objective: string
   sourceText?: string
   ownerWallet: string

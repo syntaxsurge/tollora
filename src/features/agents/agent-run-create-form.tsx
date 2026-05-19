@@ -18,12 +18,17 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import type { AgentTemplate } from '@/features/agents/templates'
 import type { AgentRun, AgentToolSlug } from '@/features/agents/types'
 import type { ApiProduct } from '@/features/marketplace/products'
 
 export function AgentRunCreateForm({
-  products
+  products,
+  template,
+  initialTool
 }: {
+  template?: AgentTemplate
+  initialTool?: string
   products: Pick<
     ApiProduct,
     | 'slug'
@@ -38,7 +43,17 @@ export function AgentRunCreateForm({
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const agentReadyProducts = products.filter(product => product.isAgentReady)
-  const [selectedTools, setSelectedTools] = useState<AgentToolSlug[]>([])
+  const initialAgentTool = agentReadyProducts.some(
+    product => product.slug === initialTool
+  )
+    ? (initialTool as AgentToolSlug)
+    : undefined
+  const [selectedTools, setSelectedTools] = useState<AgentToolSlug[]>(
+    initialAgentTool ? [initialAgentTool] : []
+  )
+  const [toolMode, setToolMode] = useState<'ai' | 'manual'>(
+    initialAgentTool ? 'manual' : 'ai'
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -57,12 +72,16 @@ export function AgentRunCreateForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          template: template?.id,
           objective: formData.get('objective'),
           sourceText: formData.get('sourceText') || undefined,
           ownerWallet,
           budgetCapMusd: formData.get('budgetCapMusd'),
           maxPaidActions: formData.get('maxPaidActions'),
-          allowedTools: selectedTools,
+          allowedTools:
+            toolMode === 'ai'
+              ? agentReadyProducts.map(product => product.slug)
+              : selectedTools,
           mode: 'production'
         })
       })
@@ -97,6 +116,7 @@ export function AgentRunCreateForm({
   }
 
   function allowAgentToChoose() {
+    setToolMode('ai')
     setSelectedTools(agentReadyProducts.map(product => product.slug))
   }
 
@@ -120,7 +140,8 @@ export function AgentRunCreateForm({
                 </span>
                 <textarea
                   name='objective'
-                  defaultValue='Create a launch pack for my MUSD-native paid API product.'
+                  defaultValue={template?.objective}
+                  placeholder='Tell the agent what business outcome to produce.'
                   className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-28 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
                   required
                 />
@@ -131,7 +152,8 @@ export function AgentRunCreateForm({
                 </span>
                 <textarea
                   name='sourceText'
-                  defaultValue='The product sells premium API responses to AI agents and records MUSD receipts on Mezo.'
+                  defaultValue={template?.sourceText}
+                  placeholder='Paste product notes, audience, API behavior, constraints, or launch context.'
                   className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-24 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
                 />
               </label>
@@ -151,61 +173,134 @@ export function AgentRunCreateForm({
                     onClick={allowAgentToChoose}
                   >
                     <Sparkles className='h-4 w-4' aria-hidden />
-                    Select all
+                    AI decides
                   </Button>
                 }
               />
               <div className='grid gap-3 md:grid-cols-2'>
-                {agentReadyProducts.length === 0 ? (
-                  <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4 md:col-span-2'>
-                    <p className='font-semibold'>No agent-ready APIs yet</p>
-                    <p className='text-foreground/65 mt-1 text-sm leading-6'>
-                      Publish a provider product with agent access enabled
-                      first.
-                    </p>
-                  </div>
-                ) : null}
-                {agentReadyProducts.map(product => {
-                  const checked = selectedTools.includes(product.slug)
+                <label
+                  className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
+                    toolMode === 'ai'
+                      ? 'bg-primary/10 ring-primary/30 ring-1'
+                      : 'bg-card'
+                  }`}
+                >
+                  <input
+                    type='radio'
+                    name='toolMode'
+                    checked={toolMode === 'ai'}
+                    onChange={() => setToolMode('ai')}
+                    className='sr-only'
+                  />
+                  <span className='bg-primary/10 text-primary rounded-lg p-2'>
+                    <Sparkles className='h-4 w-4' aria-hidden />
+                  </span>
+                  <span>
+                    <span className='block font-semibold'>
+                      Let AI decide from all agent-ready tools
+                    </span>
+                    <span className='text-foreground/60 mt-1 block text-sm leading-6'>
+                      Best for demos and large marketplaces. OpenAI sees the
+                      catalog and only buys relevant tools inside budget.
+                    </span>
+                  </span>
+                </label>
+                <label
+                  className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
+                    toolMode === 'manual'
+                      ? 'bg-primary/10 ring-primary/30 ring-1'
+                      : 'bg-card'
+                  }`}
+                >
+                  <input
+                    type='radio'
+                    name='toolMode'
+                    checked={toolMode === 'manual'}
+                    onChange={() => setToolMode('manual')}
+                    className='sr-only'
+                  />
+                  <span className='bg-muted text-foreground rounded-lg p-2'>
+                    <Boxes className='h-4 w-4' aria-hidden />
+                  </span>
+                  <span>
+                    <span className='block font-semibold'>
+                      Manually limit the tool set
+                    </span>
+                    <span className='text-foreground/60 mt-1 block text-sm leading-6'>
+                      Use this when a buyer wants strict control over which paid
+                      APIs can be called.
+                    </span>
+                  </span>
+                </label>
+              </div>
 
-                  return (
-                    <label
-                      key={product.slug}
-                      className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
-                        checked
-                          ? 'bg-primary/10 ring-primary/30 ring-1'
-                          : 'bg-card'
-                      }`}
-                    >
-                      <input
-                        type='checkbox'
-                        checked={checked}
-                        onChange={() => toggleTool(product.slug)}
-                        className='sr-only'
-                      />
-                      <span
-                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
+              {toolMode === 'manual' ? (
+                <div className='grid gap-3 md:grid-cols-2'>
+                  {agentReadyProducts.length === 0 ? (
+                    <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4 md:col-span-2'>
+                      <p className='font-semibold'>No agent-ready APIs yet</p>
+                      <p className='text-foreground/65 mt-1 text-sm leading-6'>
+                        Publish a provider product with agent access enabled
+                        first.
+                      </p>
+                    </div>
+                  ) : null}
+                  {agentReadyProducts.map(product => {
+                    const checked = selectedTools.includes(product.slug)
+
+                    return (
+                      <label
+                        key={product.slug}
+                        className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
                           checked
-                            ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-foreground/20'
+                            ? 'bg-primary/10 ring-primary/30 ring-1'
+                            : 'bg-card'
                         }`}
                       >
-                        {checked ? (
-                          <Check className='h-4 w-4' aria-hidden />
-                        ) : null}
-                      </span>
-                      <span className='min-w-0'>
-                        <span className='block truncate font-semibold'>
-                          {product.name}
+                        <input
+                          type='checkbox'
+                          checked={checked}
+                          onChange={() => toggleTool(product.slug)}
+                          className='sr-only'
+                        />
+                        <span
+                          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
+                            checked
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-foreground/20'
+                          }`}
+                        >
+                          {checked ? (
+                            <Check className='h-4 w-4' aria-hidden />
+                          ) : null}
                         </span>
-                        <span className='text-foreground/60 mt-1 block text-sm'>
-                          {product.priceLabel} - {product.providerName}
+                        <span className='min-w-0'>
+                          <span className='block truncate font-semibold'>
+                            {product.name}
+                          </span>
+                          <span className='text-foreground/60 mt-1 block text-sm'>
+                            {product.priceLabel} - {product.providerName}
+                          </span>
                         </span>
-                      </span>
-                    </label>
-                  )
-                })}
-              </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4'>
+                  <div className='flex items-center justify-between gap-3'>
+                    <p className='font-semibold'>
+                      {agentReadyProducts.length} tools available to OpenAI
+                    </p>
+                    <Badge>Auto</Badge>
+                  </div>
+                  <p className='text-foreground/60 mt-2 text-sm leading-6'>
+                    The planner still quotes each tool, skips irrelevant or
+                    over-budget calls, and records receipts only for paid
+                    actions it actually executes.
+                  </p>
+                </div>
+              )}
             </Card>
           </div>
 
@@ -250,7 +345,9 @@ export function AgentRunCreateForm({
                       type='number'
                       step='0.01'
                       min='0.08'
-                      defaultValue='0.90'
+                      defaultValue={(
+                        template?.recommendedBudgetMusd ?? 0.9
+                      ).toFixed(2)}
                       required
                     />
                   </label>
@@ -263,7 +360,7 @@ export function AgentRunCreateForm({
                       type='number'
                       min='1'
                       max='4'
-                      defaultValue='4'
+                      defaultValue={template?.maxPaidActions ?? 4}
                       required
                     />
                   </label>
@@ -280,11 +377,17 @@ export function AgentRunCreateForm({
               <div className='border-foreground/10 bg-muted/30 rounded-lg border p-3'>
                 <div className='flex items-center justify-between gap-3'>
                   <span className='text-sm font-semibold'>Allowed tools</span>
-                  <Badge>{selectedTools.length}</Badge>
+                  <Badge>
+                    {toolMode === 'ai'
+                      ? `${agentReadyProducts.length} available`
+                      : selectedTools.length}
+                  </Badge>
                 </div>
                 <p className='text-foreground/60 mt-2 text-sm leading-6'>
-                  OpenAI chooses from this set. Tollora still quotes, pays, and
-                  records receipts.
+                  {toolMode === 'ai'
+                    ? 'OpenAI chooses relevant tools from the agent-ready catalog.'
+                    : 'OpenAI chooses only from the manually selected tools.'}{' '}
+                  Tollora still quotes, pays, and records receipts.
                 </p>
               </div>
               <Button
@@ -292,7 +395,8 @@ export function AgentRunCreateForm({
                 className='w-full'
                 disabled={
                   isSubmitting ||
-                  selectedTools.length === 0 ||
+                  (toolMode === 'manual' && selectedTools.length === 0) ||
+                  (toolMode === 'ai' && agentReadyProducts.length === 0) ||
                   !isConnected ||
                   !address
                 }

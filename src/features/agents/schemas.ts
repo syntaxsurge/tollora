@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const createAgentRunSchema = z.object({
+  template: z.string().trim().min(2).optional(),
   objective: z.string().min(12),
   sourceText: z.string().optional(),
   ownerWallet: z

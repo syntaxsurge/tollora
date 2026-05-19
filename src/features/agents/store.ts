@@ -5,6 +5,7 @@ import {
   hashAgentRunProof
 } from '@/features/agents/proof'
 import { executeAgentRunActions } from '@/features/agents/runner'
+import { getAgentTemplate } from '@/features/agents/templates'
 import type {
   AgentLedgerEvent,
   AgentProof,
@@ -65,10 +66,11 @@ export function createAgentRun(input: CreateAgentRunInput) {
   const now = new Date().toISOString()
   const runId = `run_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
   const vaultAddress = getAgentRunVaultAddress() ?? undefined
+  const template = getAgentTemplate(input.template)
   const run: AgentRun = {
     id: runId,
-    template: 'launch-pack',
-    title: 'Launch Pack Agent',
+    template: template?.id ?? input.template ?? 'custom',
+    title: template?.title ?? 'Custom Agent Run',
     objective: input.objective,
     sourceText: input.sourceText,
     ownerWallet: input.ownerWallet,

@@ -12,9 +12,22 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { AgentRunCreateForm } from '@/features/agents/agent-run-create-form'
+import { getAgentTemplate } from '@/features/agents/templates'
 import { getPublishedProducts } from '@/features/marketplace/products'
 
-export default function NewAgentRunPage() {
+type NewAgentRunPageProps = {
+  searchParams?: Promise<{
+    template?: string
+    tool?: string
+  }>
+}
+
+export default async function NewAgentRunPage({
+  searchParams
+}: NewAgentRunPageProps) {
+  const params = await searchParams
+  const template = getAgentTemplate(params?.template)
+  const initialTool = params?.tool
   const products = getPublishedProducts().map(product => ({
     slug: product.slug,
     name: product.name,
@@ -40,11 +53,14 @@ export default function NewAgentRunPage() {
             </Badge>
             <div className='space-y-3'>
               <h1 className='font-display text-3xl text-balance sm:text-4xl'>
-                Create an autonomous paid run.
+                {template
+                  ? `Create ${template.title}`
+                  : 'Create an autonomous paid run.'}
               </h1>
               <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-                Give the agent a goal, budget, and allowed tools. OpenAI plans;
-                Tollora pays and proves.
+                {template
+                  ? template.summary
+                  : 'Start blank or choose a template from the agents page. OpenAI plans; Tollora pays and proves.'}
               </p>
             </div>
           </div>
@@ -62,7 +78,11 @@ export default function NewAgentRunPage() {
           </div>
         </div>
       </section>
-      <AgentRunCreateForm products={products} />
+      <AgentRunCreateForm
+        products={products}
+        template={template}
+        initialTool={initialTool}
+      />
       <Link
         href='/agents'
         className={buttonClasses({ variant: 'outline', size: 'sm' })}

@@ -404,6 +404,9 @@ Before creating a new helper or service file:
 - `DELETE /api/providers/self/products/[slug]` — deletes a provider-created API
   product from the local provider catalog and removes it from provider
   management and marketplace discovery.
+- `POST /api/providers/self/products/bulk-delete` — deletes selected
+  provider-created API products from the local provider catalog; platform-owned
+  products are ignored by the product store.
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
@@ -421,13 +424,16 @@ Before creating a new helper or service file:
   reservation on provider failure, settles lower final usage back to the credit
   balance, and records a receipt linked to the top-up transaction.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
-  autonomous Launch Pack Agent runs with objective, source context, owner
-  wallet, budget cap, max paid actions, and allowed marketplace tools.
+  autonomous agent runs with optional template ID, objective, source context,
+  owner wallet, budget cap, max paid actions, and allowed marketplace tools.
 - `GET /api/agents/runs/[runId]` — returns agent run status, paid actions,
   deliverables, receipts, and proof state.
 - `DELETE /api/agents/runs/[runId]` — stops future execution for an autonomous
   agent run, removes it from the workspace run list, and attempts to cancel and
   refund unused vault budget when applicable.
+- `POST /api/agents/runs/bulk-delete` — deletes selected agent runs from the
+  current server-side run store and attempts the same stop/refund behavior as
+  single-run deletion for each selected row.
 - `POST /api/agents/runs/[runId]/funding/prepare` — prepares a production
   agent run vault funding payload with run ID, MUSD token, vault address,
   budget amount, authorized agent signer, and expiry.
@@ -485,6 +491,12 @@ Before creating a new helper or service file:
   with default copy support, collapsible diagnostics, and nested JSON string
   normalization for provider responses, request previews, agent deliverables,
   and public proof payloads.
+- Shared server-fed table rendering lives in
+  `src/components/data-display/server-data-table.tsx` with URL-driven search,
+  sorting, pagination, current-page row selection, and optional bulk actions.
+  Server-side query helpers live in `src/lib/table/server-table.ts` and are
+  used by agent templates/runs, marketplace products, orders, and provider
+  product management.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, public navigation, theme controls,
   and an avatar account menu. The account menu shows wallet-scoped profile
@@ -508,10 +520,13 @@ Before creating a new helper or service file:
   Provider-created listings are persisted to the workspace-local
   `.tollora/provider-products.json` catalog so draft, paused, and published
   products remain manageable across local server restarts.
-- Autonomous Launch Pack Agent models, OpenAI planning and synthesis,
-  deterministic fallback planning, run storage, funded budget ledgers, paid
-  action execution, proof hashing, status labels, and UI clients live in
-  `src/features/agents`. Agent runs require the owner to fund the
+- Autonomous agent templates, OpenAI planning and synthesis, deterministic
+  fallback planning, run storage, funded budget ledgers, paid action execution,
+  proof hashing, status labels, and UI clients live in `src/features/agents`.
+  Template definitions live in `src/features/agents/templates.ts` and include
+  reusable objectives, context, budgets, action limits, tool strategy, and
+  deliverables for launch, research, documentation, readiness, and creative
+  workflows. Agent runs require the owner to fund the
   `AgentRunVault` with MUSD before the configured agent signer can execute x402
   paid actions. Before an agent spends, the runner verifies the production
   agent signer's MUSD balance, submits the required Permit2 approval when the
@@ -530,13 +545,16 @@ Before creating a new helper or service file:
   model or fallback label, rationale, skipped tools, selected tools, funding
   ledger, and synthesis metadata in run deliverables, action cards, and proof
   payloads.
-- `/agents` lists agent templates, recent runs, spend, completed proofs, and
-  failed work, with deletion controls that stop future execution and remove
-  unwanted runs; `/agents/new` configures objective, source context, owner
-  wallet from the connected wallet session, budget cap, max paid actions, and
-  allowed paid tools with all marketplace tools deselected until the user
-  selects them or allows the agent to consider all published agent-ready
-  listings;
+- `/agents` is a tabbed command center with separate server-fed tables for
+  agent templates and recent runs, including search, sorting, pagination,
+  current-page row selection, and bulk deletion for selected runs.
+  `/agents/new` configures objective, source context, owner wallet from the
+  connected wallet session, budget cap, max paid actions, and allowed paid
+  tools. Blank runs start with empty objective/context fields; template links
+  prefill those fields from the selected template; marketplace tool links open
+  manual mode with that tool selected. Tool access defaults to “AI decides from
+  all agent-ready tools,” with an optional manual mode that limits OpenAI to
+  explicitly selected tools;
   `/agents/[runId]` funds production runs through the agent budget vault,
   executes the ranked plan, shows planner mode/model, selected and skipped
   tools, planner rationale, budget ledger, receipt links, Markdown-rendered
@@ -555,9 +573,10 @@ Before creating a new helper or service file:
   external prepaid metadata with order, receipt, buyer, requested billing mode,
   and settlement references so provider APIs can report estimated, charged, and
   refunded usage without importing Tollora settlement logic.
-- `/marketplace` lists published provider-created MUSD-paid API products with
-  category filters, price badges, provider names, x402 protection badges,
-  agent-ready badges, and entry points for autonomous agent runs.
+- `/marketplace` lists published provider-created MUSD-paid API products in the
+  shared server-fed table with category filters, price badges, provider names,
+  execution/result delivery context, agent-ready badges, and entry points for
+  run-with-wallet, detail, and autonomous agent runs.
 - `/marketplace/[slug]` displays product detail, request schema, response
   schema, copyable reference payload, full endpoint URL, raw 402 inspection
   curl, standalone x402 buyer integration code, execution mode, settlement
@@ -578,9 +597,10 @@ Before creating a new helper or service file:
 - `/provider` shows provider revenue, API call volume, success rate, top
   product, recent request activity, product listing health, production
   narrative, and the 95% provider / 5% platform fee split.
-- `/provider/products` lists provider API products with status context, price,
-  call volume, gateway path, listing links, deletion controls, and next-step
-  management actions for drafts, paused listings, and live products.
+- `/provider/products` lists provider API products in the shared server-fed
+  table with status context, price, call volume, gateway path, listing links,
+  bulk deletion for provider-created rows, and next-step management actions for
+  drafts, paused listings, and live products.
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
@@ -605,8 +625,10 @@ Before creating a new helper or service file:
   request/response schema details.
 - `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
   request IDs, and status labels.
-- `/orders` and `/orders/[orderId]` show buyer request lifecycle state using
-  shared order status labels and descriptions from
+- `/orders` uses the shared server-fed table for buyer request search, sorting,
+  pagination, status, amount, and order-opening actions. `/orders/[orderId]`
+  shows buyer request lifecycle state using shared order status labels and
+  descriptions from
   `src/features/marketplace/status.ts`; order detail pages sign x402 MUSD
   payments with the connected browser wallet, check and submit the required Mezo
   MUSD Permit2 allowance transaction when needed, verify MUSD balance before

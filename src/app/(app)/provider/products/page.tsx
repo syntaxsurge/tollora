@@ -2,19 +2,66 @@ import Link from 'next/link'
 
 import { ExternalLink, Plus, Settings } from 'lucide-react'
 
+import {
+  ServerDataTable,
+  type ServerDataTableColumn
+} from '@/components/data-display/server-data-table'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { DeleteProductButton } from '@/features/marketplace/delete-product-button'
 import {
+  type ApiProduct,
   type ApiProductStatus,
-  getAllProducts
+  getAllProducts,
+  providerCreatedProducts
 } from '@/features/marketplace/products'
 import { productStatusLabels } from '@/features/marketplace/status'
+import {
+  queryServerRows,
+  resolveServerTableState
+} from '@/lib/table/server-table'
 import { cn } from '@/lib/utils/cn'
 
-export default function ProviderProductsPage() {
+type ProviderProductsPageProps = {
+  searchParams?: Promise<{
+    q?: string
+    sort?: string
+    dir?: string
+    page?: string
+    pageSize?: string
+  }>
+}
+
+export default async function ProviderProductsPage({
+  searchParams
+}: ProviderProductsPageProps) {
+  const params = await searchParams
   const products = getAllProducts()
+  const state = resolveServerTableState(params, {
+    defaultSort: 'updated',
+    defaultPageSize: 10
+  })
+  const table = queryServerRows(products, state, {
+    searchText: product =>
+      [
+        product.name,
+        product.providerName,
+        product.endpointPath,
+        product.status,
+        product.priceLabel,
+        product.category
+      ].join(' '),
+    sortValues: {
+      name: product => product.name,
+      provider: product => product.providerName,
+      status: product => product.status,
+      price: product => product.priceUsd,
+      calls: product => product.calls,
+      updated: product => product.slug
+    }
+  })
+  const providerCreatedSlugs = new Set(
+    providerCreatedProducts.map(product => product.slug)
+  )
 
   return (
     <div className='space-y-8'>
@@ -24,7 +71,8 @@ export default function ProviderProductsPage() {
           <div className='max-w-3xl space-y-3'>
             <h1 className='font-display text-4xl'>API product management</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Publish, pause, test, and inspect provider listings.
+              Publish, pause, test, inspect, and bulk-manage provider-created
+              listings from one paginated table.
             </p>
           </div>
           <Link
@@ -37,78 +85,101 @@ export default function ProviderProductsPage() {
         </div>
       </section>
 
-      <section className='grid gap-4'>
-        {products.length === 0 ? (
-          <Card className='space-y-3'>
-            <h2 className='text-xl font-semibold'>No API products yet</h2>
-            <p className='text-foreground/65 text-sm leading-6'>
-              Create a listing to expose an external API through Tollora.
-            </p>
-            <Link
-              href='/provider/products/new'
-              className={buttonClasses({ size: 'sm' })}
-            >
-              <Plus className='h-4 w-4' aria-hidden />
-              Create product
-            </Link>
-          </Card>
-        ) : null}
-        {products.map(product => (
-          <Card
-            key={product.slug}
-            className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_180px_180px_220px]'
-          >
-            <div>
-              <div className='flex flex-wrap items-center gap-3'>
-                <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                  {product.providerName}
-                </p>
-                <StatusPill status={product.status} />
-              </div>
-              <h2 className='mt-3 text-xl font-semibold'>{product.name}</h2>
-              <p className='text-foreground/65 mt-2 font-mono text-sm break-words'>
-                {product.endpointPath}
-              </p>
-              <p className='text-foreground/65 mt-3 text-sm leading-6'>
-                {getProductNextStep(product.status)}
-              </p>
-            </div>
-            <Metric label='Price' value={product.priceLabel} />
-            <Metric label='Calls' value={product.calls.toString()} />
-            <div className='flex flex-col gap-2'>
-              <Link
-                href={`/provider/products/${product.slug}`}
-                className={buttonClasses({ size: 'sm' })}
-              >
-                <Settings className='h-4 w-4' aria-hidden />
-                Manage
-              </Link>
-              <Link
-                href={`/marketplace/${product.slug}`}
-                className={buttonClasses({ variant: 'outline', size: 'sm' })}
-              >
-                <ExternalLink className='h-4 w-4' aria-hidden />
-                Listing
-              </Link>
-              <DeleteProductButton
-                productSlug={product.slug}
-                productName={product.name}
-              />
-            </div>
-          </Card>
-        ))}
-      </section>
+      <ServerDataTable
+        id='provider-products'
+        rows={table.rows}
+        columns={productColumns(providerCreatedSlugs)}
+        getRowId={product => product.slug}
+        basePath='/provider/products'
+        query={state.q}
+        sort={state.sort}
+        dir={state.dir}
+        page={table.page}
+        pageSize={table.pageSize}
+        totalRows={table.totalRows}
+        totalPages={table.totalPages}
+        searchPlaceholder='Search listings, providers, endpoints, statuses, or categories'
+        emptyTitle='No API products yet'
+        emptyDescription='Create a listing to expose an external API through Tollora.'
+        bulkActions={[
+          {
+            label: 'Delete selected',
+            endpoint: '/api/providers/self/products/bulk-delete',
+            confirmMessage:
+              'Delete selected provider-created products? Platform-owned public data products are ignored.'
+          }
+        ]}
+      />
     </div>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-      <p className='mt-2 font-semibold'>{value}</p>
-    </div>
-  )
+function productColumns(
+  providerCreatedSlugs: Set<string>
+): ServerDataTableColumn<ApiProduct>[] {
+  return [
+    {
+      key: 'product',
+      label: 'Product',
+      sortKey: 'name',
+      render: product => (
+        <div>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Link
+              href={`/provider/products/${product.slug}`}
+              className='font-semibold hover:underline'
+            >
+              {product.name}
+            </Link>
+            <StatusPill status={product.status} />
+            {!providerCreatedSlugs.has(product.slug) ? (
+              <Badge>Platform</Badge>
+            ) : null}
+          </div>
+          <p className='text-muted-foreground mt-2 font-mono text-xs break-all'>
+            {product.endpointPath}
+          </p>
+          <p className='text-muted-foreground mt-2 text-sm leading-6'>
+            {getProductNextStep(product.status)}
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'price',
+      label: 'Price',
+      sortKey: 'price',
+      render: product => <p className='font-semibold'>{product.priceLabel}</p>
+    },
+    {
+      key: 'calls',
+      label: 'Calls',
+      sortKey: 'calls',
+      render: product => <p className='font-semibold'>{product.calls}</p>
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: product => (
+        <div className='flex flex-wrap gap-2'>
+          <Link
+            href={`/provider/products/${product.slug}`}
+            className={buttonClasses({ size: 'sm' })}
+          >
+            <Settings className='h-4 w-4' aria-hidden />
+            Manage
+          </Link>
+          <Link
+            href={`/marketplace/${product.slug}`}
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+          >
+            <ExternalLink className='h-4 w-4' aria-hidden />
+            Listing
+          </Link>
+        </div>
+      )
+    }
+  ]
 }
 
 function StatusPill({ status }: { status: ApiProductStatus }) {

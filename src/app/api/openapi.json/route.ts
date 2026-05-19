@@ -268,6 +268,24 @@ export function GET() {
           }
         }
       },
+      '/api/providers/self/products/bulk-delete': {
+        post: {
+          tags: ['Providers'],
+          summary: 'Delete selected provider-created API products',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/BulkIdsRequest' }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Bulk delete result' },
+            '400': { description: 'No product IDs selected' }
+          }
+        }
+      },
       '/api/receipts/{receiptId}': {
         get: {
           tags: ['Receipts'],
@@ -377,6 +395,24 @@ export function GET() {
               }
             },
             '404': { description: 'Agent run not found' }
+          }
+        }
+      },
+      '/api/agents/runs/bulk-delete': {
+        post: {
+          tags: ['Agents'],
+          summary: 'Stop and delete selected autonomous agent runs',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/BulkIdsRequest' }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Bulk delete result' },
+            '400': { description: 'No run IDs selected' }
           }
         }
       },
@@ -687,6 +723,7 @@ export function GET() {
             'allowedTools'
           ],
           properties: {
+            template: { type: 'string' },
             objective: { type: 'string' },
             sourceText: { type: 'string' },
             ownerWallet: {
@@ -702,6 +739,16 @@ export function GET() {
               items: {
                 type: 'string'
               }
+            }
+          }
+        },
+        BulkIdsRequest: {
+          type: 'object',
+          required: ['ids'],
+          properties: {
+            ids: {
+              type: 'array',
+              items: { type: 'string' }
             }
           }
         },

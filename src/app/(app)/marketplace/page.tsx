@@ -1,57 +1,76 @@
 import Link from 'next/link'
 
-import { RotateCcw, Search, Sparkles } from 'lucide-react'
+import { Bot, ExternalLink, Play, Sparkles } from 'lucide-react'
 
+import {
+  ServerDataTable,
+  type ServerDataTableColumn
+} from '@/components/data-display/server-data-table'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { ProductCard } from '@/features/marketplace/product-card'
 import {
+  type ApiProduct,
   getMarketplaceMetrics,
   getPublishedProducts
 } from '@/features/marketplace/products'
+import {
+  queryServerRows,
+  resolveServerTableState
+} from '@/lib/table/server-table'
 import { cn } from '@/lib/utils/cn'
 
 type MarketplacePageProps = {
   searchParams?: Promise<{
     category?: string
     q?: string
+    sort?: string
+    dir?: string
+    page?: string
+    pageSize?: string
   }>
 }
 
 export default async function MarketplacePage({
   searchParams
 }: MarketplacePageProps) {
+  const params = await searchParams
   const products = getPublishedProducts()
   const metrics = getMarketplaceMetrics()
   const categories = Array.from(
     new Set(products.map(product => product.category))
   )
-  const params = await searchParams
-  const query = params?.q?.trim() ?? ''
   const category = params?.category?.trim() ?? ''
-  const normalizedQuery = query.toLowerCase()
-  const visibleProducts = products.filter(product => {
-    const matchesCategory = !category || product.category === category
-    const matchesQuery =
-      !normalizedQuery ||
+  const state = resolveServerTableState(params, {
+    defaultSort: 'name',
+    defaultDir: 'asc',
+    defaultPageSize: 10
+  })
+  const filteredProducts = category
+    ? products.filter(product => product.category === category)
+    : products
+  const table = queryServerRows(filteredProducts, state, {
+    searchText: product =>
       [
         product.name,
         product.providerName,
         product.description,
         product.category,
-        product.priceLabel
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedQuery)
-
-    return matchesCategory && matchesQuery
+        product.priceLabel,
+        product.executionMode,
+        product.resultDelivery
+      ].join(' '),
+    sortValues: {
+      name: product => product.name,
+      provider: product => product.providerName,
+      category: product => product.category,
+      price: product => product.priceUsd,
+      calls: product => product.calls
+    }
   })
 
   return (
     <div className='space-y-6'>
-      <section className='border-foreground/10 bg-card/80 overflow-hidden rounded-lg border p-5 shadow-sm'>
+      <section className='border-foreground/10 bg-card/90 overflow-hidden rounded-lg border p-5 shadow-sm'>
         <div className='flex flex-col justify-between gap-5 xl:flex-row xl:items-start'>
           <div className='min-w-0 space-y-3'>
             <Badge>Marketplace</Badge>
@@ -61,6 +80,7 @@ export default async function MarketplacePage({
               </h1>
               <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
                 Search wallet-ready tools for agents, data, media, and commerce.
+                Results are filtered and paginated before the page is rendered.
               </p>
             </div>
           </div>
@@ -82,91 +102,147 @@ export default async function MarketplacePage({
             ))}
           </div>
         </div>
-
-        <form
-          action='/marketplace'
-          className='mt-5 grid gap-3 lg:grid-cols-[1fr_auto]'
-          role='search'
-        >
-          <label className='border-foreground/10 bg-card focus-within:ring-ring/35 flex min-h-12 items-center gap-3 rounded-lg border px-4 transition focus-within:ring-2'>
-            <Search aria-hidden className='text-foreground/50 h-4 w-4' />
-            <span className='sr-only'>Search APIs</span>
-            <input
-              name='q'
-              defaultValue={query}
-              className='placeholder:text-foreground/45 h-11 flex-1 bg-transparent text-sm outline-none'
-              placeholder='Search APIs, providers, categories'
-            />
-          </label>
-          {category ? (
-            <input type='hidden' name='category' value={category} />
-          ) : null}
-          <button
-            type='submit'
-            className={buttonClasses({
-              variant: 'primary',
-              size: 'md',
-              className: 'min-w-32'
-            })}
-          >
-            <Search className='h-4 w-4' aria-hidden />
-            Search
-          </button>
-        </form>
-        <div className='flex flex-wrap gap-2'>
-          <Link
-            href={
-              query
-                ? `/marketplace?q=${encodeURIComponent(query)}`
-                : '/marketplace'
-            }
-            className={cn(
-              'border-border bg-card hover:border-brand-cyan/60 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition',
-              !category && 'border-primary bg-primary text-primary-foreground'
-            )}
-          >
+        <div className='mt-5 flex flex-wrap gap-2'>
+          <CategoryLink active={!category} href='/marketplace'>
             <Sparkles className='h-4 w-4' aria-hidden />
             All
-          </Link>
-          {categories.map(categoryName => {
-            const href = `/marketplace?category=${encodeURIComponent(categoryName)}${
-              query ? `&q=${encodeURIComponent(query)}` : ''
-            }`
-
-            return (
-              <Link
-                key={categoryName}
-                href={href}
-                className={cn(
-                  'border-border bg-card hover:border-brand-cyan/60 inline-flex items-center rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition',
-                  category === categoryName &&
-                    'border-primary bg-primary text-primary-foreground'
-                )}
-              >
-                {categoryName}
-              </Link>
-            )
-          })}
+          </CategoryLink>
+          {categories.map(categoryName => (
+            <CategoryLink
+              key={categoryName}
+              active={category === categoryName}
+              href={`/marketplace?category=${encodeURIComponent(categoryName)}`}
+            >
+              {categoryName}
+            </CategoryLink>
+          ))}
         </div>
       </section>
 
-      <section className='grid gap-5 xl:grid-cols-2'>
-        {visibleProducts.length === 0 ? (
-          <Card className='space-y-3 xl:col-span-2'>
-            <h2 className='text-xl font-semibold'>No APIs match this view</h2>
-            <p className='text-foreground/65 max-w-2xl text-sm leading-6'>
-              Clear the search or choose another category.
-            </p>
-            <Link href='/marketplace' className={buttonClasses({ size: 'sm' })}>
-              <RotateCcw className='h-4 w-4' aria-hidden />
-              Reset filters
-            </Link>
-          </Card>
-        ) : null}
-        {visibleProducts.map(product => (
-          <ProductCard key={product.slug} product={product} />
-        ))}
-      </section>
+      <ServerDataTable
+        id='marketplace-products'
+        rows={table.rows}
+        columns={productColumns}
+        getRowId={product => product.slug}
+        basePath='/marketplace'
+        preserveParams={{ category }}
+        query={state.q}
+        sort={state.sort}
+        dir={state.dir}
+        page={table.page}
+        pageSize={table.pageSize}
+        totalRows={table.totalRows}
+        totalPages={table.totalPages}
+        searchPlaceholder='Search APIs, providers, categories, or delivery modes'
+        emptyTitle='No APIs match this view'
+        emptyDescription='Clear the search or choose another category.'
+      />
     </div>
+  )
+}
+
+const productColumns: ServerDataTableColumn<ApiProduct>[] = [
+  {
+    key: 'product',
+    label: 'Product',
+    sortKey: 'name',
+    render: product => (
+      <div>
+        <div className='flex flex-wrap items-center gap-2'>
+          <Link
+            href={`/marketplace/${product.slug}`}
+            className='font-semibold hover:underline'
+          >
+            {product.name}
+          </Link>
+          {product.isAgentReady ? <Badge>Agent-ready</Badge> : null}
+        </div>
+        <p className='text-muted-foreground mt-1 line-clamp-2 max-w-2xl text-sm leading-6'>
+          {product.description}
+        </p>
+      </div>
+    )
+  },
+  {
+    key: 'provider',
+    label: 'Provider',
+    sortKey: 'provider',
+    render: product => (
+      <div>
+        <p className='font-semibold'>{product.providerName}</p>
+        <p className='text-muted-foreground mt-1 text-xs capitalize'>
+          {product.category}
+        </p>
+      </div>
+    )
+  },
+  {
+    key: 'price',
+    label: 'Price',
+    sortKey: 'price',
+    render: product => <p className='font-semibold'>{product.priceLabel}</p>
+  },
+  {
+    key: 'mode',
+    label: 'Mode',
+    render: product => (
+      <div className='text-sm'>
+        <p className='font-semibold capitalize'>{product.executionMode}</p>
+        <p className='text-muted-foreground mt-1 capitalize'>
+          {product.resultDelivery.replaceAll('_', ' ')}
+        </p>
+      </div>
+    )
+  },
+  {
+    key: 'actions',
+    label: 'Actions',
+    render: product => (
+      <div className='flex flex-wrap gap-2'>
+        <Link
+          href={`/orders/new?product=${product.slug}`}
+          className={buttonClasses({ size: 'sm' })}
+        >
+          <Play className='h-4 w-4' aria-hidden />
+          Run
+        </Link>
+        <Link
+          href={`/agents/new?tool=${product.slug}`}
+          className={buttonClasses({ variant: 'outline', size: 'sm' })}
+        >
+          <Bot className='h-4 w-4' aria-hidden />
+          Agent
+        </Link>
+        <Link
+          href={`/marketplace/${product.slug}`}
+          className={buttonClasses({ variant: 'outline', size: 'sm' })}
+        >
+          <ExternalLink className='h-4 w-4' aria-hidden />
+          Details
+        </Link>
+      </div>
+    )
+  }
+]
+
+function CategoryLink({
+  href,
+  active,
+  children
+}: {
+  href: string
+  active: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'border-border bg-card hover:border-brand-cyan/60 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition',
+        active && 'border-primary bg-primary text-primary-foreground'
+      )}
+    >
+      {children}
+    </Link>
   )
 }

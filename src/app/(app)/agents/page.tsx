@@ -2,52 +2,118 @@ import Link from 'next/link'
 
 import {
   Activity,
-  Bot,
   CheckCircle2,
   CircleDollarSign,
   FileCheck2,
   Plus,
-  ShieldCheck,
   Sparkles
 } from 'lucide-react'
 
+import {
+  ServerDataTable,
+  type ServerDataTableColumn
+} from '@/components/data-display/server-data-table'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { AgentRunList } from '@/features/agents/agent-run-list'
+import { agentRunStatusLabels } from '@/features/agents/status'
 import { getAgentMetrics, listAgentRuns } from '@/features/agents/store'
+import { type AgentTemplate, agentTemplates } from '@/features/agents/templates'
+import type { AgentRun } from '@/features/agents/types'
+import {
+  queryServerRows,
+  resolveServerTableState
+} from '@/lib/table/server-table'
+import { cn } from '@/lib/utils/cn'
 
-export default function AgentsPage() {
-  const runs = listAgentRuns()
+type AgentsPageProps = {
+  searchParams?: Promise<{
+    tab?: string
+    q?: string
+    sort?: string
+    dir?: string
+    page?: string
+    pageSize?: string
+  }>
+}
+
+export default async function AgentsPage({ searchParams }: AgentsPageProps) {
+  const params = await searchParams
+  const tab = params?.tab === 'runs' ? 'runs' : 'templates'
   const metrics = getAgentMetrics()
+  const state = resolveServerTableState(params, {
+    defaultSort: tab === 'runs' ? 'updatedAt' : 'title',
+    defaultPageSize: 8
+  })
+  const templates = queryServerRows(agentTemplates, state, {
+    searchText: template =>
+      [
+        template.title,
+        template.category,
+        template.summary,
+        template.toolStrategy,
+        template.deliverables.join(' ')
+      ].join(' '),
+    sortValues: {
+      title: template => template.title,
+      category: template => template.category,
+      budget: template => template.recommendedBudgetMusd,
+      actions: template => template.maxPaidActions
+    }
+  })
+  const runs = queryServerRows(listAgentRuns(), state, {
+    searchText: run =>
+      [
+        run.title,
+        run.status,
+        run.ownerWallet,
+        run.objective,
+        run.fundedAmountMusd,
+        run.availableAmountMusd
+      ].join(' '),
+    sortValues: {
+      title: run => run.title,
+      status: run => run.status,
+      budget: run => run.budgetCapMusd,
+      updatedAt: run => new Date(run.updatedAt)
+    }
+  })
 
   return (
     <div className='space-y-6'>
-      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-5 sm:p-6'>
-        <div className='grid gap-6 xl:grid-cols-[1fr_420px] xl:items-center'>
+      <section className='border-foreground/10 bg-card/90 overflow-hidden rounded-lg border p-5 shadow-sm sm:p-6'>
+        <div className='grid gap-6 xl:grid-cols-[1fr_520px] xl:items-center'>
           <div className='max-w-3xl space-y-5'>
             <Badge className='w-fit'>
               <Sparkles className='h-3.5 w-3.5' aria-hidden />
-              OpenAI agent runs
+              OpenAI agent command center
             </Badge>
             <div className='space-y-3'>
-              <h1 className='font-display text-3xl text-balance sm:text-4xl'>
-                Plan, pay, execute, prove.
+              <h1 className='font-display text-3xl text-balance sm:text-5xl'>
+                Autonomous paid runs, funded and proved.
               </h1>
               <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-                The agent chooses tools, spends MUSD through x402, captures
-                receipts, and prepares a public Mezo proof.
+                Start from a template or blank run. The agent plans with OpenAI,
+                spends through x402, records receipts, and publishes a Mezo
+                proof.
               </p>
             </div>
-            <Link
-              href='/agents/new'
-              className={buttonClasses({ variant: 'primary', size: 'md' })}
-            >
-              <Plus className='h-4 w-4' aria-hidden />
-              Create run
-            </Link>
+            <div className='flex flex-wrap gap-3'>
+              <Link
+                href='/agents/new'
+                className={buttonClasses({ size: 'md' })}
+              >
+                <Plus className='h-4 w-4' aria-hidden />
+                Blank run
+              </Link>
+              <Link
+                href='/agents?tab=templates'
+                className={buttonClasses({ variant: 'outline', size: 'md' })}
+              >
+                Browse templates
+              </Link>
+            </div>
           </div>
-          <div className='grid grid-cols-2 gap-3'>
+          <div className='grid gap-3 sm:grid-cols-2'>
             <MetricTile
               icon={Activity}
               label='Runs'
@@ -72,64 +138,212 @@ export default function AgentsPage() {
         </div>
       </section>
 
-      <section className='grid gap-5 xl:grid-cols-[380px_1fr]'>
-        <Card className='space-y-5'>
-          <div className='flex items-start gap-3'>
-            <div className='bg-primary/10 text-primary rounded-lg p-2'>
-              <Bot className='h-5 w-5' aria-hidden />
-            </div>
-            <div>
-              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                Template
-              </p>
-              <h2 className='font-display mt-1 text-2xl'>Launch Pack Agent</h2>
-            </div>
-          </div>
-          <div className='grid gap-3'>
-            {[
-              ['OpenAI plans', 'Selects only useful tools'],
-              ['x402 pays', 'Settles each paid action'],
-              ['Mezo proves', 'Publishes auditable proof']
-            ].map(([title, detail]) => (
-              <div
-                key={title}
-                className='border-foreground/10 bg-muted/30 rounded-lg border p-3'
-              >
-                <p className='text-sm font-semibold'>{title}</p>
-                <p className='text-foreground/60 mt-1 text-sm'>{detail}</p>
-              </div>
-            ))}
-          </div>
+      <nav
+        className='border-border bg-card/90 flex flex-wrap gap-2 rounded-lg border p-2'
+        aria-label='Agent page sections'
+      >
+        {[
+          ['templates', 'Templates'],
+          ['runs', 'Recent runs']
+        ].map(([value, label]) => (
           <Link
-            href='/agents/new'
-            className={buttonClasses({
-              variant: 'outline',
-              size: 'md',
-              className: 'w-full'
-            })}
+            key={value}
+            href={`/agents?tab=${value}`}
+            className={cn(
+              'rounded-md px-4 py-2 text-sm font-semibold transition',
+              tab === value
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}
           >
-            Configure
+            {label}
           </Link>
-        </Card>
-        <Card className='space-y-4'>
-          <div className='flex flex-col justify-between gap-3 sm:flex-row sm:items-center'>
-            <div>
-              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                Recent runs
-              </p>
-              <h2 className='font-display mt-1 text-2xl'>Activity</h2>
-            </div>
-            <Badge>
-              <ShieldCheck className='h-3.5 w-3.5' aria-hidden />
-              Proof-ready
-            </Badge>
-          </div>
-          <AgentRunList runs={runs} />
-        </Card>
-      </section>
+        ))}
+      </nav>
+
+      {tab === 'templates' ? (
+        <ServerDataTable
+          id='agent-templates'
+          rows={templates.rows}
+          columns={templateColumns}
+          getRowId={template => template.id}
+          basePath='/agents'
+          preserveParams={{ tab: 'templates' }}
+          query={state.q}
+          sort={state.sort}
+          dir={state.dir}
+          page={templates.page}
+          pageSize={templates.pageSize}
+          totalRows={templates.totalRows}
+          totalPages={templates.totalPages}
+          searchPlaceholder='Search templates, deliverables, or strategies'
+          emptyTitle='No templates match this search'
+          emptyDescription='Clear the search or create a blank run.'
+        />
+      ) : (
+        <ServerDataTable
+          id='agent-runs'
+          rows={runs.rows}
+          columns={runColumns}
+          getRowId={run => run.id}
+          basePath='/agents'
+          preserveParams={{ tab: 'runs' }}
+          query={state.q}
+          sort={state.sort}
+          dir={state.dir}
+          page={runs.page}
+          pageSize={runs.pageSize}
+          totalRows={runs.totalRows}
+          totalPages={runs.totalPages}
+          searchPlaceholder='Search runs, wallets, objectives, or statuses'
+          emptyTitle='No agent runs yet'
+          emptyDescription='Create a run, fund the vault, and let OpenAI choose paid tools.'
+          bulkActions={[
+            {
+              label: 'Delete selected',
+              endpoint: '/api/agents/runs/bulk-delete',
+              confirmMessage:
+                'Delete the selected agent runs? Running jobs will be stopped and unused budget refund will be attempted when applicable.'
+            }
+          ]}
+        />
+      )}
     </div>
   )
 }
+
+const templateColumns: ServerDataTableColumn<AgentTemplate>[] = [
+  {
+    key: 'template',
+    label: 'Template',
+    sortKey: 'title',
+    render: template => {
+      const Icon = template.icon
+
+      return (
+        <div className='flex min-w-0 gap-3'>
+          <span className='bg-primary/10 text-primary h-10 w-10 shrink-0 rounded-lg p-2'>
+            <Icon className='h-5 w-5' aria-hidden />
+          </span>
+          <div className='min-w-0'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <p className='font-semibold'>{template.title}</p>
+              <Badge>{template.category}</Badge>
+            </div>
+            <p className='text-muted-foreground mt-1 max-w-2xl text-sm leading-6'>
+              {template.summary}
+            </p>
+          </div>
+        </div>
+      )
+    }
+  },
+  {
+    key: 'deliverables',
+    label: 'Deliverables',
+    render: template => (
+      <div className='flex flex-wrap gap-2'>
+        {template.deliverables.map(deliverable => (
+          <span
+            key={deliverable}
+            className='border-border bg-muted/40 rounded-full border px-2.5 py-1 text-xs font-semibold'
+          >
+            {deliverable}
+          </span>
+        ))}
+      </div>
+    )
+  },
+  {
+    key: 'budget',
+    label: 'Budget',
+    sortKey: 'budget',
+    render: template => (
+      <div>
+        <p className='font-semibold'>
+          {template.recommendedBudgetMusd.toFixed(2)} MUSD
+        </p>
+        <p className='text-muted-foreground mt-1 text-xs'>
+          {template.maxPaidActions} max actions
+        </p>
+      </div>
+    )
+  },
+  {
+    key: 'action',
+    label: 'Action',
+    render: template => (
+      <Link
+        href={`/agents/new?template=${template.id}`}
+        className={buttonClasses({ size: 'sm' })}
+      >
+        Configure
+      </Link>
+    )
+  }
+]
+
+const runColumns: ServerDataTableColumn<AgentRun>[] = [
+  {
+    key: 'run',
+    label: 'Run',
+    sortKey: 'title',
+    render: run => (
+      <div>
+        <Link
+          href={`/agents/${run.id}`}
+          className='font-semibold hover:underline'
+        >
+          {run.title}
+        </Link>
+        <p className='text-muted-foreground mt-1 line-clamp-2 max-w-xl text-sm leading-6'>
+          {run.objective}
+        </p>
+      </div>
+    )
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    sortKey: 'status',
+    render: run => <Badge>{agentRunStatusLabels[run.status]}</Badge>
+  },
+  {
+    key: 'budget',
+    label: 'Budget',
+    sortKey: 'budget',
+    render: run => (
+      <div>
+        <p className='font-semibold'>{run.fundedAmountMusd}</p>
+        <p className='text-muted-foreground mt-1 text-xs'>
+          {run.availableAmountMusd} available
+        </p>
+      </div>
+    )
+  },
+  {
+    key: 'updated',
+    label: 'Updated',
+    sortKey: 'updatedAt',
+    render: run => (
+      <time className='text-sm' dateTime={run.updatedAt}>
+        {new Date(run.updatedAt).toLocaleString()}
+      </time>
+    )
+  },
+  {
+    key: 'action',
+    label: 'Action',
+    render: run => (
+      <Link
+        href={`/agents/${run.id}`}
+        className={buttonClasses({ variant: 'outline', size: 'sm' })}
+      >
+        Open
+      </Link>
+    )
+  }
+]
 
 function MetricTile({
   icon: Icon,
