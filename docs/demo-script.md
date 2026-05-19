@@ -39,8 +39,9 @@ Mezo.
 11. Open `/agents/new`, enter a goal, budget cap, owner wallet, max paid actions,
    select the published API tools or click `Let agent choose tools`, and choose
    signer mode.
-12. Open `/agents/[runId]`, run paid actions, show the action timeline,
-    receipts, deliverables, and proof controls.
+12. Open `/agents/[runId]`, run paid actions, show `Planner: OpenAI gpt-5.2`
+    when `AGENT_LLM_API_KEY` is configured, then show selected tools, skipped
+    tools, receipts, synthesized deliverables, and proof controls.
 13. Attest the completed run and open `/proofs/[proofId]` to show the public
    proof hash, receipt IDs, total spend, attestation transaction, and Mezo
    explorer link.

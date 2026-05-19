@@ -48,6 +48,25 @@ Use **draft** until the endpoint, auth, pricing, and schemas are real. Published
 `
   },
   {
+    id: 'agent-brain',
+    group: 'Start here',
+    title: 'Autonomous agent brain',
+    body: `
+Tollora agent runs use OpenAI as the planning and synthesis brain when \`AGENT_LLM_API_KEY\` is configured. The model reads the user objective, source context, budget, max paid actions, and allowed marketplace tools, then returns structured JSON with selected tools, skipped tools, request payloads, budget strategy, and synthesis instructions.
+
+The paid execution still belongs to Tollora:
+
+1. OpenAI chooses the tools and payloads.
+2. Tollora quotes every selected product.
+3. Tollora skips tools that would exceed the run budget.
+4. Tollora pays x402/MUSD with the configured agent signer in production mode.
+5. Tollora stores receipts, response hashes, and final deliverables.
+6. Tollora writes the Mezo proof when the run is attested.
+
+If \`AGENT_LLM_API_KEY\` is missing, the run is labeled as deterministic fallback. Use the fallback for offline development only; judged demos should set \`AGENT_LLM_API_KEY\` and either leave \`AGENT_LLM_MODEL\` empty for the default \`gpt-5.2\` or set a cheaper model for local testing.
+`
+  },
+  {
     id: 'section-openapi-import',
     group: 'OpenAPI import',
     title: 'Import OpenAPI',

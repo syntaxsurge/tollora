@@ -630,6 +630,43 @@ export function GET() {
             maxPaidActions: { type: 'number' },
             status: { type: 'string' },
             summary: { type: 'string' },
+            deliverables: {
+              type: 'object',
+              properties: {
+                plannerMode: {
+                  type: 'string',
+                  enum: ['openai', 'deterministic']
+                },
+                plannerModel: { type: 'string' },
+                plannerResponseId: { type: 'string' },
+                planningPrompt: { type: 'string' },
+                toolSelectionRationale: { type: 'string' },
+                skippedTools: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      slug: { type: 'string' },
+                      productName: { type: 'string' },
+                      reason: { type: 'string' }
+                    }
+                  }
+                },
+                expectedDeliverables: {
+                  type: 'array',
+                  items: { type: 'string' }
+                },
+                budgetStrategy: { type: 'string' },
+                synthesisInstructions: { type: 'string' },
+                synthesisModel: { type: 'string' },
+                synthesisResponseId: { type: 'string' },
+                launchBrief: { type: 'string' },
+                developerCopy: { type: 'string' },
+                marketSignal: { type: 'string' },
+                videoResultUrl: { type: 'string' },
+                proofExplanation: { type: 'string' }
+              }
+            },
             actions: {
               type: 'array',
               items: { $ref: '#/components/schemas/AgentAction' }

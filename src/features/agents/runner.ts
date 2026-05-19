@@ -8,8 +8,10 @@ import type {
   AgentRun
 } from '@/features/agents/types'
 import {
+  type AgentPlanMetadata,
   buildAgentPlan,
-  buildPlannerSummary
+  buildPlannerSummary,
+  parseOpenAiJson
 } from '@/features/agents/planner'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
@@ -18,7 +20,14 @@ import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
 export async function executeAgentRunActions(run: AgentRun) {
-  const actions = run.actions.length > 0 ? run.actions : buildAgentPlan(run)
+  const plan =
+    run.actions.length > 0
+      ? {
+          actions: run.actions,
+          metadata: buildPlannerSummary(run, run.actions)
+        }
+      : await buildAgentPlan(run)
+  const actions = plan.actions
   const completedActions: AgentAction[] = []
   let spendUsd = 0
 
@@ -34,7 +43,7 @@ export async function executeAgentRunActions(run: AgentRun) {
     completedActions.push(result)
   }
 
-  const deliverables = buildDeliverables(run, completedActions)
+  const deliverables = await buildDeliverables(run, completedActions, plan.metadata)
   const completed = completedActions.every(
     action => action.status === 'completed'
   )
@@ -191,7 +200,32 @@ function buildLocalResponse(action: AgentAction, objective: string) {
   }
 }
 
-function buildDeliverables(run: AgentRun, actions: AgentAction[]) {
+async function buildDeliverables(
+  run: AgentRun,
+  actions: AgentAction[],
+  planMetadata: AgentPlanMetadata
+) {
+  if (envServer.AGENT_LLM_API_KEY) {
+    const synthesized = await synthesizeWithOpenAi(run, actions, planMetadata).catch(
+      error => {
+        console.warn('OpenAI synthesis failed; using local synthesis.', error)
+        return null
+      }
+    )
+
+    if (synthesized) {
+      return synthesized
+    }
+  }
+
+  return buildLocalDeliverables(run, actions, planMetadata)
+}
+
+function buildLocalDeliverables(
+  run: AgentRun,
+  actions: AgentAction[],
+  planMetadata: AgentPlanMetadata
+) {
   const completedActions = actions.filter(
     action => action.status === 'completed'
   )
@@ -202,7 +236,7 @@ function buildDeliverables(run: AgentRun, actions: AgentAction[]) {
   )
 
   return {
-    ...buildPlannerSummary(run, actions),
+    ...planMetadata,
     launchBrief: `The agent used ${completedActions.length} selected marketplace APIs for: ${run.objective}`,
     developerCopy: completedActions
       .map(action => `${action.productName}: ${action.status}`)
@@ -212,5 +246,145 @@ function buildDeliverables(run: AgentRun, actions: AgentAction[]) {
         ? `${completedActions.length} paid tool result(s) are attached to this run.`
         : undefined,
     videoResultUrl: String(asyncAction?.responsePayload?.resultUrl ?? '')
+  }
+}
+
+type OpenAiSynthesisResponse = {
+  launchBrief: string
+  developerCopy: string
+  marketSignal: string
+  videoResultUrl: string
+  proofExplanation: string
+}
+
+async function synthesizeWithOpenAi(
+  run: AgentRun,
+  actions: AgentAction[],
+  planMetadata: AgentPlanMetadata
+) {
+  const model = envServer.AGENT_LLM_MODEL || 'gpt-5.2'
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${envServer.AGENT_LLM_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: 'developer',
+          content: [
+            {
+              type: 'input_text',
+              text: [
+                'You are Tollora Launch Pack Agent synthesizer.',
+                'Use the completed paid tool outputs, receipts, skipped tools, and objective to produce the final launch-pack deliverables.',
+                'Do not invent receipts, transactions, or provider results.',
+                'If a media result URL exists, include it in videoResultUrl. Otherwise use an empty string.',
+                'Return only structured JSON that matches the schema.'
+              ].join('\n')
+            }
+          ]
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: JSON.stringify({
+                objective: run.objective,
+                sourceText: run.sourceText ?? '',
+                budgetCapMusd: run.budgetCapMusd,
+                planMetadata,
+                actions: actions.map(action => ({
+                  productSlug: action.productSlug,
+                  productName: action.productName,
+                  providerName: action.providerName,
+                  status: action.status,
+                  amountMusd: action.amountMusd,
+                  rationale: action.planningRationale,
+                  requestPayload: action.requestPayload,
+                  responsePayload: compactForSynthesis(action.responsePayload),
+                  receipt: action.receipt
+                    ? {
+                        id: action.receipt.id,
+                        amountMusd: action.receipt.amountMusd,
+                        txHash: action.receipt.txHash,
+                        explorerUrl: action.receipt.explorerUrl
+                      }
+                    : undefined,
+                  errorMessage: action.errorMessage
+                }))
+              })
+            }
+          ]
+        }
+      ],
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'tollora_agent_synthesis',
+          strict: true,
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            required: [
+              'launchBrief',
+              'developerCopy',
+              'marketSignal',
+              'videoResultUrl',
+              'proofExplanation'
+            ],
+            properties: {
+              launchBrief: { type: 'string' },
+              developerCopy: { type: 'string' },
+              marketSignal: { type: 'string' },
+              videoResultUrl: { type: 'string' },
+              proofExplanation: { type: 'string' }
+            }
+          }
+        }
+      }
+    })
+  })
+  const body = (await response.json().catch(() => null)) as
+    | Record<string, unknown>
+    | null
+
+  if (!response.ok) {
+    throw new Error(
+      `OpenAI synthesis failed with ${response.status} ${response.statusText}: ${JSON.stringify(body)}`
+    )
+  }
+
+  const synthesized = parseOpenAiJson<OpenAiSynthesisResponse>(body)
+
+  if (!synthesized) {
+    return null
+  }
+
+  return {
+    ...planMetadata,
+    synthesisModel: model,
+    synthesisResponseId: typeof body?.id === 'string' ? body.id : undefined,
+    ...synthesized
+  }
+}
+
+function compactForSynthesis(value: unknown) {
+  if (!value) {
+    return undefined
+  }
+
+  const serialized = JSON.stringify(value)
+
+  if (serialized.length <= 6000) {
+    return value
+  }
+
+  return {
+    truncated: true,
+    preview: serialized.slice(0, 6000)
   }
 }

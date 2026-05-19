@@ -8,6 +8,18 @@ export function hashAgentRunProof(run: AgentRun): `0x${string}` {
     objective: run.objective,
     allowedTools: run.allowedTools,
     budgetCapMusd: run.budgetCapMusd,
+    planner: {
+      mode: run.deliverables.plannerMode,
+      model: run.deliverables.plannerModel,
+      prompt: run.deliverables.planningPrompt,
+      responseId: run.deliverables.plannerResponseId,
+      skippedTools: run.deliverables.skippedTools,
+      expectedDeliverables: run.deliverables.expectedDeliverables,
+      budgetStrategy: run.deliverables.budgetStrategy,
+      synthesisInstructions: run.deliverables.synthesisInstructions,
+      synthesisModel: run.deliverables.synthesisModel,
+      synthesisResponseId: run.deliverables.synthesisResponseId
+    },
     actions: run.actions.map(action => ({
       id: action.id,
       productSlug: action.productSlug,

@@ -494,19 +494,25 @@ Before creating a new helper or service file:
   Provider-created listings are persisted to the workspace-local
   `.tollora/provider-products.json` catalog so draft, paused, and published
   products remain manageable across local server restarts.
-- Autonomous Launch Pack Agent models, deterministic planning, run storage, paid
-  action execution, proof hashing, status labels, and UI clients live in
-  `src/features/agents`. The planner ranks the allowed marketplace tools from
-  the objective and source context, prefers cheap public data/research tools
-  before expensive media tools, stops at the max paid action count, and records
-  its prompt, rationale, and scores in the run deliverables and action cards.
+- Autonomous Launch Pack Agent models, OpenAI planning and synthesis,
+  deterministic fallback planning, run storage, paid action execution, proof
+  hashing, status labels, and UI clients live in `src/features/agents`. When
+  `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
+  with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
+  payloads, skip unrelated tools, set a budget strategy, and synthesize the
+  final launch pack from paid responses and receipts. When the key is absent,
+  the deterministic fallback ranks the allowed marketplace tools from the
+  objective and source context. Both planner modes record the prompt, model or
+  fallback label, rationale, skipped tools, selected tools, and synthesis
+  metadata in run deliverables, action cards, and proof payloads.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
   failed work; `/agents/new` configures objective, source context, owner wallet,
   budget cap, max paid actions, allowed paid tools, and local/production signer
   mode with all marketplace tools deselected until the user selects them or
   allows the agent to consider all published agent-ready listings;
-  `/agents/[runId]` executes the ranked plan, shows planner rationale, receipts,
-  and deliverables, and writes Mezo proof attestations.
+  `/agents/[runId]` executes the ranked plan, shows planner mode/model,
+  selected and skipped tools, planner rationale, receipts, synthesized
+  deliverables, and writes Mezo proof attestations.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, total MUSD spend, attestation transaction,
   and Mezo explorer link.

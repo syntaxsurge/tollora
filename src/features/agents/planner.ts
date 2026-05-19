@@ -1,6 +1,12 @@
-import type { AgentAction, AgentRun } from '@/features/agents/types'
+import type {
+  AgentAction,
+  AgentPlannerMode,
+  AgentRun,
+  AgentSkippedTool
+} from '@/features/agents/types'
 import type { ApiProduct } from '@/features/marketplace/products'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { envServer } from '@/lib/env/env.server'
 
 export const AGENT_PLANNER_PROMPT = [
   'You are Tollora Launch Pack Agent.',
@@ -13,10 +19,44 @@ export const AGENT_PLANNER_PROMPT = [
   '5. Every chosen tool must produce an auditable paid action and receipt when production signing is configured.'
 ].join('\n')
 
+const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
+const DEFAULT_AGENT_MODEL = 'gpt-5.2'
+
 type PlannedTool = {
   product: ApiProduct
   score: number
   rationale: string
+}
+
+export type AgentPlanMetadata = {
+  plannerMode: AgentPlannerMode
+  plannerModel?: string
+  plannerResponseId?: string
+  planningPrompt: string
+  toolSelectionRationale: string
+  skippedTools: AgentSkippedTool[]
+  expectedDeliverables: string[]
+  budgetInstruction: string
+  budgetStrategy: string
+  synthesisInstructions: string
+}
+
+export type AgentPlanResult = {
+  actions: AgentAction[]
+  metadata: AgentPlanMetadata
+}
+
+type OpenAiPlanResponse = {
+  selectedTools: {
+    slug: string
+    priority: number
+    rationale: string
+    requestPayloadJson: string
+  }[]
+  skippedTools: { slug: string; reason: string }[]
+  expectedDeliverables: string[]
+  budgetStrategy: string
+  finalSynthesisInstructions: string
 }
 
 const categoryWeights: Partial<Record<ApiProduct['category'], number>> = {
@@ -62,11 +102,25 @@ const objectiveSignals = {
   proof: ['proof', 'receipt', 'audit', 'attestation', 'settle', 'payment']
 }
 
-export function buildAgentPlan(run: AgentRun): AgentAction[] {
+export async function buildAgentPlan(run: AgentRun): Promise<AgentPlanResult> {
+  if (envServer.AGENT_LLM_API_KEY) {
+    const openAiPlan = await buildOpenAiAgentPlan(run).catch(error => {
+      console.warn('OpenAI planner failed; using deterministic fallback.', error)
+      return null
+    })
+
+    if (openAiPlan) {
+      return openAiPlan
+    }
+  }
+
+  return buildDeterministicAgentPlan(run)
+}
+
+export function buildDeterministicAgentPlan(run: AgentRun): AgentPlanResult {
   const now = new Date().toISOString()
   const plannedTools = rankAllowedTools(run).slice(0, run.maxPaidActions)
-
-  return plannedTools.map(({ product, score, rationale }, index) => ({
+  const actions = plannedTools.map(({ product, score, rationale }, index) => ({
     id: `act_${run.id.slice(4)}_${index + 1}`,
     runId: run.id,
     productSlug: product.slug,
@@ -74,15 +128,41 @@ export function buildAgentPlan(run: AgentRun): AgentAction[] {
     providerName: product.providerName,
     status: 'planned',
     amountMusd: product.priceLabel,
-    objective: `Planner chose ${product.name}: ${rationale}`,
+    objective: `Fallback planner chose ${product.name}: ${rationale}`,
     planningRationale: rationale,
     plannerScore: score,
     requestPayload: buildPayloadForTool(product.slug, run),
     startedAt: now
-  }))
+  })) satisfies AgentAction[]
+
+  return {
+    actions,
+    metadata: buildPlannerSummary(run, actions, {
+      mode: 'deterministic',
+      skippedTools: buildDeterministicSkippedTools(run, actions),
+      expectedDeliverables: defaultExpectedDeliverables(),
+      budgetStrategy: `Use the highest-ranked relevant tools without exceeding ${run.budgetCapMusd.toFixed(2)} MUSD.`,
+      synthesisInstructions:
+        'Summarize the paid tool outputs into a launch brief, developer copy, market signal, and optional project link.'
+    })
+  }
 }
 
-export function buildPlannerSummary(run: AgentRun, actions: AgentAction[]) {
+export function buildPlannerSummary(
+  run: AgentRun,
+  actions: AgentAction[],
+  options?: {
+    mode?: AgentPlannerMode
+    model?: string
+    responseId?: string
+    planningPrompt?: string
+    skippedTools?: AgentSkippedTool[]
+    expectedDeliverables?: string[]
+    budgetStrategy?: string
+    synthesisInstructions?: string
+  }
+): AgentPlanMetadata {
+  const plannerMode = options?.mode ?? 'deterministic'
   const chosen = actions
     .map(action => {
       const score =
@@ -97,12 +177,364 @@ export function buildPlannerSummary(run: AgentRun, actions: AgentAction[]) {
     .join('\n')
 
   return {
-    planningPrompt: AGENT_PLANNER_PROMPT,
+    plannerMode,
+    plannerModel: options?.model,
+    plannerResponseId: options?.responseId,
+    planningPrompt: options?.planningPrompt ?? AGENT_PLANNER_PROMPT,
     toolSelectionRationale:
       chosen ||
       'No paid tools were selected because the allowed tool set did not match the objective.',
-    budgetInstruction: `Spend no more than ${run.budgetCapMusd.toFixed(2)} MUSD across at most ${run.maxPaidActions} paid action(s).`
+    skippedTools: options?.skippedTools ?? buildDeterministicSkippedTools(run, actions),
+    expectedDeliverables: options?.expectedDeliverables ?? defaultExpectedDeliverables(),
+    budgetInstruction: `Spend no more than ${run.budgetCapMusd.toFixed(2)} MUSD across at most ${run.maxPaidActions} paid action(s).`,
+    budgetStrategy:
+      options?.budgetStrategy ??
+      `Run the most relevant tools first and stop before exceeding ${run.budgetCapMusd.toFixed(2)} MUSD.`,
+    synthesisInstructions:
+      options?.synthesisInstructions ??
+      'Turn completed paid tool outputs into a concise launch pack and proof explanation.'
   }
+}
+
+async function buildOpenAiAgentPlan(run: AgentRun): Promise<AgentPlanResult | null> {
+  const products = run.allowedTools
+    .map(slug => getProductBySlug(slug))
+    .filter((product): product is ApiProduct => Boolean(product))
+    .filter(product => product.status === 'published' && product.isAgentReady)
+
+  if (products.length === 0) {
+    return null
+  }
+
+  const model = envServer.AGENT_LLM_MODEL || DEFAULT_AGENT_MODEL
+  const planningPrompt = buildOpenAiPlannerPrompt()
+  const response = await fetch(OPENAI_RESPONSES_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${envServer.AGENT_LLM_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: 'developer',
+          content: [{ type: 'input_text', text: planningPrompt }]
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: JSON.stringify(buildOpenAiPlannerContext(run, products))
+            }
+          ]
+        }
+      ],
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'tollora_agent_plan',
+          strict: true,
+          schema: buildOpenAiPlanSchema(products, run.maxPaidActions)
+        }
+      }
+    })
+  })
+
+  const body = (await response.json().catch(() => null)) as
+    | Record<string, unknown>
+    | null
+
+  if (!response.ok) {
+    throw new Error(
+      `OpenAI planner failed with ${response.status} ${response.statusText}: ${JSON.stringify(body)}`
+    )
+  }
+
+  const plan = parseOpenAiJson<OpenAiPlanResponse>(body)
+
+  if (!plan) {
+    throw new Error('OpenAI planner did not return valid structured JSON.')
+  }
+
+  const actions = buildActionsFromOpenAiPlan({
+    run,
+    products,
+    plan,
+    model
+  })
+
+  if (actions.length === 0) {
+    return null
+  }
+
+  return {
+    actions,
+    metadata: buildPlannerSummary(run, actions, {
+      mode: 'openai',
+      model,
+      responseId: typeof body?.id === 'string' ? body.id : undefined,
+      planningPrompt,
+      skippedTools: normalizeSkippedTools(plan.skippedTools, products, actions),
+      expectedDeliverables: plan.expectedDeliverables,
+      budgetStrategy: plan.budgetStrategy,
+      synthesisInstructions: plan.finalSynthesisInstructions
+    })
+  }
+}
+
+function buildActionsFromOpenAiPlan({
+  run,
+  products,
+  plan,
+  model
+}: {
+  run: AgentRun
+  products: ApiProduct[]
+  plan: OpenAiPlanResponse
+  model: string
+}): AgentAction[] {
+  const now = new Date().toISOString()
+  const bySlug = new Map(products.map(product => [product.slug, product]))
+  const seen = new Set<string>()
+
+  return [...plan.selectedTools]
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, run.maxPaidActions)
+    .reduce<AgentAction[]>((actions, tool, index) => {
+      const product = bySlug.get(tool.slug)
+
+      if (!product || seen.has(product.slug)) {
+        return actions
+      }
+
+      seen.add(product.slug)
+
+      actions.push({
+        id: `act_${run.id.slice(4)}_${index + 1}`,
+        runId: run.id,
+        productSlug: product.slug,
+        productName: product.name,
+        providerName: product.providerName,
+        status: 'planned',
+        amountMusd: product.priceLabel,
+        objective: `OpenAI ${model} chose ${product.name}: ${tool.rationale}`,
+        planningRationale: tool.rationale,
+        plannerScore: Math.max(1, 100 - index),
+        requestPayload:
+          parsePayloadJson(tool.requestPayloadJson) ?? buildPayloadForTool(product.slug, run),
+        startedAt: now
+      })
+
+      return actions
+    }, [])
+}
+
+function buildOpenAiPlannerPrompt() {
+  return [
+    AGENT_PLANNER_PROMPT,
+    '',
+    'You are the AI planning brain. Return only structured JSON that matches the schema.',
+    'Choose only from the provided tool slugs. Do not invent tools.',
+    'Generate each requestPayloadJson as a valid JSON object string suitable for the selected tool request schema.',
+    'Prefer useful public data tools before expensive or async media tools unless the objective clearly needs a media deliverable.',
+    'If a tool is irrelevant, skip it and explain why.',
+    'The platform will quote and pay the selected tools after your plan, so your plan must respect the budget and max action count.'
+  ].join('\n')
+}
+
+function buildOpenAiPlannerContext(run: AgentRun, products: ApiProduct[]) {
+  return {
+    objective: run.objective,
+    sourceText: run.sourceText ?? '',
+    budgetCapMusd: run.budgetCapMusd,
+    maxPaidActions: run.maxPaidActions,
+    availableTools: products.map(product => ({
+      slug: product.slug,
+      name: product.name,
+      providerName: product.providerName,
+      category: product.category,
+      description: product.description,
+      priceLabel: product.priceLabel,
+      priceUsd: product.priceUsd,
+      pricingModel: product.pricing.model,
+      executionMode: product.executionMode,
+      resultDelivery: product.resultDelivery,
+      requestSchema: product.requestSchema,
+      referencePayload: buildPayloadForTool(product.slug, run)
+    }))
+  }
+}
+
+function buildOpenAiPlanSchema(products: ApiProduct[], maxActions: number) {
+  const slugs = products.map(product => product.slug)
+
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'selectedTools',
+      'skippedTools',
+      'expectedDeliverables',
+      'budgetStrategy',
+      'finalSynthesisInstructions'
+    ],
+    properties: {
+      selectedTools: {
+        type: 'array',
+        minItems: 1,
+        maxItems: Math.max(1, maxActions),
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['slug', 'priority', 'rationale', 'requestPayloadJson'],
+          properties: {
+            slug: { type: 'string', enum: slugs },
+            priority: { type: 'integer', minimum: 1, maximum: maxActions },
+            rationale: { type: 'string' },
+            requestPayloadJson: { type: 'string' }
+          }
+        }
+      },
+      skippedTools: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['slug', 'reason'],
+          properties: {
+            slug: { type: 'string', enum: slugs },
+            reason: { type: 'string' }
+          }
+        }
+      },
+      expectedDeliverables: {
+        type: 'array',
+        minItems: 1,
+        items: { type: 'string' }
+      },
+      budgetStrategy: { type: 'string' },
+      finalSynthesisInstructions: { type: 'string' }
+    }
+  }
+}
+
+function normalizeSkippedTools(
+  skippedTools: OpenAiPlanResponse['skippedTools'],
+  products: ApiProduct[],
+  actions: AgentAction[]
+) {
+  const selected = new Set(actions.map(action => action.productSlug))
+  const productBySlug = new Map(products.map(product => [product.slug, product]))
+  const explicit = skippedTools
+    .filter(tool => !selected.has(tool.slug))
+    .map(tool => ({
+      slug: tool.slug,
+      productName: productBySlug.get(tool.slug)?.name,
+      reason: tool.reason
+    }))
+
+  const explicitSlugs = new Set(explicit.map(tool => tool.slug))
+  const implicit = products
+    .filter(product => !selected.has(product.slug) && !explicitSlugs.has(product.slug))
+    .map(product => ({
+      slug: product.slug,
+      productName: product.name,
+      reason: 'OpenAI did not need this tool for the current objective and budget.'
+    }))
+
+  return [...explicit, ...implicit]
+}
+
+function buildDeterministicSkippedTools(
+  run: AgentRun,
+  actions: AgentAction[]
+): AgentSkippedTool[] {
+  const selected = new Set(actions.map(action => action.productSlug))
+
+  return run.allowedTools
+    .filter(slug => !selected.has(slug))
+    .map(slug => {
+      const product = getProductBySlug(slug)
+
+      return {
+        slug,
+        productName: product?.name,
+        reason: product
+          ? 'The fallback planner ranked other allowed tools higher for this objective.'
+          : 'The tool is no longer available in the marketplace registry.'
+      }
+    })
+}
+
+function defaultExpectedDeliverables() {
+  return [
+    'Launch brief',
+    'Developer-facing copy',
+    'Market or developer signal summary',
+    'Optional project or media handoff link',
+    'Proof explanation with receipt references'
+  ]
+}
+
+function parsePayloadJson(value: string) {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value) as unknown
+  } catch {
+    return null
+  }
+
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    return parsed as Record<string, unknown>
+  }
+
+  return null
+}
+
+export function parseOpenAiJson<T>(body: Record<string, unknown> | null): T | null {
+  const directText =
+    typeof body?.output_text === 'string'
+      ? body.output_text
+      : findFirstOutputText(body?.output)
+
+  if (!directText) {
+    return null
+  }
+
+  return JSON.parse(directText) as T
+}
+
+function findFirstOutputText(value: unknown): string | null {
+  if (!Array.isArray(value)) {
+    return null
+  }
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+
+    const content = (item as { content?: unknown }).content
+
+    if (!Array.isArray(content)) {
+      continue
+    }
+
+    for (const contentItem of content) {
+      if (
+        contentItem &&
+        typeof contentItem === 'object' &&
+        typeof (contentItem as { text?: unknown }).text === 'string'
+      ) {
+        return (contentItem as { text: string }).text
+      }
+    }
+  }
+
+  return null
 }
 
 function rankAllowedTools(run: AgentRun): PlannedTool[] {
@@ -124,8 +556,9 @@ function rankAllowedTools(run: AgentRun): PlannedTool[] {
       const signalScore = scoreSignals(objective, product)
       const costPenalty = Math.min(product.priceUsd * 3, 8)
       const score = Number(
-        Math.max(0, categoryScore + keywordScore + signalScore - costPenalty)
-          .toFixed(2)
+        Math.max(0, categoryScore + keywordScore + signalScore - costPenalty).toFixed(
+          2
+        )
       )
 
       return {
@@ -150,7 +583,10 @@ function scoreSignals(objective: string, product: ApiProduct) {
   let score = 0
 
   if (hasSignal(objective, objectiveSignals.media)) {
-    score += product.category === 'media' || product.resultDelivery !== 'direct_response' ? 14 : 0
+    score +=
+      product.category === 'media' || product.resultDelivery !== 'direct_response'
+        ? 14
+        : 0
   }
 
   if (hasSignal(objective, objectiveSignals.market)) {

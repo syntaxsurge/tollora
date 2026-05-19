@@ -14,8 +14,9 @@ provider dashboards.
 - Mezo Passport integration for RainbowKit-compatible wallet onboarding.
 - Marketplace catalog with MUSD prices, provider badges, x402 flags, and
   agent-ready API details.
-- Autonomous Launch Pack Agent runs that plan a task, buy selected paid APIs,
-  return deliverables, and publish Mezo proof pages.
+- Autonomous Launch Pack Agent runs with an OpenAI planner and synthesizer that
+  choose paid tools, buy selected APIs, return deliverables, and publish Mezo
+  proof pages. A deterministic planner is available when no OpenAI key is set.
 - Provider dashboard with API call, revenue, success-rate, and fee-split
   metrics.
 - Provider product management for listing APIs, validating schemas, reviewing
@@ -121,6 +122,8 @@ Key values:
 - `TOLLORA_PLATFORM_FEE_BPS=500`
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
+- `AGENT_LLM_API_KEY`
+- `AGENT_LLM_MODEL=gpt-5.2`
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
 
 ## Autonomous Agent Walkthrough
@@ -129,7 +132,9 @@ Key values:
 2. Enter a launch-pack goal, budget cap, owner wallet, and allowed tools.
 3. Start the run, open `/agents/[runId]`, and execute paid actions.
 4. Attest the completed run and open `/proofs/[proofId]`.
-5. For production settlement, fund `AGENT_SPENDER_PRIVATE_KEY` with MUSD and set
+5. For the judged OpenAI demo, set `AGENT_LLM_API_KEY` and optionally
+   `AGENT_LLM_MODEL`; otherwise the run is labeled as deterministic fallback.
+6. For production settlement, fund `AGENT_SPENDER_PRIVATE_KEY` with MUSD and set
    `NEXT_PUBLIC_APP_URL` to the deployed app URL.
 
 ## Core Commands

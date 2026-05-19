@@ -129,7 +129,7 @@ export function AgentRunCreateForm({
               type='number'
               step='0.01'
               min='0.08'
-              defaultValue='20'
+              defaultValue='0.90'
               required
             />
           </label>
@@ -142,7 +142,7 @@ export function AgentRunCreateForm({
               type='number'
               min='1'
               max='4'
-              defaultValue='3'
+              defaultValue='4'
               required
             />
           </label>
@@ -156,7 +156,9 @@ export function AgentRunCreateForm({
           <p className='text-foreground/65 mt-2 text-sm leading-6'>
             Select the tools the agent is allowed to consider. The planner will
             rank this allowed set, choose the best tools for the objective, and
-            stop at the max paid action count.
+            stop at the max paid action count. With `AGENT_LLM_API_KEY`,
+            OpenAI makes this choice; otherwise Tollora labels the run as
+            deterministic fallback.
           </p>
         </div>
         <div className='grid gap-3 md:grid-cols-2'>

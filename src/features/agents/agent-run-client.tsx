@@ -126,7 +126,7 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
           ['Status', agentRunStatusLabels[run.status]],
           ['Budget', `${run.budgetCapMusd.toFixed(2)} MUSD`],
           ['Paid actions', run.actions.length.toString()],
-          ['Mode', run.mode]
+          ['Planner', formatPlanner(run)]
         ].map(([label, value]) => (
           <div key={label} className='bg-muted rounded-lg p-4'>
             <p className='text-foreground/60 text-xs uppercase'>{label}</p>
@@ -154,6 +154,30 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
             </p>
             <p className='mt-2 text-sm leading-6'>{run.summary}</p>
           </div>
+          <div className='grid gap-3 md:grid-cols-2'>
+            <div className='border-foreground/10 rounded-lg border p-3'>
+              <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
+                Planner
+              </p>
+              <p className='mt-1 font-semibold'>{formatPlanner(run)}</p>
+            </div>
+            <div className='border-foreground/10 rounded-lg border p-3'>
+              <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
+                Mode
+              </p>
+              <p className='mt-1 font-semibold'>{run.mode}</p>
+            </div>
+          </div>
+          {run.deliverables.budgetStrategy ? (
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Budget strategy
+              </p>
+              <p className='mt-2 text-sm leading-6'>
+                {run.deliverables.budgetStrategy}
+              </p>
+            </div>
+          ) : null}
         </Card>
         <Card className='space-y-4'>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -193,6 +217,26 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
         </Card>
       </section>
       <section className='grid gap-4'>
+        {run.deliverables.skippedTools?.length ? (
+          <Card className='space-y-3'>
+            <p className='font-semibold'>Skipped tools</p>
+            <div className='grid gap-3 md:grid-cols-2'>
+              {run.deliverables.skippedTools.map(tool => (
+                <div
+                  key={tool.slug}
+                  className='border-foreground/10 rounded-lg border p-3 text-sm'
+                >
+                  <p className='font-semibold'>
+                    {tool.productName ?? tool.slug}
+                  </p>
+                  <p className='text-foreground/65 mt-1 leading-6'>
+                    {tool.reason}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
         {run.actions.map(action => (
           <Card key={action.id} className='space-y-3'>
             <div className='flex flex-col justify-between gap-2 sm:flex-row sm:items-start'>
@@ -257,4 +301,18 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
       </Card>
     </div>
   )
+}
+
+function formatPlanner(run: AgentRun) {
+  const mode = run.deliverables.plannerMode
+
+  if (mode === 'openai') {
+    return `OpenAI ${run.deliverables.plannerModel ?? 'model'}`
+  }
+
+  if (mode === 'deterministic') {
+    return 'Deterministic fallback'
+  }
+
+  return 'Pending'
 }

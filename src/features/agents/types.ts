@@ -17,8 +17,15 @@ export type AgentActionStatus =
   | 'failed'
 
 export type AgentRunMode = 'local' | 'production'
+export type AgentPlannerMode = 'openai' | 'deterministic'
 
 export type AgentToolSlug = string
+
+export type AgentSkippedTool = {
+  slug: AgentToolSlug
+  productName?: string
+  reason: string
+}
 
 export type AgentAction = {
   id: string
@@ -69,9 +76,19 @@ export type AgentRun = {
   status: AgentRunStatus
   summary: string
   deliverables: {
+    plannerMode?: AgentPlannerMode
+    plannerModel?: string
+    plannerResponseId?: string
     planningPrompt?: string
     toolSelectionRationale?: string
+    skippedTools?: AgentSkippedTool[]
+    expectedDeliverables?: string[]
     budgetInstruction?: string
+    budgetStrategy?: string
+    synthesisInstructions?: string
+    synthesisModel?: string
+    synthesisResponseId?: string
+    proofExplanation?: string
     launchBrief?: string
     developerCopy?: string
     marketSignal?: string

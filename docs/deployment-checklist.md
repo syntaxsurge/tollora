@@ -34,9 +34,10 @@ pnpm build
 - `GET /api/openapi.json` returns the OpenAPI document.
 - `GET /api/reference` renders the Scalar reference.
 - `POST /api/agents/runs` creates a Launch Pack Agent run.
-- `POST /api/agents/runs/[runId]/execute` completes paid actions when the agent
-  spender is configured, or local tool actions without fabricated settlement
-  receipts.
+- `POST /api/agents/runs/[runId]/execute` uses OpenAI planning and synthesis
+  when `AGENT_LLM_API_KEY` is configured, clearly labels deterministic fallback
+  when it is not, and completes paid actions when the agent spender is
+  configured.
 - `POST /api/agents/runs/[runId]/attest` returns a proof with a Mezo explorer
   link.
 - `GET /api/proofs/[proofId]` returns the public proof package.
