@@ -1,5 +1,18 @@
 import Link from 'next/link'
 
+import {
+  ArrowRight,
+  Bot,
+  CircleDollarSign,
+  Clapperboard,
+  DatabaseZap,
+  FileCheck2,
+  Network,
+  ShieldCheck,
+  Sparkles,
+  WalletCards
+} from 'lucide-react'
+
 import { AuthRequiredToast } from '@/components/feedback/auth-required-toast'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
@@ -25,50 +38,73 @@ export default async function MarketingPage({
   const metrics = getMarketplaceMetrics()
   const flow = [
     {
+      icon: Bot,
       title: 'Plan',
-      detail: 'Set goal, budget, tools, and a funded agent vault.'
+      detail: 'OpenAI chooses the smallest useful set of paid tools.'
     },
     {
+      icon: WalletCards,
       title: 'Spend',
-      detail: 'Pay x402-protected APIs with MUSD on Mezo.'
+      detail: 'x402 requests settle in MUSD before provider work starts.'
     },
     {
+      icon: DatabaseZap,
       title: 'Deliver',
-      detail: 'Forward requests and return useful outputs.'
+      detail: 'Tollora forwards paid calls and tracks direct or async results.'
     },
     {
+      icon: FileCheck2,
       title: 'Prove',
-      detail: 'Publish a proof page with receipt links.'
+      detail: 'Receipts, hashes, and proof pages make the run auditable.'
     }
   ]
 
   const useCases = [
-    'AI video and media generation',
-    'Premium data APIs',
-    'Paid MCP and agent tools',
-    'Creator services',
-    'Developer utilities',
-    'Commerce automation'
+    {
+      icon: Clapperboard,
+      title: 'AI media services',
+      detail: 'Sell async video, design, rendering, and creative jobs.'
+    },
+    {
+      icon: Network,
+      title: 'Public data wrappers',
+      detail: 'Package public APIs as priced tools with receipts.'
+    },
+    {
+      icon: Bot,
+      title: 'Agent tool markets',
+      detail: 'Let agents buy only the tools that fit their budget.'
+    },
+    {
+      icon: ShieldCheck,
+      title: 'Auditable API spend',
+      detail: 'Show customers what was paid, returned, and proved.'
+    }
   ]
 
   return (
     <div className='bg-app-grid relative overflow-hidden'>
       <AuthRequiredToast reason={params.auth} nextPath={params.next} />
-      <section className='container-page grid gap-10 py-16 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:py-20'>
+      <section className='container-page grid gap-10 py-16 lg:grid-cols-[minmax(0,1fr)_520px] lg:items-center lg:py-20'>
         <div className='space-y-7'>
-          <Badge>MUSD API marketplace</Badge>
+          <Badge className='w-fit'>
+            <Sparkles className='h-3.5 w-3.5' aria-hidden />
+            Autonomous API commerce
+          </Badge>
           <div className='space-y-5'>
             <h1 className='font-display max-w-3xl text-4xl leading-tight font-semibold text-balance sm:text-5xl lg:text-6xl'>
-              Paid APIs for agents on Mezo.
+              AI agents that buy APIs, finish work, and prove every paid step.
             </h1>
             <p className='text-lead'>
-              {siteConfig.description} List tools, pay per request, forward
-              work, and keep receipts attached to every run.
+              {siteConfig.description} Providers list paid tools, buyers run
+              them with wallet checkout, and autonomous agents spend from a
+              funded budget with receipts attached to the run.
             </p>
           </div>
           <div className='flex flex-wrap gap-3'>
-            <Link href='/agents' className={buttonClasses({ size: 'lg' })}>
-              Run agent
+            <Link href='/agents/new' className={buttonClasses({ size: 'lg' })}>
+              Create agent run
+              <ArrowRight className='h-4 w-4' aria-hidden />
             </Link>
             <Link
               href='/marketplace'
@@ -85,17 +121,17 @@ export default async function MarketingPage({
           <div className='grid gap-3 sm:grid-cols-3'>
             {[
               { label: 'Agent-ready APIs', value: metrics.productCount },
-              { label: 'API calls', value: metrics.totalCalls },
-              { label: 'Auditable proofs', value: 'Mezo' }
+              { label: 'Provider share', value: '95%' },
+              { label: 'Settlement rail', value: 'MUSD' }
             ].map(item => (
               <div
                 key={item.label}
-                className='border-border bg-card/90 shadow-brand-blue/5 rounded-lg border p-4 shadow-sm'
+                className='border-border bg-card/95 rounded-lg border p-4 shadow-sm'
               >
                 <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
                   {item.label}
                 </p>
-                <p className='brand-flame-text-gradient mt-2 text-2xl font-semibold'>
+                <p className='text-foreground mt-2 text-2xl font-semibold'>
                   {item.value}
                 </p>
               </div>
@@ -104,30 +140,36 @@ export default async function MarketingPage({
         </div>
 
         {featuredProduct ? (
-          <div className='bg-panel-sheen border-border shadow-brand-cyan/10 rounded-lg border p-4 shadow-md'>
-            <div className='border-border bg-background/85 rounded-md border'>
+          <div className='border-border bg-card/95 rounded-lg border p-4 shadow-lg'>
+            <div className='border-border bg-background/90 overflow-hidden rounded-lg border'>
               <div className='border-border flex items-start justify-between gap-4 border-b p-5'>
-                <div>
-                  <Badge>Featured provider</Badge>
-                  <h2 className='font-display mt-4 text-3xl font-semibold'>
+                <div className='min-w-0'>
+                  <Badge className='w-fit'>
+                    <Clapperboard className='h-3.5 w-3.5' aria-hidden />
+                    Featured provider
+                  </Badge>
+                  <h2 className='font-display mt-4 text-3xl font-semibold text-balance'>
                     {featuredProduct.name}
                   </h2>
                   <p className='text-muted-foreground mt-2 text-sm leading-6'>
                     {featuredProduct.description}
                   </p>
                 </div>
-                <div className='bg-brand-orange shadow-brand-orange/40 h-3 w-3 rounded-full shadow-sm' />
+                <div className='bg-primary/10 text-primary rounded-lg p-3'>
+                  <Clapperboard className='h-5 w-5' aria-hidden />
+                </div>
               </div>
-              <div className='grid gap-4 p-5'>
+              <div className='grid gap-3 p-5 sm:grid-cols-2'>
                 {[
+                  ['Provider', featuredProduct.providerName],
                   ['Price', featuredProduct.priceLabel],
-                  ['Settlement network', 'Mezo Testnet'],
-                  ['Endpoint', featuredProduct.endpointPath],
-                  ['Processing', featuredProduct.estimatedLatency]
+                  ['Mode', featuredProduct.executionMode],
+                  ['Processing', featuredProduct.estimatedLatency],
+                  ['Gateway', featuredProduct.endpointPath]
                 ].map(([label, value]) => (
                   <div
                     key={label}
-                    className='bg-muted/80 border-border flex flex-col gap-1 rounded-md border p-4'
+                    className='bg-muted/50 border-border flex flex-col gap-1 rounded-md border p-4'
                   >
                     <span className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
                       {label}
@@ -137,11 +179,19 @@ export default async function MarketingPage({
                     </span>
                   </div>
                 ))}
+              </div>
+              <div className='border-border flex flex-wrap gap-3 border-t p-5'>
                 <Link
                   href={`/marketplace/${featuredProduct.slug}`}
-                  className={buttonClasses({ variant: 'primary', size: 'sm' })}
+                  className={buttonClasses({ size: 'sm' })}
                 >
-                  Open API
+                  View API
+                </Link>
+                <Link
+                  href={`/agents/new?tool=${featuredProduct.slug}`}
+                  className={buttonClasses({ variant: 'outline', size: 'sm' })}
+                >
+                  Use in agent
                 </Link>
               </div>
             </div>
@@ -152,22 +202,24 @@ export default async function MarketingPage({
       <section className='container-page py-14'>
         <div className='mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end'>
           <div className='space-y-3'>
-            <Badge>Payment flow</Badge>
+            <Badge>How it works</Badge>
             <h2 className='font-display text-3xl font-semibold'>
-              One gateway for paid work.
+              One flow from AI plan to on-chain audit.
             </h2>
           </div>
           <p className='text-muted-foreground max-w-md text-sm leading-6'>
-            MUSD payments, request forwarding, receipts, and proofs stay in one
-            flow.
+            Tollora keeps the user experience simple while preserving the parts
+            judges care about: autonomous decisions, paid actions, settlement,
+            and public proof.
           </p>
         </div>
         <div className='grid gap-4 md:grid-cols-4'>
-          {flow.map(item => (
+          {flow.map(({ icon: Icon, ...item }) => (
             <Card
               key={item.title}
-              className='hover:border-brand-orange/70 hover:shadow-brand-orange/25 min-h-48 hover:shadow-lg'
+              className='hover:border-primary/50 min-h-48 transition hover:shadow-lg'
             >
+              <Icon className='text-primary h-5 w-5' aria-hidden />
               <p className='text-lg font-semibold'>{item.title}</p>
               <p className='text-muted-foreground mt-4 text-sm leading-6'>
                 {item.detail}
@@ -182,21 +234,51 @@ export default async function MarketingPage({
           <div className='space-y-3'>
             <Badge>Use cases</Badge>
             <h2 className='font-display text-3xl font-semibold'>
-              API commerce with instant settlement.
+              Useful APIs, not demo placeholders.
             </h2>
             <p className='text-muted-foreground text-sm leading-6'>
-              MUSD is the payment rail across listings, receipts, and provider
-              dashboards.
+              Public no-key data tools make demos reliable. Provider-created
+              products can add authenticated, credit-metered, or async services
+              like media generation.
             </p>
           </div>
           <div className='grid gap-4 sm:grid-cols-2'>
-            {useCases.map(item => (
-              <Card key={item} className='min-h-28'>
-                <p className='text-sm font-semibold'>{item}</p>
-                <div className='brand-flame-gradient mt-6 h-1 w-12 rounded-full' />
+            {useCases.map(({ icon: Icon, title, detail }) => (
+              <Card key={title} className='min-h-36'>
+                <Icon className='text-primary h-5 w-5' aria-hidden />
+                <p className='mt-4 text-sm font-semibold'>{title}</p>
+                <p className='text-muted-foreground mt-2 text-sm leading-6'>
+                  {detail}
+                </p>
               </Card>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className='container-page pb-16'>
+        <div className='border-border bg-card/95 grid gap-6 rounded-lg border p-5 shadow-sm lg:grid-cols-[1fr_auto] lg:items-center'>
+          <div>
+            <Badge className='w-fit'>
+              <CircleDollarSign className='h-3.5 w-3.5' aria-hidden />
+              Marketplace revenue
+            </Badge>
+            <h2 className='font-display mt-4 text-3xl font-semibold'>
+              List an API once. Let humans, apps, and agents pay per call.
+            </h2>
+            <p className='text-muted-foreground mt-3 max-w-2xl text-sm leading-6'>
+              Tollora supports fixed pricing, credit-metered async work, browser
+              checkout, programmatic x402 calls, and funded autonomous agent
+              runs.
+            </p>
+          </div>
+          <Link
+            href='/provider/products/new'
+            className={buttonClasses({ size: 'lg' })}
+          >
+            List a paid API
+            <ArrowRight className='h-4 w-4' aria-hidden />
+          </Link>
         </div>
       </section>
     </div>

@@ -149,7 +149,6 @@ export const marketplaceProducts: ApiProduct[] = [
     isX402Protected: true,
     isAgentReady: true,
     status: 'published',
-    featured: true,
     calls: 0,
     successRate: '100%',
     revenueMusd: '0.00'
@@ -241,6 +240,141 @@ export const marketplaceProducts: ApiProduct[] = [
     calls: 0,
     successRate: '100%',
     revenueMusd: '0.00'
+  },
+  {
+    slug: 'public-npm-package-signal',
+    name: 'NPM Package Signal',
+    providerName: 'Tollora Public Data',
+    providerSlug: 'tollora-public-data',
+    providerWallet: tolloraPublicProviderWallet,
+    category: 'developer',
+    description:
+      'Searches the public npm registry for package names, descriptions, keywords, maintainers, and popularity signals around a developer product category.',
+    priceUsd: 0.04,
+    priceLabel: '0.04 MUSD',
+    pricing: { model: 'fixed' },
+    method: 'GET',
+    endpointPath: '/api/x402/products/public-npm-package-signal/call',
+    providerEndpointUrl: 'https://registry.npmjs.org/-/v1/search',
+    providerAuth: { type: 'none' },
+    timeoutSeconds: 20,
+    estimatedLatency: '1-3s',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
+    requestSchema: {
+      text: 'string',
+      size: 'number | undefined',
+      quality: 'number | undefined',
+      popularity: 'number | undefined',
+      maintenance: 'number | undefined'
+    },
+    responseSchema: {
+      objects: 'array',
+      total: 'number',
+      time: 'string'
+    },
+    referencePayload: {
+      text: 'AI agent API commerce',
+      size: 5,
+      quality: 0.65,
+      popularity: 0.25,
+      maintenance: 0.1
+    },
+    isX402Protected: true,
+    isAgentReady: true,
+    status: 'published',
+    calls: 0,
+    successRate: '100%',
+    revenueMusd: '0.00'
+  },
+  {
+    slug: 'public-openalex-research-scan',
+    name: 'OpenAlex Research Scan',
+    providerName: 'Tollora Public Data',
+    providerSlug: 'tollora-public-data',
+    providerWallet: tolloraPublicProviderWallet,
+    category: 'data',
+    description:
+      'Searches the public OpenAlex works index for papers and research metadata that can support technical explainers, documentation, and evidence-backed narratives.',
+    priceUsd: 0.04,
+    priceLabel: '0.04 MUSD',
+    pricing: { model: 'fixed' },
+    method: 'GET',
+    endpointPath: '/api/x402/products/public-openalex-research-scan/call',
+    providerEndpointUrl: 'https://api.openalex.org/works',
+    providerAuth: { type: 'none' },
+    timeoutSeconds: 20,
+    estimatedLatency: '1-3s',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
+    requestSchema: {
+      search: 'string',
+      'per-page': 'number | undefined',
+      sort: 'string | undefined'
+    },
+    responseSchema: {
+      meta: 'object',
+      results: 'array',
+      group_by: 'array'
+    },
+    referencePayload: {
+      search: 'AI agents API payments',
+      'per-page': 5,
+      sort: 'relevance_score:desc'
+    },
+    isX402Protected: true,
+    isAgentReady: true,
+    status: 'published',
+    calls: 0,
+    successRate: '100%',
+    revenueMusd: '0.00'
+  },
+  {
+    slug: 'public-gdelt-news-scan',
+    name: 'GDELT News Signal',
+    providerName: 'Tollora Public Data',
+    providerSlug: 'tollora-public-data',
+    providerWallet: tolloraPublicProviderWallet,
+    category: 'data',
+    description:
+      'Searches the public GDELT document API for recent news coverage, article URLs, source domains, and topical language around a product or market.',
+    priceUsd: 0.05,
+    priceLabel: '0.05 MUSD',
+    pricing: { model: 'fixed' },
+    method: 'GET',
+    endpointPath: '/api/x402/products/public-gdelt-news-scan/call',
+    providerEndpointUrl: 'https://api.gdeltproject.org/api/v2/doc/doc',
+    providerAuth: { type: 'none' },
+    timeoutSeconds: 25,
+    estimatedLatency: '2-5s',
+    executionMode: 'synchronous',
+    settlementModel: 'pay_on_successful_response',
+    resultDelivery: 'direct_response',
+    requestSchema: {
+      query: 'string',
+      mode: '"ArtList"',
+      format: '"json"',
+      maxrecords: 'number | undefined',
+      sort: '"HybridRel" | "DateDesc" | undefined'
+    },
+    responseSchema: {
+      articles: 'array'
+    },
+    referencePayload: {
+      query: 'AI agents API payments',
+      mode: 'ArtList',
+      format: 'json',
+      maxrecords: 5,
+      sort: 'HybridRel'
+    },
+    isX402Protected: true,
+    isAgentReady: true,
+    status: 'published',
+    calls: 0,
+    successRate: '100%',
+    revenueMusd: '0.00'
   }
 ]
 
@@ -259,7 +393,27 @@ export function getAllProducts() {
 }
 
 export function getFeaturedProduct() {
-  return getPublishedProducts().find(product => product.featured)
+  const publishedProducts = getPublishedProducts()
+  const cliploreProduct = publishedProducts.find(product => {
+    const provider = product.providerName.toLowerCase()
+    const slug = product.slug.toLowerCase()
+
+    return (
+      provider.includes('cliplore') ||
+      provider.includes('clipplorer') ||
+      slug.includes('video-generation')
+    )
+  })
+
+  return (
+    cliploreProduct ??
+    publishedProducts.find(
+      product => product.featured && product.slug !== 'public-wikipedia-context'
+    ) ??
+    publishedProducts.find(
+      product => product.slug !== 'public-wikipedia-context'
+    )
+  )
 }
 
 export function getProductBySlug(slug: string) {

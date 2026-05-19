@@ -493,7 +493,9 @@ Before creating a new helper or service file:
   and public proof payloads.
 - Shared server-fed table rendering lives in
   `src/components/data-display/server-data-table.tsx` with URL-driven search,
-  sorting, pagination, current-page row selection, and optional bulk actions.
+  sorting, pagination, optional current-page row selection, and optional bulk
+  actions. Selection is enabled only for tables that need row-level or bulk
+  operations.
   Server-side query helpers live in `src/lib/table/server-table.ts` and are
   used by agent templates/runs, marketplace products, orders, and provider
   product management.
@@ -514,7 +516,8 @@ Before creating a new helper or service file:
   and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
   Platform-owned public data wrappers for Wikipedia search, Hacker News trend
-  search, and GitHub repository search use no upstream account or API key, stay
+  search, GitHub repository search, npm package search, OpenAlex research
+  search, and GDELT news search use no upstream account or API key, stay
   x402-protected as paid Tollora marketplace products, and are agent-ready for
   no-key demo runs.
   Provider-created listings are persisted to the workspace-local
@@ -526,7 +529,9 @@ Before creating a new helper or service file:
   Template definitions live in `src/features/agents/templates.ts` and include
   reusable objectives, context, budgets, action limits, tool strategy, and
   deliverables for launch, research, documentation, readiness, and creative
-  workflows. Agent runs require the owner to fund the
+  workflows, including video-first launch campaigns that combine public data
+  scans with async media-generation tools when budget allows. Agent runs
+  require the owner to fund the
   `AgentRunVault` with MUSD before the configured agent signer can execute x402
   paid actions. Before an agent spends, the runner verifies the production
   agent signer's MUSD balance, submits the required Permit2 approval when the
@@ -545,9 +550,10 @@ Before creating a new helper or service file:
   model or fallback label, rationale, skipped tools, selected tools, funding
   ledger, and synthesis metadata in run deliverables, action cards, and proof
   payloads.
-- `/agents` is a tabbed command center with separate server-fed tables for
-  agent templates and recent runs, including search, sorting, pagination,
-  current-page row selection, and bulk deletion for selected runs.
+- `/agents` is a tabbed command center that opens on recent runs and also
+  exposes a templates tab. Both tabs use separate server-fed tables with
+  search, sorting, and pagination; recent runs support current-page row
+  selection and bulk deletion, while templates omit selection controls.
   `/agents/new` configures objective, source context, owner wallet from the
   connected wallet session, budget cap, max paid actions, and allowed paid
   tools. Blank runs start with empty objective/context fields; template links

@@ -42,7 +42,8 @@ export function ServerDataTable<T>({
   emptyTitle,
   emptyDescription,
   searchPlaceholder = 'Search',
-  bulkActions = []
+  bulkActions = [],
+  enableSelection = bulkActions.length > 0
 }: {
   id: string
   rows: T[]
@@ -60,6 +61,7 @@ export function ServerDataTable<T>({
   emptyTitle: string
   emptyDescription: string
   searchPlaceholder?: string
+  enableSelection?: boolean
   bulkActions?: ServerDataTableBulkAction[]
 }) {
   return (
@@ -90,18 +92,22 @@ export function ServerDataTable<T>({
             {totalRows.toLocaleString()} result{totalRows === 1 ? '' : 's'}
           </div>
         </div>
-        <div className='mt-3'>
-          <ServerDataTableSelection tableId={id} bulkActions={bulkActions} />
-        </div>
+        {enableSelection ? (
+          <div className='mt-3'>
+            <ServerDataTableSelection tableId={id} bulkActions={bulkActions} />
+          </div>
+        ) : null}
       </div>
 
       <div className='overflow-x-auto'>
         <table className='w-full min-w-[760px] text-left text-sm'>
           <thead className='bg-muted/30 text-muted-foreground'>
             <tr>
-              <th className='w-12 px-4 py-3'>
-                <span className='sr-only'>Select row</span>
-              </th>
+              {enableSelection ? (
+                <th className='w-12 px-4 py-3'>
+                  <span className='sr-only'>Select row</span>
+                </th>
+              ) : null}
               {columns.map(column => (
                 <th
                   key={column.key}
@@ -148,16 +154,18 @@ export function ServerDataTable<T>({
 
               return (
                 <tr key={rowId} className='hover:bg-muted/25 transition'>
-                  <td className='px-4 py-4 align-top'>
-                    <input
-                      value={rowId}
-                      data-table-id={id}
-                      data-row-checkbox
-                      type='checkbox'
-                      aria-label={`Select ${rowId}`}
-                      className='border-border text-primary focus:ring-ring h-4 w-4 rounded'
-                    />
-                  </td>
+                  {enableSelection ? (
+                    <td className='px-4 py-4 align-top'>
+                      <input
+                        value={rowId}
+                        data-table-id={id}
+                        data-row-checkbox
+                        type='checkbox'
+                        aria-label={`Select ${rowId}`}
+                        className='border-border text-primary focus:ring-ring h-4 w-4 rounded'
+                      />
+                    </td>
+                  ) : null}
                   {columns.map(column => (
                     <td
                       key={column.key}

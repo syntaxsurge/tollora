@@ -694,6 +694,34 @@ export function buildPayloadForTool(tool: string, run: AgentRun) {
     }
   }
 
+  if (tool === 'public-npm-package-signal') {
+    return {
+      text: query,
+      size: 5,
+      quality: 0.65,
+      popularity: 0.25,
+      maintenance: 0.1
+    }
+  }
+
+  if (tool === 'public-openalex-research-scan') {
+    return {
+      search: query,
+      'per-page': 5,
+      sort: 'relevance_score:desc'
+    }
+  }
+
+  if (tool === 'public-gdelt-news-scan') {
+    return {
+      query,
+      mode: 'ArtList',
+      format: 'json',
+      maxrecords: 5,
+      sort: 'HybridRel'
+    }
+  }
+
   return enrichReferencePayload(product?.referencePayload ?? {}, {
     objective: run.objective,
     source,

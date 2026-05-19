@@ -38,7 +38,7 @@ type AgentsPageProps = {
 
 export default async function AgentsPage({ searchParams }: AgentsPageProps) {
   const params = await searchParams
-  const tab = params?.tab === 'runs' ? 'runs' : 'templates'
+  const tab = params?.tab === 'templates' ? 'templates' : 'runs'
   const metrics = getAgentMetrics()
   const state = resolveServerTableState(params, {
     defaultSort: tab === 'runs' ? 'updatedAt' : 'title',
@@ -143,8 +143,8 @@ export default async function AgentsPage({ searchParams }: AgentsPageProps) {
         aria-label='Agent page sections'
       >
         {[
-          ['templates', 'Templates'],
-          ['runs', 'Recent runs']
+          ['runs', 'Recent runs'],
+          ['templates', 'Templates']
         ].map(([value, label]) => (
           <Link
             key={value}
@@ -179,6 +179,7 @@ export default async function AgentsPage({ searchParams }: AgentsPageProps) {
           searchPlaceholder='Search templates, deliverables, or strategies'
           emptyTitle='No templates match this search'
           emptyDescription='Clear the search or create a blank run.'
+          enableSelection={false}
         />
       ) : (
         <ServerDataTable

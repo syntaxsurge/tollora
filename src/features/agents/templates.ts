@@ -1,8 +1,12 @@
 import {
   BarChart3,
   BookOpenCheck,
+  Clapperboard,
+  FileSearch,
   Megaphone,
   MonitorCheck,
+  PackageSearch,
+  RadioTower,
   Video
 } from 'lucide-react'
 
@@ -104,6 +108,78 @@ export const agentTemplates: AgentTemplate[] = [
       'Use research tools first, then use media generation only if the remaining budget can cover the quote.',
     deliverables: ['Video concept', 'Project handoff', 'Social copy'],
     icon: Video
+  },
+  {
+    id: 'video-launch-campaign',
+    title: 'Video Launch Campaign Agent',
+    category: 'Creative',
+    summary:
+      'Combines developer/news/package signals with an async video-generation job for a richer launch asset.',
+    objective:
+      'Create a video-first launch campaign for my API product, including research-backed positioning, a short video project, social copy, and developer launch notes.',
+    sourceText:
+      'Use public developer, package, repository, and news signals before deciding the video prompt. The final output should include a cloneable video project handoff when a media tool is available.',
+    recommendedBudgetMusd: 1.35,
+    maxPaidActions: 4,
+    toolStrategy:
+      'Let OpenAI select a compact research set first, then spend on async video generation only if the quote fits the remaining funded budget.',
+    deliverables: [
+      'Research-backed angle',
+      'Video handoff',
+      'Social launch copy'
+    ],
+    icon: Clapperboard
+  },
+  {
+    id: 'ecosystem-map',
+    title: 'Ecosystem Map Agent',
+    category: 'Research',
+    summary:
+      'Maps packages, repositories, research, and discussion clusters around a product category.',
+    objective:
+      'Create an ecosystem map for my product category, including adjacent open-source projects, package ecosystems, research themes, and developer discussion channels.',
+    sourceText:
+      'Focus on practical integration opportunities and public evidence that can guide partnerships, docs, and launch positioning.',
+    recommendedBudgetMusd: 0.45,
+    maxPaidActions: 4,
+    toolStrategy:
+      'Use no-key public data tools across GitHub, npm, OpenAlex, Hacker News, and Wikipedia; avoid media generation.',
+    deliverables: ['Project map', 'Package map', 'Integration shortlist'],
+    icon: PackageSearch
+  },
+  {
+    id: 'newsroom-brief',
+    title: 'Newsroom Brief Agent',
+    category: 'Communications',
+    summary:
+      'Finds public news and developer context, then drafts a concise press-style narrative and FAQ.',
+    objective:
+      'Prepare a newsroom-style launch brief for my API product with market context, proof points, concise messaging, and FAQ responses.',
+    sourceText:
+      'The brief should be factual, conservative, and easy for non-technical judges, partners, and customers to understand.',
+    recommendedBudgetMusd: 0.45,
+    maxPaidActions: 4,
+    toolStrategy:
+      'Blend news, encyclopedia, and developer data signals before writing the brief.',
+    deliverables: ['Press brief', 'Proof points', 'FAQ'],
+    icon: RadioTower
+  },
+  {
+    id: 'integration-playbook',
+    title: 'Integration Playbook Agent',
+    category: 'Developer experience',
+    summary:
+      'Turns public package and repository signals into integration examples, docs priorities, and API marketplace guidance.',
+    objective:
+      'Create an integration playbook for developers adopting my API, including target stacks, example use cases, docs priorities, and marketplace listing improvements.',
+    sourceText:
+      'Prioritize developer experience, server-side integrations, agent tool usage, and practical onboarding steps.',
+    recommendedBudgetMusd: 0.4,
+    maxPaidActions: 4,
+    toolStrategy:
+      'Use package, repository, and public context tools to identify stacks and documentation gaps.',
+    deliverables: ['Target stacks', 'Docs plan', 'Integration examples'],
+    icon: FileSearch
   }
 ]
 
