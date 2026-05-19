@@ -356,6 +356,28 @@ export function GET() {
             },
             '404': { description: 'Agent run not found' }
           }
+        },
+        delete: {
+          tags: ['Agents'],
+          summary: 'Stop and delete an autonomous agent run',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': {
+              description: 'Agent run deleted',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      deletedRunId: { type: 'string' },
+                      stopped: { type: 'boolean' }
+                    }
+                  }
+                }
+              }
+            },
+            '404': { description: 'Agent run not found' }
+          }
         }
       },
       '/api/agents/runs/{runId}/execute': {
@@ -675,8 +697,7 @@ export function GET() {
               items: {
                 type: 'string'
               }
-            },
-            mode: { type: 'string', enum: ['local', 'production'] }
+            }
           }
         },
         AgentRun: {

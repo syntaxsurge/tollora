@@ -16,7 +16,10 @@ import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
-export async function executeAgentRunActions(run: AgentRun) {
+export async function executeAgentRunActions(
+  run: AgentRun,
+  shouldStop: () => boolean = () => false
+) {
   const plan =
     run.actions.length > 0
       ? {
@@ -29,6 +32,16 @@ export async function executeAgentRunActions(run: AgentRun) {
   let spendUsd = 0
 
   for (const action of actions) {
+    if (shouldStop()) {
+      completedActions.push({
+        ...action,
+        status: 'failed',
+        errorMessage: 'The agent run was stopped before this action executed.',
+        completedAt: new Date().toISOString()
+      })
+      break
+    }
+
     const result = await executeAgentAction(run, action, spendUsd)
 
     if (result.receipt) {
@@ -38,6 +51,10 @@ export async function executeAgentRunActions(run: AgentRun) {
     }
 
     completedActions.push(result)
+
+    if (shouldStop()) {
+      break
+    }
   }
 
   const deliverables = await buildDeliverables(
@@ -56,7 +73,7 @@ export async function executeAgentRunActions(run: AgentRun) {
     summary: completed
       ? receiptCount > 0
         ? `The launch-pack agent completed ${completedActions.length} actions, captured ${receiptCount} MUSD receipt records, and prepared an auditable Mezo proof package.`
-        : `The launch-pack agent completed ${completedActions.length} local tool actions and prepared an auditable Mezo proof package.`
+        : 'The launch-pack agent completed without receipt-backed paid actions.'
       : 'The launch-pack agent stopped before completing every selected paid action.',
     status: completed ? 'completed' : 'failed'
   } as const
@@ -117,42 +134,39 @@ async function executeAgentAction(
     startedAt: action.startedAt ?? new Date().toISOString()
   } satisfies AgentAction
 
-  if (envServer.AGENT_SPENDER_PRIVATE_KEY && envClient.NEXT_PUBLIC_APP_URL) {
-    try {
-      const paidResult = await callPaidProductWithAgentWallet(started)
-
-      return {
-        ...started,
-        status: 'completed',
-        responsePayload: paidResult.data,
-        receipt: paidResult.receipt,
-        orderId: paidResult.order?.id,
-        requestId: paidResult.order?.requestId,
-        completedAt: new Date().toISOString()
-      } satisfies AgentAction
-    } catch (caughtError) {
-      return {
-        ...started,
-        status: run.mode === 'production' ? 'failed' : 'completed',
-        responsePayload:
-          run.mode === 'production'
-            ? undefined
-            : buildLocalResponse(started, run.objective),
-        errorMessage:
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'The paid x402 request failed.',
-        completedAt: new Date().toISOString()
-      } satisfies AgentAction
-    }
+  if (!envServer.AGENT_SPENDER_PRIVATE_KEY || !envClient.NEXT_PUBLIC_APP_URL) {
+    return {
+      ...started,
+      status: 'failed',
+      errorMessage:
+        'Production agent payment is not configured. Set AGENT_SPENDER_PRIVATE_KEY and NEXT_PUBLIC_APP_URL before running agent actions.',
+      completedAt: new Date().toISOString()
+    } satisfies AgentAction
   }
 
-  return {
-    ...started,
-    status: 'completed',
-    responsePayload: buildLocalResponse(started, run.objective),
-    completedAt: new Date().toISOString()
-  } satisfies AgentAction
+  try {
+    const paidResult = await callPaidProductWithAgentWallet(started)
+
+    return {
+      ...started,
+      status: 'completed',
+      responsePayload: paidResult.data,
+      receipt: paidResult.receipt,
+      orderId: paidResult.order?.id,
+      requestId: paidResult.order?.requestId,
+      completedAt: new Date().toISOString()
+    } satisfies AgentAction
+  } catch (caughtError) {
+    return {
+      ...started,
+      status: 'failed',
+      errorMessage:
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'The paid x402 request failed.',
+      completedAt: new Date().toISOString()
+    } satisfies AgentAction
+  }
 }
 
 function parseMusdLabel(value: string) {
@@ -191,16 +205,6 @@ async function callPaidProductWithAgentWallet(action: AgentAction) {
   }
 }
 
-function buildLocalResponse(action: AgentAction, objective: string) {
-  return {
-    status: 'completed',
-    productSlug: action.productSlug,
-    summary: `Local mode prepared a request for ${action.productName} to support: ${objective}`,
-    requestPayload: action.requestPayload,
-    requestId: `req_agent_${action.id.slice(-8)}`
-  }
-}
-
 async function buildDeliverables(
   run: AgentRun,
   actions: AgentAction[],
@@ -211,11 +215,7 @@ async function buildDeliverables(
   )
   const paidCompletedActions = completedActions.filter(action => action.receipt)
 
-  if (
-    run.mode === 'production' &&
-    actions.length > 0 &&
-    paidCompletedActions.length === 0
-  ) {
+  if (actions.length > 0 && paidCompletedActions.length === 0) {
     return buildFailedPaidActionDeliverables(run, actions, planMetadata)
   }
 
@@ -225,7 +225,7 @@ async function buildDeliverables(
       actions,
       planMetadata
     ).catch(error => {
-      console.warn('OpenAI synthesis failed; using local synthesis.', error)
+      console.warn('OpenAI synthesis failed; using fallback synthesis.', error)
       return null
     })
 
@@ -234,7 +234,7 @@ async function buildDeliverables(
     }
   }
 
-  return buildLocalDeliverables(run, actions, planMetadata)
+  return buildFallbackDeliverables(run, actions, planMetadata)
 }
 
 function buildFailedPaidActionDeliverables(
@@ -250,7 +250,7 @@ function buildFailedPaidActionDeliverables(
     launchBrief:
       'The agent did not produce a final launch pack because no paid tool returned a completed receipt-backed result.',
     developerCopy:
-      'Retry the failed tools after funding and provider health are confirmed, or switch to local mode for an offline planning-only demo.',
+      'Retry the failed tools after funding and provider health are confirmed.',
     marketSignal:
       failed.length > 0
         ? `No external market signal is available. ${failed.length} paid action(s) failed and ${skipped.length} action(s) were skipped.`
@@ -260,7 +260,7 @@ function buildFailedPaidActionDeliverables(
   }
 }
 
-function buildLocalDeliverables(
+function buildFallbackDeliverables(
   run: AgentRun,
   actions: AgentAction[],
   planMetadata: AgentPlanMetadata

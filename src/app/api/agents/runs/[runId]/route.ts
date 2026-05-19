@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getAgentRun } from '@/features/agents/store'
+import { deleteAgentRun, getAgentRun } from '@/features/agents/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,4 +21,23 @@ export async function GET(_request: Request, { params }: AgentRunRouteProps) {
   }
 
   return NextResponse.json(run)
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: AgentRunRouteProps
+) {
+  const deleted = await deleteAgentRun((await params).runId)
+
+  if (!deleted) {
+    return NextResponse.json(
+      { error: 'Agent run was not found.' },
+      { status: 404 }
+    )
+  }
+
+  return NextResponse.json({
+    deletedRunId: deleted.id,
+    stopped: true
+  })
 }

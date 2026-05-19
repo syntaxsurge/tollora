@@ -6,7 +6,6 @@ import { useState } from 'react'
 import {
   Boxes,
   Check,
-  Cpu,
   FileCheck2,
   type LucideIcon,
   Sparkles,
@@ -58,7 +57,7 @@ export function AgentRunCreateForm({
           budgetCapMusd: formData.get('budgetCapMusd'),
           maxPaidActions: formData.get('maxPaidActions'),
           allowedTools: selectedTools,
-          mode: formData.get('mode')
+          mode: 'production'
         })
       })
       const run = (await response.json()) as AgentRun & { error?: string }
@@ -201,9 +200,9 @@ export function AgentRunCreateForm({
         <Card className='space-y-5'>
           <SectionTitle icon={Wallet} eyebrow='Step 2' title='Funded budget' />
           <div className='border-border bg-primary/5 rounded-lg border p-3 text-sm leading-6'>
-            Production runs are created first, then funded on the run page with
-            a MUSD deposit into the agent budget vault. Local runs use a
-            simulated budget for offline demos.
+            Agent runs are created first, then funded on the run page with a
+            MUSD deposit into the agent budget vault before any paid action can
+            execute.
           </div>
           <div className='grid gap-4'>
             <label className='space-y-2'>
@@ -248,27 +247,7 @@ export function AgentRunCreateForm({
         </Card>
 
         <Card className='space-y-5'>
-          <SectionTitle icon={Cpu} eyebrow='Step 3' title='Signer mode' />
-          <fieldset className='grid gap-3'>
-            <legend className='sr-only'>Agent execution mode</legend>
-            {[
-              ['local', 'Local'],
-              ['production', 'Production']
-            ].map(([value, label]) => (
-              <label
-                key={value}
-                className='border-foreground/10 has-[:checked]:border-primary has-[:checked]:bg-primary/10 flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm transition'
-              >
-                <span className='font-semibold'>{label}</span>
-                <input
-                  type='radio'
-                  name='mode'
-                  value={value}
-                  defaultChecked={value === 'local'}
-                />
-              </label>
-            ))}
-          </fieldset>
+          <SectionTitle icon={FileCheck2} eyebrow='Step 3' title='Review run' />
           <div className='border-foreground/10 bg-muted/30 rounded-lg border p-3'>
             <div className='flex items-center justify-between gap-3'>
               <span className='text-sm font-semibold'>Allowed tools</span>

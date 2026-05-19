@@ -422,10 +422,12 @@ Before creating a new helper or service file:
   balance, and records a receipt linked to the top-up transaction.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
   autonomous Launch Pack Agent runs with objective, source context, owner
-  wallet, budget cap, max paid actions, allowed marketplace tools, and signer
-  mode.
+  wallet, budget cap, max paid actions, and allowed marketplace tools.
 - `GET /api/agents/runs/[runId]` — returns agent run status, paid actions,
   deliverables, receipts, and proof state.
+- `DELETE /api/agents/runs/[runId]` — stops future execution for an autonomous
+  agent run, removes it from the workspace run list, and attempts to cancel and
+  refund unused vault budget when applicable.
 - `POST /api/agents/runs/[runId]/funding/prepare` — prepares a production
   agent run vault funding payload with run ID, MUSD token, vault address,
   budget amount, authorized agent signer, and expiry.
@@ -436,9 +438,8 @@ Before creating a new helper or service file:
 - `POST /api/agents/runs/[runId]/refund` — records or submits unused budget
   refund state after a production run reaches a terminal state.
 - `POST /api/agents/runs/[runId]/execute` — runs the autonomous workflow,
-  calling selected Tollora x402 product endpoints with the configured agent
-  spender when available and returning local tool results without fabricated
-  settlement receipts otherwise.
+  calling selected Tollora x402 product endpoints with the configured funded
+  production agent spender.
 - `POST /api/agents/runs/[runId]/attest` — hashes completed run metadata and
   writes the proof to the configured Mezo AgentRunAttestor when available.
 - `GET /api/proofs/[proofId]` — returns a public proof package for a completed
@@ -508,9 +509,9 @@ Before creating a new helper or service file:
 - Autonomous Launch Pack Agent models, OpenAI planning and synthesis,
   deterministic fallback planning, run storage, funded budget ledgers, paid
   action execution, proof hashing, status labels, and UI clients live in
-  `src/features/agents`. Production runs require the owner to fund the
+  `src/features/agents`. Agent runs require the owner to fund the
   `AgentRunVault` with MUSD before the configured agent signer can execute x402
-  paid actions; local runs use a simulated offline budget. When
+  paid actions. When
   `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
   with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
   payloads, skip unrelated tools, set a budget strategy, and synthesize the
@@ -523,10 +524,11 @@ Before creating a new helper or service file:
   ledger, and synthesis metadata in run deliverables, action cards, and proof
   payloads.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
-  failed work; `/agents/new` configures objective, source context, owner wallet,
-  budget cap, max paid actions, allowed paid tools, and local/production signer
-  mode with all marketplace tools deselected until the user selects them or
-  allows the agent to consider all published agent-ready listings;
+  failed work, with deletion controls that stop future execution and remove
+  unwanted runs; `/agents/new` configures objective, source context, owner
+  wallet, budget cap, max paid actions, and allowed paid tools with all
+  marketplace tools deselected until the user selects them or allows the agent
+  to consider all published agent-ready listings;
   `/agents/[runId]` funds production runs through the agent budget vault,
   executes the ranked plan, shows planner mode/model, selected and skipped
   tools, planner rationale, budget ledger, receipt links, Markdown-rendered

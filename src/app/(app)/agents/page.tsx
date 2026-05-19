@@ -14,14 +14,12 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { agentRunStatusLabels } from '@/features/agents/status'
+import { AgentRunList } from '@/features/agents/agent-run-list'
 import { getAgentMetrics, listAgentRuns } from '@/features/agents/store'
-import type { AgentRun } from '@/features/agents/types'
 
 export default function AgentsPage() {
   const runs = listAgentRuns()
   const metrics = getAgentMetrics()
-  const recentRuns = runs.slice(0, 6)
 
   return (
     <div className='space-y-6'>
@@ -126,19 +124,7 @@ export default function AgentsPage() {
               Proof-ready
             </Badge>
           </div>
-          <div className='grid gap-3'>
-            {recentRuns.length > 0 ? (
-              recentRuns.map(run => <RunRow key={run.id} run={run} />)
-            ) : (
-              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-5 text-sm'>
-                <p className='font-semibold'>No runs yet</p>
-                <p className='text-foreground/65 mt-1'>
-                  Create a run to test OpenAI planning, x402 settlement, and
-                  Mezo proof output.
-                </p>
-              </div>
-            )}
-          </div>
+          <AgentRunList runs={runs} />
         </Card>
       </section>
     </div>
@@ -162,29 +148,5 @@ function MetricTile({
       </p>
       <p className='mt-1 text-xl font-semibold'>{value}</p>
     </div>
-  )
-}
-
-function RunRow({ run }: { run: AgentRun }) {
-  return (
-    <Link
-      href={`/agents/${run.id}`}
-      className='border-foreground/10 hover:border-primary/50 hover:bg-muted/35 group grid gap-3 rounded-lg border p-4 transition sm:grid-cols-[1fr_auto] sm:items-center'
-    >
-      <div className='min-w-0'>
-        <div className='flex items-center gap-2'>
-          <span className='truncate font-semibold'>{run.title}</span>
-          <span className='bg-muted text-foreground/70 rounded-md px-2 py-0.5 text-xs'>
-            {run.actions.length} actions
-          </span>
-        </div>
-        <p className='text-foreground/60 mt-1 line-clamp-2 text-sm leading-6'>
-          {run.objective}
-        </p>
-      </div>
-      <span className='text-primary text-sm font-semibold'>
-        {agentRunStatusLabels[run.status]}
-      </span>
-    </Link>
   )
 }

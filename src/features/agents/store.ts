@@ -26,6 +26,7 @@ import {
 type AgentGlobalStore = {
   runs: Map<string, AgentRun>
   proofs: Map<string, AgentProof>
+  cancelledRuns: Set<string>
 }
 
 const globalStore = globalThis as typeof globalThis & {
@@ -36,11 +37,15 @@ const store =
   globalStore.__tolloraAgentStore ??
   (globalStore.__tolloraAgentStore = {
     runs: new Map<string, AgentRun>(),
-    proofs: new Map<string, AgentProof>()
+    proofs: new Map<string, AgentProof>(),
+    cancelledRuns: new Set<string>()
   })
+
+store.cancelledRuns ??= new Set<string>()
 
 const runs = store.runs
 const proofs = store.proofs
+const cancelledRuns = store.cancelledRuns
 
 export function listAgentRuns() {
   return Array.from(runs.values()).sort((a, b) =>
@@ -60,8 +65,6 @@ export function createAgentRun(input: CreateAgentRunInput) {
   const now = new Date().toISOString()
   const runId = `run_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
   const vaultAddress = getAgentRunVaultAddress() ?? undefined
-  const fundingStatus =
-    input.mode === 'production' ? 'unfunded' : 'not_required'
   const run: AgentRun = {
     id: runId,
     template: 'launch-pack',
@@ -72,34 +75,18 @@ export function createAgentRun(input: CreateAgentRunInput) {
     budgetCapMusd: input.budgetCapMusd,
     maxPaidActions: input.maxPaidActions,
     allowedTools: input.allowedTools,
-    mode: input.mode,
+    mode: 'production',
     status: 'planned',
-    fundingStatus,
+    fundingStatus: 'unfunded',
     vaultPaymentId: getAgentRunBytes32(runId),
     vaultAddress,
     vaultExplorerUrl: getAgentRunVaultExplorerUrl(),
-    fundedAmountMusd:
-      input.mode === 'production'
-        ? '0.00 MUSD'
-        : `${input.budgetCapMusd.toFixed(2)} MUSD`,
+    fundedAmountMusd: '0.00 MUSD',
     spentAmountMusd: '0.00 MUSD',
     reservedAmountMusd: '0.00 MUSD',
     refundedAmountMusd: '0.00 MUSD',
-    availableAmountMusd:
-      input.mode === 'production'
-        ? '0.00 MUSD'
-        : `${input.budgetCapMusd.toFixed(2)} MUSD`,
-    ledgerEvents:
-      input.mode === 'production'
-        ? []
-        : [
-            buildLedgerEvent({
-              type: 'funding_note',
-              label:
-                'Local demo mode uses a simulated budget without moving MUSD.',
-              amountMusd: `${input.budgetCapMusd.toFixed(2)} MUSD`
-            })
-          ],
+    availableAmountMusd: '0.00 MUSD',
+    ledgerEvents: [],
     summary:
       'The launch-pack agent is ready to select paid tools, spend within budget, and prepare a Mezo proof.',
     deliverables: {},
@@ -109,8 +96,49 @@ export function createAgentRun(input: CreateAgentRunInput) {
   }
 
   runs.set(run.id, run)
+  cancelledRuns.delete(run.id)
 
   return run
+}
+
+export async function deleteAgentRun(runId: string) {
+  const run = getAgentRun(runId)
+
+  if (!run) {
+    return null
+  }
+
+  cancelledRuns.add(runId)
+
+  if (
+    ['funded', 'partially_spent', 'refund_available'].includes(
+      run.fundingStatus
+    ) &&
+    run.availableAmountMusd !== '0.00 MUSD'
+  ) {
+    await writeAgentRunVault({
+      functionName: 'cancelRun',
+      args: [getAgentRunBytes32(run.id)]
+    }).catch(() => null)
+
+    await writeAgentRunVault({
+      functionName: 'refundUnused',
+      args: [getAgentRunBytes32(run.id)]
+    }).catch(() => null)
+  }
+
+  runs.delete(runId)
+  Array.from(proofs.entries()).forEach(([proofId, proof]) => {
+    if (proof.runId === runId) {
+      proofs.delete(proofId)
+    }
+  })
+
+  return run
+}
+
+export function isAgentRunCancelled(runId: string) {
+  return cancelledRuns.has(runId)
 }
 
 export async function executeStoredAgentRun(runId: string) {
@@ -120,11 +148,14 @@ export async function executeStoredAgentRun(runId: string) {
     return null
   }
 
-  if (run.mode === 'production' && run.fundingStatus !== 'funded') {
+  if (
+    !['funded', 'partially_spent', 'refund_available'].includes(
+      run.fundingStatus
+    )
+  ) {
     return {
       ...run,
-      summary:
-        'Fund this production run before the agent can spend MUSD through x402.',
+      summary: 'Fund this agent run before it can spend MUSD through x402.',
       updatedAt: new Date().toISOString()
     } satisfies AgentRun
   }
@@ -132,30 +163,31 @@ export async function executeStoredAgentRun(runId: string) {
   const running = {
     ...run,
     status: 'running',
-    fundingStatus:
-      run.fundingStatus === 'funded' ? 'partially_spent' : run.fundingStatus,
-    ledgerEvents:
-      run.mode === 'production'
-        ? [
-            ...run.ledgerEvents,
-            buildLedgerEvent({
-              type: 'run_started',
-              label: 'Agent run started with a funded on-chain budget.'
-            })
-          ]
-        : run.ledgerEvents,
+    fundingStatus: 'partially_spent',
+    ledgerEvents: [
+      ...run.ledgerEvents,
+      buildLedgerEvent({
+        type: 'run_started',
+        label: 'Agent run started with a funded on-chain budget.'
+      })
+    ],
     updatedAt: new Date().toISOString()
   } satisfies AgentRun
   runs.set(run.id, running)
 
-  if (run.mode === 'production') {
-    await writeAgentRunVault({
-      functionName: 'markRunning',
-      args: [getAgentRunBytes32(run.id)]
-    }).catch(() => null)
+  await writeAgentRunVault({
+    functionName: 'markRunning',
+    args: [getAgentRunBytes32(run.id)]
+  }).catch(() => null)
+
+  const result = await executeAgentRunActions(running, () =>
+    isAgentRunCancelled(run.id)
+  )
+
+  if (isAgentRunCancelled(run.id)) {
+    return null
   }
 
-  const result = await executeAgentRunActions(running)
   const ledgerResult = await buildSpendLedger(running, result.actions)
   const nextRun = {
     ...running,
@@ -164,11 +196,9 @@ export async function executeStoredAgentRun(runId: string) {
     deliverables: result.deliverables,
     summary: result.summary,
     fundingStatus:
-      running.mode === 'production'
-        ? ledgerResult.availableAmountMusd === '0.00 MUSD'
-          ? 'partially_spent'
-          : 'refund_available'
-        : running.fundingStatus,
+      ledgerResult.availableAmountMusd === '0.00 MUSD'
+        ? 'partially_spent'
+        : 'refund_available',
     spentAmountMusd: ledgerResult.spentAmountMusd,
     reservedAmountMusd: ledgerResult.reservedAmountMusd,
     availableAmountMusd: ledgerResult.availableAmountMusd,
@@ -178,12 +208,10 @@ export async function executeStoredAgentRun(runId: string) {
 
   runs.set(run.id, nextRun)
 
-  if (run.mode === 'production') {
-    await writeAgentRunVault({
-      functionName: 'markCompleted',
-      args: [getAgentRunBytes32(run.id)]
-    }).catch(() => null)
-  }
+  await writeAgentRunVault({
+    functionName: 'markCompleted',
+    args: [getAgentRunBytes32(run.id)]
+  }).catch(() => null)
 
   return nextRun
 }
@@ -470,16 +498,11 @@ async function buildSpendLedger(run: AgentRun, actions: AgentRun['actions']) {
     ledgerEvents: [
       ...run.ledgerEvents,
       ...newEvents,
-      ...(run.mode === 'production'
-        ? [
-            buildLedgerEvent({
-              type: 'run_completed',
-              label:
-                'Agent execution ended. Any remaining budget can be refunded.',
-              amountMusd: `${available.toFixed(2)} MUSD`
-            })
-          ]
-        : [])
+      buildLedgerEvent({
+        type: 'run_completed',
+        label: 'Agent execution ended. Any remaining budget can be refunded.',
+        amountMusd: `${available.toFixed(2)} MUSD`
+      })
     ]
   }
 }

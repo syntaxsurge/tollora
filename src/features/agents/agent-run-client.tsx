@@ -291,9 +291,11 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
 
   const canRun =
     ['planned', 'failed'].includes(run.status) &&
-    (run.mode === 'local' || run.fundingStatus === 'funded')
+    ['funded', 'partially_spent', 'refund_available'].includes(
+      run.fundingStatus
+    ) &&
+    run.availableAmountMusd !== '0.00 MUSD'
   const canRefund =
-    run.mode === 'production' &&
     ['failed', 'completed', 'attested'].includes(run.status) &&
     run.fundingStatus === 'refund_available' &&
     run.availableAmountMusd !== '0.00 MUSD'
@@ -370,7 +372,6 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
             onClick={fundRun}
             disabled={
               isFunding ||
-              run.mode !== 'production' ||
               !['unfunded', 'funding_pending'].includes(run.fundingStatus)
             }
           >

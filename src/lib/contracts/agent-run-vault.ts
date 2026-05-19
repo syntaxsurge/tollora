@@ -194,6 +194,7 @@ export async function writeAgentRunVault({
     | 'recordSpend'
     | 'recordSpendRefund'
     | 'markCompleted'
+    | 'cancelRun'
     | 'refundUnused'
   args: readonly [Hex] | readonly [Hex, Hex, bigint]
 }): Promise<AgentVaultWriteResult | null> {

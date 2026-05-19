@@ -16,10 +16,9 @@ export type AgentActionStatus =
   | 'skipped'
   | 'failed'
 
-export type AgentRunMode = 'local' | 'production'
+export type AgentRunMode = 'production'
 export type AgentPlannerMode = 'openai' | 'deterministic'
 export type AgentFundingStatus =
-  | 'not_required'
   | 'unfunded'
   | 'funding_pending'
   | 'funded'
@@ -35,7 +34,6 @@ export type AgentLedgerEventType =
   | 'spend_refunded'
   | 'run_completed'
   | 'unused_refunded'
-  | 'funding_note'
 
 export type AgentLedgerEvent = {
   id: string

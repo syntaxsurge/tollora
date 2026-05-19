@@ -26,7 +26,7 @@ export default async function MarketingPage({
   const flow = [
     {
       title: 'Plan',
-      detail: 'Set goal, budget, tools, and signer mode.'
+      detail: 'Set goal, budget, tools, and a funded agent vault.'
     },
     {
       title: 'Spend',
