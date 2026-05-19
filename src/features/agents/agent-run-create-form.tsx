@@ -1,10 +1,20 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+import { useState } from 'react'
 
-import { Bot, Sparkles } from 'lucide-react'
+import {
+  Bot,
+  Boxes,
+  Check,
+  Cpu,
+  type LucideIcon,
+  Sparkles,
+  Wallet
+} from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -86,155 +96,235 @@ export function AgentRunCreateForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-5'>
-      <Card className='space-y-4'>
-        <label className='space-y-2'>
-          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Agent objective
-          </span>
-          <textarea
-            name='objective'
-            defaultValue='Create a launch pack for my MUSD-native paid API product.'
-            className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 min-h-28 w-full rounded-lg border px-4 py-3 text-sm leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
-            required
+    <form
+      onSubmit={handleSubmit}
+      className='grid gap-5 xl:grid-cols-[1fr_340px]'
+    >
+      <div className='space-y-5'>
+        <Card className='space-y-5'>
+          <SectionTitle
+            icon={Sparkles}
+            eyebrow='Goal'
+            title='What should the agent accomplish?'
           />
-        </label>
-        <label className='space-y-2'>
-          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Source context
-          </span>
-          <textarea
-            name='sourceText'
-            defaultValue='The product sells premium API responses to AI agents and records MUSD receipts on Mezo.'
-            className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 min-h-24 w-full rounded-lg border px-4 py-3 text-sm leading-6 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+          <label className='block space-y-2'>
+            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Objective
+            </span>
+            <textarea
+              name='objective'
+              defaultValue='Create a launch pack for my MUSD-native paid API product.'
+              className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-28 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+              required
+            />
+          </label>
+          <label className='block space-y-2'>
+            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Context
+            </span>
+            <textarea
+              name='sourceText'
+              defaultValue='The product sells premium API responses to AI agents and records MUSD receipts on Mezo.'
+              className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-24 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+            />
+          </label>
+        </Card>
+
+        <Card className='space-y-5'>
+          <SectionTitle
+            icon={Boxes}
+            eyebrow='Tools'
+            title='Choose what OpenAI may use'
+            action={
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                disabled={agentReadyProducts.length === 0}
+                onClick={allowAgentToChoose}
+              >
+                <Sparkles className='h-4 w-4' aria-hidden />
+                Select all
+              </Button>
+            }
           />
-        </label>
-        <div className='grid gap-4 md:grid-cols-3'>
-          <label className='space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Owner wallet
-            </span>
-            <Input
-              name='ownerWallet'
-              defaultValue='0x7CE33579392AEAF1791c9B0c8302a502B5867688'
-              required
-            />
-          </label>
-          <label className='space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Budget cap
-            </span>
-            <Input
-              name='budgetCapMusd'
-              type='number'
-              step='0.01'
-              min='0.08'
-              defaultValue='0.90'
-              required
-            />
-          </label>
-          <label className='space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Max paid actions
-            </span>
-            <Input
-              name='maxPaidActions'
-              type='number'
-              min='1'
-              max='4'
-              defaultValue='4'
-              required
-            />
-          </label>
-        </div>
-      </Card>
-      <Card className='space-y-4'>
-        <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Allowed paid tools
-          </p>
-          <p className='text-foreground/65 mt-2 text-sm leading-6'>
-            Select the tools the agent is allowed to consider. The planner will
-            rank this allowed set, choose the best tools for the objective, and
-            stop at the max paid action count. With `AGENT_LLM_API_KEY`,
-            OpenAI makes this choice; otherwise Tollora labels the run as
-            deterministic fallback.
-          </p>
-        </div>
-        <div className='grid gap-3 md:grid-cols-2'>
-          {agentReadyProducts.length === 0 ? (
-            <div className='border-foreground/10 rounded-lg border p-4 md:col-span-2'>
-              <p className='font-semibold'>No agent-ready APIs yet</p>
-              <p className='text-foreground/65 mt-1 text-sm leading-6'>
-                Publish a provider product with agent access enabled before
-                creating an autonomous run.
-              </p>
-            </div>
-          ) : null}
-          {agentReadyProducts.map(product => (
-            <label
-              key={product.slug}
-              className='border-foreground/10 flex cursor-pointer gap-3 rounded-lg border p-4'
-            >
-              <input
-                type='checkbox'
-                checked={selectedTools.includes(product.slug)}
-                onChange={() => toggleTool(product.slug)}
-                className='mt-1'
-              />
-              <span>
-                <span className='block font-semibold'>{product?.name}</span>
-                <span className='text-foreground/60 mt-1 block text-sm'>
-                  {product.priceLabel} - {product.providerName}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <Button
-          type='button'
-          variant='outline'
-          disabled={agentReadyProducts.length === 0}
-          onClick={allowAgentToChoose}
-        >
-          <Sparkles className='h-4 w-4' aria-hidden />
-          Allow agent to choose from all tools
-        </Button>
-        <fieldset className='flex flex-wrap gap-3'>
-          <legend className='sr-only'>Agent execution mode</legend>
-          {[
-            ['local', 'Local signer'],
-            ['production', 'Production signer']
-          ].map(([value, label]) => (
-            <label
-              key={value}
-              className='border-foreground/10 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm'
-            >
-              <input
-                type='radio'
-                name='mode'
-                value={value}
-                defaultChecked={value === 'local'}
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-      </Card>
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-        <Button
-          type='submit'
-          disabled={isSubmitting || selectedTools.length === 0}
-        >
-          <Bot className='h-4 w-4' aria-hidden />
-          {isSubmitting ? 'Preparing' : 'Start agent'}
-        </Button>
-        {error ? (
-          <p className='text-sm text-red-600' role='alert'>
-            {error}
-          </p>
-        ) : null}
+          <div className='grid gap-3 md:grid-cols-2'>
+            {agentReadyProducts.length === 0 ? (
+              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4 md:col-span-2'>
+                <p className='font-semibold'>No agent-ready APIs yet</p>
+                <p className='text-foreground/65 mt-1 text-sm leading-6'>
+                  Publish a provider product with agent access enabled first.
+                </p>
+              </div>
+            ) : null}
+            {agentReadyProducts.map(product => {
+              const checked = selectedTools.includes(product.slug)
+
+              return (
+                <label
+                  key={product.slug}
+                  className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
+                    checked ? 'bg-primary/10 ring-primary/30 ring-1' : 'bg-card'
+                  }`}
+                >
+                  <input
+                    type='checkbox'
+                    checked={checked}
+                    onChange={() => toggleTool(product.slug)}
+                    className='sr-only'
+                  />
+                  <span
+                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
+                      checked
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-foreground/20'
+                    }`}
+                  >
+                    {checked ? <Check className='h-4 w-4' aria-hidden /> : null}
+                  </span>
+                  <span className='min-w-0'>
+                    <span className='block truncate font-semibold'>
+                      {product.name}
+                    </span>
+                    <span className='text-foreground/60 mt-1 block text-sm'>
+                      {product.priceLabel} - {product.providerName}
+                    </span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+        </Card>
       </div>
+
+      <aside className='space-y-5 xl:sticky xl:top-28 xl:self-start'>
+        <Card className='space-y-5'>
+          <SectionTitle
+            icon={Wallet}
+            eyebrow='Run limits'
+            title='Budget guardrails'
+          />
+          <div className='grid gap-4'>
+            <label className='space-y-2'>
+              <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Owner wallet
+              </span>
+              <Input
+                name='ownerWallet'
+                defaultValue='0x7CE33579392AEAF1791c9B0c8302a502B5867688'
+                required
+              />
+            </label>
+            <div className='grid grid-cols-2 gap-3'>
+              <label className='space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Budget
+                </span>
+                <Input
+                  name='budgetCapMusd'
+                  type='number'
+                  step='0.01'
+                  min='0.08'
+                  defaultValue='0.90'
+                  required
+                />
+              </label>
+              <label className='space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Actions
+                </span>
+                <Input
+                  name='maxPaidActions'
+                  type='number'
+                  min='1'
+                  max='4'
+                  defaultValue='4'
+                  required
+                />
+              </label>
+            </div>
+          </div>
+        </Card>
+
+        <Card className='space-y-5'>
+          <SectionTitle icon={Cpu} eyebrow='Execution' title='Signer mode' />
+          <fieldset className='grid gap-3'>
+            <legend className='sr-only'>Agent execution mode</legend>
+            {[
+              ['local', 'Local'],
+              ['production', 'Production']
+            ].map(([value, label]) => (
+              <label
+                key={value}
+                className='border-foreground/10 has-[:checked]:border-primary has-[:checked]:bg-primary/10 flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm transition'
+              >
+                <span className='font-semibold'>{label}</span>
+                <input
+                  type='radio'
+                  name='mode'
+                  value={value}
+                  defaultChecked={value === 'local'}
+                />
+              </label>
+            ))}
+          </fieldset>
+          <div className='border-foreground/10 bg-muted/30 rounded-lg border p-3'>
+            <div className='flex items-center justify-between gap-3'>
+              <span className='text-sm font-semibold'>Allowed tools</span>
+              <Badge>{selectedTools.length}</Badge>
+            </div>
+            <p className='text-foreground/60 mt-2 text-sm leading-6'>
+              OpenAI chooses from this set. Tollora still quotes, pays, and
+              records receipts.
+            </p>
+          </div>
+          <Button
+            type='submit'
+            className='w-full'
+            disabled={isSubmitting || selectedTools.length === 0}
+          >
+            <Bot className='h-4 w-4' aria-hidden />
+            {isSubmitting ? 'Preparing' : 'Start agent'}
+          </Button>
+          {error ? (
+            <p
+              className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-300'
+              role='alert'
+            >
+              {error}
+            </p>
+          ) : null}
+        </Card>
+      </aside>
     </form>
+  )
+}
+
+function SectionTitle({
+  icon: Icon,
+  eyebrow,
+  title,
+  action
+}: {
+  icon: LucideIcon
+  eyebrow: string
+  title: string
+  action?: ReactNode
+}) {
+  return (
+    <div className='flex items-start justify-between gap-4'>
+      <div className='flex items-start gap-3'>
+        <span className='bg-primary/10 text-primary rounded-lg p-2'>
+          <Icon className='h-4 w-4' aria-hidden />
+        </span>
+        <span>
+          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            {eyebrow}
+          </span>
+          <span className='mt-1 block text-lg font-semibold'>{title}</span>
+        </span>
+      </div>
+      {action}
+    </div>
   )
 }

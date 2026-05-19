@@ -105,7 +105,10 @@ const objectiveSignals = {
 export async function buildAgentPlan(run: AgentRun): Promise<AgentPlanResult> {
   if (envServer.AGENT_LLM_API_KEY) {
     const openAiPlan = await buildOpenAiAgentPlan(run).catch(error => {
-      console.warn('OpenAI planner failed; using deterministic fallback.', error)
+      console.warn(
+        'OpenAI planner failed; using deterministic fallback.',
+        error
+      )
       return null
     })
 
@@ -184,8 +187,10 @@ export function buildPlannerSummary(
     toolSelectionRationale:
       chosen ||
       'No paid tools were selected because the allowed tool set did not match the objective.',
-    skippedTools: options?.skippedTools ?? buildDeterministicSkippedTools(run, actions),
-    expectedDeliverables: options?.expectedDeliverables ?? defaultExpectedDeliverables(),
+    skippedTools:
+      options?.skippedTools ?? buildDeterministicSkippedTools(run, actions),
+    expectedDeliverables:
+      options?.expectedDeliverables ?? defaultExpectedDeliverables(),
     budgetInstruction: `Spend no more than ${run.budgetCapMusd.toFixed(2)} MUSD across at most ${run.maxPaidActions} paid action(s).`,
     budgetStrategy:
       options?.budgetStrategy ??
@@ -196,7 +201,9 @@ export function buildPlannerSummary(
   }
 }
 
-async function buildOpenAiAgentPlan(run: AgentRun): Promise<AgentPlanResult | null> {
+async function buildOpenAiAgentPlan(
+  run: AgentRun
+): Promise<AgentPlanResult | null> {
   const products = run.allowedTools
     .map(slug => getProductBySlug(slug))
     .filter((product): product is ApiProduct => Boolean(product))
@@ -242,9 +249,10 @@ async function buildOpenAiAgentPlan(run: AgentRun): Promise<AgentPlanResult | nu
     })
   })
 
-  const body = (await response.json().catch(() => null)) as
-    | Record<string, unknown>
-    | null
+  const body = (await response.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null
 
   if (!response.ok) {
     throw new Error(
@@ -323,7 +331,8 @@ function buildActionsFromOpenAiPlan({
         planningRationale: tool.rationale,
         plannerScore: Math.max(1, 100 - index),
         requestPayload:
-          parsePayloadJson(tool.requestPayloadJson) ?? buildPayloadForTool(product.slug, run),
+          parsePayloadJson(tool.requestPayloadJson) ??
+          buildPayloadForTool(product.slug, run),
         startedAt: now
       })
 
@@ -426,7 +435,9 @@ function normalizeSkippedTools(
   actions: AgentAction[]
 ) {
   const selected = new Set(actions.map(action => action.productSlug))
-  const productBySlug = new Map(products.map(product => [product.slug, product]))
+  const productBySlug = new Map(
+    products.map(product => [product.slug, product])
+  )
   const explicit = skippedTools
     .filter(tool => !selected.has(tool.slug))
     .map(tool => ({
@@ -437,11 +448,14 @@ function normalizeSkippedTools(
 
   const explicitSlugs = new Set(explicit.map(tool => tool.slug))
   const implicit = products
-    .filter(product => !selected.has(product.slug) && !explicitSlugs.has(product.slug))
+    .filter(
+      product => !selected.has(product.slug) && !explicitSlugs.has(product.slug)
+    )
     .map(product => ({
       slug: product.slug,
       productName: product.name,
-      reason: 'OpenAI did not need this tool for the current objective and budget.'
+      reason:
+        'OpenAI did not need this tool for the current objective and budget.'
     }))
 
   return [...explicit, ...implicit]
@@ -494,7 +508,9 @@ function parsePayloadJson(value: string) {
   return null
 }
 
-export function parseOpenAiJson<T>(body: Record<string, unknown> | null): T | null {
+export function parseOpenAiJson<T>(
+  body: Record<string, unknown> | null
+): T | null {
   const directText =
     typeof body?.output_text === 'string'
       ? body.output_text
@@ -556,9 +572,10 @@ function rankAllowedTools(run: AgentRun): PlannedTool[] {
       const signalScore = scoreSignals(objective, product)
       const costPenalty = Math.min(product.priceUsd * 3, 8)
       const score = Number(
-        Math.max(0, categoryScore + keywordScore + signalScore - costPenalty).toFixed(
-          2
-        )
+        Math.max(
+          0,
+          categoryScore + keywordScore + signalScore - costPenalty
+        ).toFixed(2)
       )
 
       return {
@@ -569,7 +586,9 @@ function rankAllowedTools(run: AgentRun): PlannedTool[] {
     })
     .filter((tool): tool is PlannedTool => Boolean(tool))
     .filter(tool => tool.score > 0)
-    .sort((a, b) => b.score - a.score || a.product.priceUsd - b.product.priceUsd)
+    .sort(
+      (a, b) => b.score - a.score || a.product.priceUsd - b.product.priceUsd
+    )
 }
 
 function scoreKeywordOverlap(objective: string, productText: string) {
@@ -584,7 +603,8 @@ function scoreSignals(objective: string, product: ApiProduct) {
 
   if (hasSignal(objective, objectiveSignals.media)) {
     score +=
-      product.category === 'media' || product.resultDelivery !== 'direct_response'
+      product.category === 'media' ||
+      product.resultDelivery !== 'direct_response'
         ? 14
         : 0
   }
@@ -627,7 +647,10 @@ function buildRationale({
     reasons.push('it can produce the final creative deliverable')
   }
 
-  if (hasSignal(objective, objectiveSignals.media) && product.category === 'media') {
+  if (
+    hasSignal(objective, objectiveSignals.media) &&
+    product.category === 'media'
+  ) {
     reasons.push('the objective asks for launch assets or video output')
   }
 

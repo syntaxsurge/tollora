@@ -3,7 +3,19 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-import { ExternalLink, FileCheck2, Play } from 'lucide-react'
+import {
+  AlertTriangle,
+  Bot,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  FileCheck2,
+  Play,
+  ReceiptText,
+  Route,
+  Sparkles,
+  WalletCards
+} from 'lucide-react'
 
 import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Button, buttonClasses } from '@/components/ui/button'
@@ -121,69 +133,82 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
 
   return (
     <div className='space-y-6'>
-      <div className='grid gap-4 md:grid-cols-4'>
+      <div className='grid gap-3 md:grid-cols-4'>
         {[
-          ['Status', agentRunStatusLabels[run.status]],
-          ['Budget', `${run.budgetCapMusd.toFixed(2)} MUSD`],
-          ['Paid actions', run.actions.length.toString()],
-          ['Planner', formatPlanner(run)]
-        ].map(([label, value]) => (
-          <div key={label} className='bg-muted rounded-lg p-4'>
-            <p className='text-foreground/60 text-xs uppercase'>{label}</p>
-            <p className='mt-1 font-semibold'>{value}</p>
+          [statusIcon(run.status), 'Status', agentRunStatusLabels[run.status]],
+          [WalletCards, 'Budget', `${run.budgetCapMusd.toFixed(2)} MUSD`],
+          [ReceiptText, 'Actions', run.actions.length.toString()],
+          [Sparkles, 'Planner', formatPlanner(run)]
+        ].map(([Icon, label, value]) => (
+          <div
+            key={String(label)}
+            className='border-foreground/10 bg-card/80 rounded-lg border p-4'
+          >
+            <Icon className='text-primary h-4 w-4' aria-hidden />
+            <p className='text-foreground/60 mt-3 text-xs tracking-[0.14em] uppercase'>
+              {String(label)}
+            </p>
+            <p className='mt-1 truncate font-semibold'>{String(value)}</p>
           </div>
         ))}
       </div>
-      <Card>
-        <p className='font-semibold'>{agentRunStatusLabels[run.status]}</p>
-        <p className='text-foreground/65 mt-2 text-sm leading-6'>
-          {agentRunStatusDetails[run.status]}
-        </p>
-      </Card>
-      <section className='grid gap-5 xl:grid-cols-[1fr_0.8fr]'>
+
+      <section className='grid gap-5 xl:grid-cols-[1fr_340px]'>
         <Card className='space-y-4'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Objective
-            </p>
-            <p className='mt-2 text-sm leading-6'>{run.objective}</p>
+          <div className='flex items-start gap-3'>
+            <div className='bg-primary/10 text-primary rounded-lg p-2'>
+              <Bot className='h-5 w-5' aria-hidden />
+            </div>
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Objective
+              </p>
+              <p className='mt-1 text-lg leading-7 font-semibold'>
+                {run.objective}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Agent summary
+          <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4'>
+            <p className='font-semibold'>{agentRunStatusLabels[run.status]}</p>
+            <p className='text-foreground/65 mt-1 text-sm leading-6'>
+              {agentRunStatusDetails[run.status]}
             </p>
-            <p className='mt-2 text-sm leading-6'>{run.summary}</p>
           </div>
           <div className='grid gap-3 md:grid-cols-2'>
-            <div className='border-foreground/10 rounded-lg border p-3'>
+            <div className='border-foreground/10 rounded-lg border p-4'>
               <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
                 Planner
               </p>
               <p className='mt-1 font-semibold'>{formatPlanner(run)}</p>
             </div>
-            <div className='border-foreground/10 rounded-lg border p-3'>
+            <div className='border-foreground/10 rounded-lg border p-4'>
               <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
-                Mode
+                Signer mode
               </p>
               <p className='mt-1 font-semibold'>{run.mode}</p>
             </div>
           </div>
           {run.deliverables.budgetStrategy ? (
-            <div>
-              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            <details className='border-foreground/10 rounded-lg border p-4'>
+              <summary className='cursor-pointer font-semibold'>
                 Budget strategy
-              </p>
-              <p className='mt-2 text-sm leading-6'>
+              </summary>
+              <p className='text-foreground/65 mt-3 text-sm leading-6'>
                 {run.deliverables.budgetStrategy}
               </p>
-            </div>
+            </details>
           ) : null}
         </Card>
-        <Card className='space-y-4'>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Controls
-          </p>
+
+        <Card className='space-y-4 xl:sticky xl:top-28 xl:self-start'>
+          <div>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Controls
+            </p>
+            <p className='mt-1 text-lg font-semibold'>Run lifecycle</p>
+          </div>
           <Button
+            className='w-full'
             onClick={executeRun}
             disabled={isRunning || !['planned', 'failed'].includes(run.status)}
           >
@@ -191,6 +216,7 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
             {isRunning ? 'Running' : 'Run actions'}
           </Button>
           <Button
+            className='w-full'
             variant='outline'
             onClick={attestRun}
             disabled={
@@ -203,23 +229,51 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
           {run.proof ? (
             <Link
               href={`/proofs/${run.proof.id}`}
-              className={buttonClasses({ variant: 'primary', size: 'sm' })}
+              className={buttonClasses({
+                variant: 'primary',
+                size: 'md',
+                className: 'w-full'
+              })}
             >
               <ExternalLink className='h-4 w-4' aria-hidden />
               Proof
             </Link>
           ) : null}
           {status ? (
-            <p className='text-foreground/65 text-sm' role='status'>
+            <p
+              className='border-foreground/10 bg-muted/30 rounded-lg border p-3 text-sm leading-6'
+              role='status'
+            >
               {status}
             </p>
           ) : null}
         </Card>
       </section>
+
+      {hasDeliverableSummary(run) ? (
+        <section className='grid gap-4 lg:grid-cols-3'>
+          <DeliverableCard
+            title='Launch brief'
+            value={run.deliverables.launchBrief}
+          />
+          <DeliverableCard
+            title='Developer copy'
+            value={run.deliverables.developerCopy}
+          />
+          <DeliverableCard
+            title='Market signal'
+            value={run.deliverables.marketSignal}
+          />
+        </section>
+      ) : null}
+
       <section className='grid gap-4'>
         {run.deliverables.skippedTools?.length ? (
           <Card className='space-y-3'>
-            <p className='font-semibold'>Skipped tools</p>
+            <div className='flex items-center gap-2'>
+              <Route className='text-primary h-4 w-4' aria-hidden />
+              <p className='font-semibold'>Skipped tools</p>
+            </div>
             <div className='grid gap-3 md:grid-cols-2'>
               {run.deliverables.skippedTools.map(tool => (
                 <div
@@ -238,33 +292,32 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
           </Card>
         ) : null}
         {run.actions.map(action => (
-          <Card key={action.id} className='space-y-3'>
-            <div className='flex flex-col justify-between gap-2 sm:flex-row sm:items-start'>
-              <div>
-                <p className='font-semibold'>{action.productName}</p>
+          <Card key={action.id} className='space-y-4'>
+            <div className='grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start'>
+              <div className='min-w-0'>
+                <div className='flex flex-wrap items-center gap-2'>
+                  <span className='font-semibold'>{action.productName}</span>
+                  <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
+                    {agentActionStatusLabels[action.status]}
+                  </span>
+                </div>
                 <p className='text-foreground/60 mt-1 text-sm'>
                   {action.providerName} - {action.amountMusd}
                 </p>
               </div>
-              <span className='text-sm font-semibold'>
-                {agentActionStatusLabels[action.status]}
-              </span>
-            </div>
-            <p className='text-foreground/70 text-sm leading-6'>
-              {action.objective}
-            </p>
-            {action.planningRationale ? (
-              <div className='border-foreground/10 bg-muted/40 rounded-lg border p-3 text-sm'>
-                <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
-                  Planner rationale
-                </p>
-                <p className='mt-1 leading-6'>{action.planningRationale}</p>
-                {typeof action.plannerScore === 'number' ? (
-                  <p className='text-foreground/60 mt-1'>
-                    Score: {action.plannerScore}
-                  </p>
-                ) : null}
+              <div className='text-primary text-sm font-semibold'>
+                {action.receipt ? 'Receipt saved' : action.status}
               </div>
+            </div>
+            {action.planningRationale ? (
+              <details className='border-foreground/10 bg-muted/30 rounded-lg border p-3 text-sm'>
+                <summary className='cursor-pointer font-semibold'>
+                  Planner rationale
+                </summary>
+                <p className='text-foreground/65 mt-2 leading-6'>
+                  {action.planningRationale}
+                </p>
+              </details>
             ) : null}
             {action.receipt ? (
               <div className='grid gap-3 text-sm md:grid-cols-3'>
@@ -296,6 +349,7 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
         <JsonViewer
           title='Deliverables'
           value={run.deliverables}
+          defaultOpen={false}
           copyLabel='Copy deliverables'
         />
       </Card>
@@ -315,4 +369,43 @@ function formatPlanner(run: AgentRun) {
   }
 
   return 'Pending'
+}
+
+function statusIcon(status: AgentRun['status']) {
+  if (['completed', 'attested'].includes(status)) {
+    return CheckCircle2
+  }
+
+  if (['failed'].includes(status)) {
+    return AlertTriangle
+  }
+
+  if (['running', 'attesting'].includes(status)) {
+    return Clock
+  }
+
+  return Bot
+}
+
+function hasDeliverableSummary(run: AgentRun) {
+  return Boolean(
+    run.deliverables.launchBrief ||
+      run.deliverables.developerCopy ||
+      run.deliverables.marketSignal
+  )
+}
+
+function DeliverableCard({ title, value }: { title: string; value?: string }) {
+  if (!value) {
+    return null
+  }
+
+  return (
+    <Card className='space-y-2'>
+      <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+        {title}
+      </p>
+      <p className='text-sm leading-6'>{value}</p>
+    </Card>
+  )
 }

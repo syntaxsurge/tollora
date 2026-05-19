@@ -3,16 +3,13 @@ import { registerExactEvmScheme } from '@x402/evm/exact/client'
 import { wrapFetchWithPayment } from '@x402/fetch'
 import { privateKeyToAccount } from 'viem/accounts'
 
-import type {
-  AgentAction,
-  AgentRun
-} from '@/features/agents/types'
 import {
   type AgentPlanMetadata,
   buildAgentPlan,
   buildPlannerSummary,
   parseOpenAiJson
 } from '@/features/agents/planner'
+import type { AgentAction, AgentRun } from '@/features/agents/types'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
@@ -43,7 +40,11 @@ export async function executeAgentRunActions(run: AgentRun) {
     completedActions.push(result)
   }
 
-  const deliverables = await buildDeliverables(run, completedActions, plan.metadata)
+  const deliverables = await buildDeliverables(
+    run,
+    completedActions,
+    plan.metadata
+  )
   const completed = completedActions.every(
     action => action.status === 'completed'
   )
@@ -206,12 +207,14 @@ async function buildDeliverables(
   planMetadata: AgentPlanMetadata
 ) {
   if (envServer.AGENT_LLM_API_KEY) {
-    const synthesized = await synthesizeWithOpenAi(run, actions, planMetadata).catch(
-      error => {
-        console.warn('OpenAI synthesis failed; using local synthesis.', error)
-        return null
-      }
-    )
+    const synthesized = await synthesizeWithOpenAi(
+      run,
+      actions,
+      planMetadata
+    ).catch(error => {
+      console.warn('OpenAI synthesis failed; using local synthesis.', error)
+      return null
+    })
 
     if (synthesized) {
       return synthesized
@@ -348,9 +351,10 @@ async function synthesizeWithOpenAi(
       }
     })
   })
-  const body = (await response.json().catch(() => null)) as
-    | Record<string, unknown>
-    | null
+  const body = (await response.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null
 
   if (!response.ok) {
     throw new Error(

@@ -1,10 +1,16 @@
 import Link from 'next/link'
 
-import { ArrowLeft } from 'lucide-react'
+import {
+  ArrowLeft,
+  Bot,
+  CircleDollarSign,
+  type LucideIcon,
+  Sparkles,
+  WalletCards
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { AgentRunCreateForm } from '@/features/agents/agent-run-create-form'
 import { getPublishedProducts } from '@/features/marketplace/products'
 
@@ -17,29 +23,43 @@ export default function NewAgentRunPage() {
     category: product.category,
     isAgentReady: product.isAgentReady
   }))
+  const steps: { icon: LucideIcon; title: string; detail: string }[] = [
+    { icon: Sparkles, title: 'Plan', detail: 'Select tools' },
+    { icon: WalletCards, title: 'Pay', detail: 'x402 MUSD' },
+    { icon: CircleDollarSign, title: 'Earn', detail: '95% provider split' }
+  ]
 
   return (
-    <div className='space-y-8'>
-      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-6'>
-        <Badge>Launch Pack Agent</Badge>
-        <div className='mt-4 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end'>
-          <div className='space-y-3'>
-            <h1 className='font-display text-4xl'>
-              Configure a paid workflow.
-            </h1>
-            <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Set the goal, budget, tool access, and signer mode.
-            </p>
+    <div className='space-y-6'>
+      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-5 sm:p-6'>
+        <div className='grid gap-6 lg:grid-cols-[1fr_360px] lg:items-center'>
+          <div className='space-y-4'>
+            <Badge className='w-fit'>
+              <Bot className='h-3.5 w-3.5' aria-hidden />
+              Launch Pack Agent
+            </Badge>
+            <div className='space-y-3'>
+              <h1 className='font-display text-3xl text-balance sm:text-4xl'>
+                Create an autonomous paid run.
+              </h1>
+              <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
+                Give the agent a goal, budget, and allowed tools. OpenAI plans;
+                Tollora pays and proves.
+              </p>
+            </div>
           </div>
-          <Card className='bg-background/85'>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Monetization
-            </p>
-            <p className='mt-2 text-2xl font-semibold'>Per-action MUSD fees</p>
-            <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Providers earn 95% of paid API revenue.
-            </p>
-          </Card>
+          <div className='grid gap-3 sm:grid-cols-3 lg:grid-cols-1'>
+            {steps.map(({ icon: Icon, title, detail }) => (
+              <div
+                key={title}
+                className='border-foreground/10 bg-background/85 rounded-lg border p-4'
+              >
+                <Icon className='text-primary h-4 w-4' aria-hidden />
+                <p className='mt-3 font-semibold'>{title}</p>
+                <p className='text-foreground/60 mt-1 text-sm'>{detail}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
       <AgentRunCreateForm products={products} />

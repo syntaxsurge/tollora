@@ -62,12 +62,14 @@ export function classifyProviderFailure({
   if (!retryable) {
     return {
       retryable: false,
-      reason: providerResult.errorMessage ?? 'Provider returned a terminal error.'
+      reason:
+        providerResult.errorMessage ?? 'Provider returned a terminal error.'
     }
   }
 
   const firstFailureAt =
-    order?.providerRetry?.firstFailureAt && isValidDate(order.providerRetry.firstFailureAt)
+    order?.providerRetry?.firstFailureAt &&
+    isValidDate(order.providerRetry.firstFailureAt)
       ? order.providerRetry.firstFailureAt
       : now.toISOString()
   const retryUntil = new Date(

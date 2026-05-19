@@ -91,9 +91,7 @@ export function JsonViewer({
 
 export function formatJsonDisplayValue(
   value: unknown,
-  {
-    normalizeEscapedStrings = true
-  }: { normalizeEscapedStrings?: boolean } = {}
+  { normalizeEscapedStrings = true }: { normalizeEscapedStrings?: boolean } = {}
 ) {
   const displayValue = omitIndexedCharacterMaps(
     normalizeEscapedStrings ? normalizeJsonDisplayValue(value) : value

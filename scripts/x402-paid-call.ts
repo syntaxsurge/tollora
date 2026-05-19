@@ -1,6 +1,6 @@
-import { config } from 'dotenv'
-import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
+import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
+import { config } from 'dotenv'
 import { privateKeyToAccount } from 'viem/accounts'
 
 import { getProductBySlug } from '../src/features/marketplace/products'
@@ -53,8 +53,10 @@ async function main() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const endpointUrl =
     url ??
-    new URL(product?.endpointPath ?? `/api/x402/products/${slug}/call`, appUrl)
-      .toString()
+    new URL(
+      product?.endpointPath ?? `/api/x402/products/${slug}/call`,
+      appUrl
+    ).toString()
   const requestPayload = payload
     ? (JSON.parse(payload) as unknown)
     : (product?.referencePayload ?? {})

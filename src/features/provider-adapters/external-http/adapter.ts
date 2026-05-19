@@ -302,14 +302,14 @@ function normalizeResult({
             rawStatus === 'awaiting_approval' ||
             rawStatus === 'preview_ready')
         ? 'completed'
-      : rawStatus === 'completed' ||
-          rawStatus === 'complete' ||
-          rawStatus === 'preview_ready' ||
-          rawStatus === 'succeeded' ||
-          rawStatus === 'success' ||
-          (executionMode === 'synchronous' && !externalJobId)
-        ? 'completed'
-        : 'processing'
+        : rawStatus === 'completed' ||
+            rawStatus === 'complete' ||
+            rawStatus === 'preview_ready' ||
+            rawStatus === 'succeeded' ||
+            rawStatus === 'success' ||
+            (executionMode === 'synchronous' && !externalJobId)
+          ? 'completed'
+          : 'processing'
 
   return {
     status,

@@ -1,105 +1,190 @@
 import Link from 'next/link'
 
-import { Bot, Plus } from 'lucide-react'
+import {
+  Activity,
+  Bot,
+  CheckCircle2,
+  CircleDollarSign,
+  FileCheck2,
+  Plus,
+  ShieldCheck,
+  Sparkles
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { agentRunStatusLabels } from '@/features/agents/status'
 import { getAgentMetrics, listAgentRuns } from '@/features/agents/store'
+import type { AgentRun } from '@/features/agents/types'
 
 export default function AgentsPage() {
   const runs = listAgentRuns()
   const metrics = getAgentMetrics()
+  const recentRuns = runs.slice(0, 6)
 
   return (
-    <div className='space-y-8'>
-      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-6'>
-        <div className='grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end'>
-          <div className='space-y-4'>
-            <Badge>Autonomous agents</Badge>
-            <h1 className='font-display text-4xl'>
-              Agents that buy APIs and prove work.
-            </h1>
-            <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              Run paid workflows, collect receipts, and publish proof.
-            </p>
+    <div className='space-y-6'>
+      <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-5 sm:p-6'>
+        <div className='grid gap-6 xl:grid-cols-[1fr_420px] xl:items-center'>
+          <div className='max-w-3xl space-y-5'>
+            <Badge className='w-fit'>
+              <Sparkles className='h-3.5 w-3.5' aria-hidden />
+              OpenAI agent runs
+            </Badge>
+            <div className='space-y-3'>
+              <h1 className='font-display text-3xl text-balance sm:text-4xl'>
+                Plan, pay, execute, prove.
+              </h1>
+              <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
+                The agent chooses tools, spends MUSD through x402, captures
+                receipts, and prepares a public Mezo proof.
+              </p>
+            </div>
             <Link
               href='/agents/new'
-              className={buttonClasses({ variant: 'primary', size: 'sm' })}
+              className={buttonClasses({ variant: 'primary', size: 'md' })}
             >
               <Plus className='h-4 w-4' aria-hidden />
-              New run
+              Create run
             </Link>
           </div>
-          <Card className='bg-background/85 space-y-4'>
-            {[
-              ['Runs', metrics.totalRuns.toString()],
-              ['Completed', metrics.completedRuns.toString()],
-              ['Proofs', metrics.proofCount.toString()],
-              ['Spend', `${metrics.totalSpendMusd} MUSD`]
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                  {label}
-                </p>
-                <p className='mt-1 text-xl font-semibold'>{value}</p>
-              </div>
-            ))}
-          </Card>
+          <div className='grid grid-cols-2 gap-3'>
+            <MetricTile
+              icon={Activity}
+              label='Runs'
+              value={metrics.totalRuns.toString()}
+            />
+            <MetricTile
+              icon={CheckCircle2}
+              label='Completed'
+              value={metrics.completedRuns.toString()}
+            />
+            <MetricTile
+              icon={FileCheck2}
+              label='Proofs'
+              value={metrics.proofCount.toString()}
+            />
+            <MetricTile
+              icon={CircleDollarSign}
+              label='Spend'
+              value={`${metrics.totalSpendMusd} MUSD`}
+            />
+          </div>
         </div>
       </section>
 
-      <section className='grid gap-5 xl:grid-cols-[0.8fr_1.2fr]'>
-        <Card className='space-y-4'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Template
-            </p>
-            <h2 className='font-display mt-2 text-2xl'>Launch Pack Agent</h2>
+      <section className='grid gap-5 xl:grid-cols-[380px_1fr]'>
+        <Card className='space-y-5'>
+          <div className='flex items-start gap-3'>
+            <div className='bg-primary/10 text-primary rounded-lg p-2'>
+              <Bot className='h-5 w-5' aria-hidden />
+            </div>
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Template
+              </p>
+              <h2 className='font-display mt-1 text-2xl'>Launch Pack Agent</h2>
+            </div>
           </div>
-          <p className='text-foreground/70 text-sm leading-6'>
-            Start from a lean workflow that selects tools, spends within budget,
-            and returns a proof package.
-          </p>
+          <div className='grid gap-3'>
+            {[
+              ['OpenAI plans', 'Selects only useful tools'],
+              ['x402 pays', 'Settles each paid action'],
+              ['Mezo proves', 'Publishes auditable proof']
+            ].map(([title, detail]) => (
+              <div
+                key={title}
+                className='border-foreground/10 bg-muted/30 rounded-lg border p-3'
+              >
+                <p className='text-sm font-semibold'>{title}</p>
+                <p className='text-foreground/60 mt-1 text-sm'>{detail}</p>
+              </div>
+            ))}
+          </div>
           <Link
             href='/agents/new'
-            className={buttonClasses({ variant: 'outline', size: 'sm' })}
+            className={buttonClasses({
+              variant: 'outline',
+              size: 'md',
+              className: 'w-full'
+            })}
           >
-            <Bot className='h-4 w-4' aria-hidden />
             Configure
           </Link>
         </Card>
-        <Card className='space-y-5'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Recent runs
-            </p>
-            <h2 className='font-display mt-2 text-2xl'>Agent activity</h2>
+        <Card className='space-y-4'>
+          <div className='flex flex-col justify-between gap-3 sm:flex-row sm:items-center'>
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Recent runs
+              </p>
+              <h2 className='font-display mt-1 text-2xl'>Activity</h2>
+            </div>
+            <Badge>
+              <ShieldCheck className='h-3.5 w-3.5' aria-hidden />
+              Proof-ready
+            </Badge>
           </div>
           <div className='grid gap-3'>
-            {runs.map(run => (
-              <Link
-                key={run.id}
-                href={`/agents/${run.id}`}
-                className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
-              >
-                <div className='flex flex-col justify-between gap-3 sm:flex-row sm:items-center'>
-                  <div>
-                    <span className='block font-semibold'>{run.title}</span>
-                    <span className='text-foreground/60 mt-1 block text-sm leading-6'>
-                      {run.objective}
-                    </span>
-                  </div>
-                  <span className='text-sm font-semibold'>
-                    {agentRunStatusLabels[run.status]}
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {recentRuns.length > 0 ? (
+              recentRuns.map(run => <RunRow key={run.id} run={run} />)
+            ) : (
+              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-5 text-sm'>
+                <p className='font-semibold'>No runs yet</p>
+                <p className='text-foreground/65 mt-1'>
+                  Create a run to test OpenAI planning, x402 settlement, and
+                  Mezo proof output.
+                </p>
+              </div>
+            )}
           </div>
         </Card>
       </section>
     </div>
+  )
+}
+
+function MetricTile({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: typeof Activity
+  label: string
+  value: string
+}) {
+  return (
+    <div className='border-foreground/10 bg-background/85 rounded-lg border p-4 shadow-sm'>
+      <Icon className='text-primary h-4 w-4' aria-hidden />
+      <p className='text-foreground/60 mt-3 text-xs tracking-[0.14em] uppercase'>
+        {label}
+      </p>
+      <p className='mt-1 text-xl font-semibold'>{value}</p>
+    </div>
+  )
+}
+
+function RunRow({ run }: { run: AgentRun }) {
+  return (
+    <Link
+      href={`/agents/${run.id}`}
+      className='border-foreground/10 hover:border-primary/50 hover:bg-muted/35 group grid gap-3 rounded-lg border p-4 transition sm:grid-cols-[1fr_auto] sm:items-center'
+    >
+      <div className='min-w-0'>
+        <div className='flex items-center gap-2'>
+          <span className='truncate font-semibold'>{run.title}</span>
+          <span className='bg-muted text-foreground/70 rounded-md px-2 py-0.5 text-xs'>
+            {run.actions.length} actions
+          </span>
+        </div>
+        <p className='text-foreground/60 mt-1 line-clamp-2 text-sm leading-6'>
+          {run.objective}
+        </p>
+      </div>
+      <span className='text-primary text-sm font-semibold'>
+        {agentRunStatusLabels[run.status]}
+      </span>
+    </Link>
   )
 }

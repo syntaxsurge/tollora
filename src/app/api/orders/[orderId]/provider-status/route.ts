@@ -92,10 +92,9 @@ export async function GET(
       : null
   const shouldHoldRetryableFailure =
     failurePolicy?.retryable === true && !failurePolicy.expired
-  const resultReleaseStatus =
-    shouldHoldRetryableFailure
-      ? 'provider_retrying'
-      : providerResult.status === 'failed'
+  const resultReleaseStatus = shouldHoldRetryableFailure
+    ? 'provider_retrying'
+    : providerResult.status === 'failed'
       ? order.escrowStatus === 'reserved'
         ? 'refunded'
         : 'refundable'
@@ -107,13 +106,13 @@ export async function GET(
             ? 'released'
             : providerResult.status === 'processing'
               ? 'reserved'
-            : order.resultReleaseStatus
+              : order.resultReleaseStatus
   const nextStatus =
     resultReleaseStatus === 'delta_payment_required'
       ? ('delta_payment_required' as const)
       : shouldHoldRetryableFailure
         ? ('processing' as const)
-      : providerResult.status
+        : providerResult.status
   const responsePayload =
     resultReleaseStatus === 'delta_payment_required'
       ? {
@@ -213,7 +212,7 @@ export async function GET(
           ? undefined
           : providerResult.status === 'processing'
             ? undefined
-          : order.providerRetry,
+            : order.providerRetry,
     escrowStatus: shouldRefundEscrow
       ? refundedEscrow
         ? 'refunded'
@@ -264,7 +263,7 @@ export async function GET(
                   ? failurePolicy.reason
                   : providerResult.errorMessage
             }
-        : providerResult,
+          : providerResult,
     pricing: {
       actual: usageDelta?.actualPrice ?? null,
       deltaAmountMusd:
