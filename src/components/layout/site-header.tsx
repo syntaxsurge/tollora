@@ -151,9 +151,16 @@ function ProfileMenuContent({
     }
   }, [walletAddress])
 
-  const displayName = userDisplayName(settings)
-  const username = settings.username ? `@${settings.username}` : 'Set username'
-  const initials = userInitials(settings) || 'T'
+  const isAuthenticated = Boolean(walletAddress)
+  const displayName = isAuthenticated
+    ? userDisplayName(settings)
+    : 'Not connected'
+  const username = isAuthenticated
+    ? settings.username
+      ? `@${settings.username}`
+      : 'Set username'
+    : 'Connect a wallet'
+  const initials = isAuthenticated ? userInitials(settings) || 'T' : 'T'
 
   return (
     <details className='group relative'>
@@ -180,17 +187,19 @@ function ProfileMenuContent({
             <p className='text-muted-foreground truncate text-xs'>{username}</p>
           </div>
         </div>
-        <div className='my-3 grid gap-1'>
-          <MenuLink href='/dashboard' icon={LayoutDashboard}>
-            Dashboard
-          </MenuLink>
-          <MenuLink href='/profile' icon={UserRound}>
-            Profile
-          </MenuLink>
-          <MenuLink href='/settings' icon={Settings}>
-            Settings
-          </MenuLink>
-        </div>
+        {isAuthenticated ? (
+          <div className='my-3 grid gap-1'>
+            <MenuLink href='/dashboard' icon={LayoutDashboard}>
+              Dashboard
+            </MenuLink>
+            <MenuLink href='/profile' icon={UserRound}>
+              Profile
+            </MenuLink>
+            <MenuLink href='/settings' icon={Settings}>
+              Settings
+            </MenuLink>
+          </div>
+        ) : null}
         <div className='border-border border-t pt-3'>
           <p className='text-muted-foreground mb-2 text-xs font-semibold'>
             Wallet

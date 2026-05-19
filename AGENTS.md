@@ -473,10 +473,10 @@ Before creating a new helper or service file:
   and public proof payloads.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, public navigation, theme controls,
-  and an avatar account menu. The account menu shows profile identity,
-  dashboard/profile/settings shortcuts, and the active wallet control so
-  RainbowKit account actions stay available without occupying persistent header
-  space.
+  and an avatar account menu. The account menu shows wallet-scoped profile
+  identity and dashboard/profile/settings shortcuts only when a wallet is
+  connected, and keeps the active RainbowKit wallet control available without
+  occupying persistent header space.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
