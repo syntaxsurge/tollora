@@ -719,8 +719,7 @@ export function GET() {
             'objective',
             'ownerWallet',
             'budgetCapMusd',
-            'maxPaidActions',
-            'allowedTools'
+            'maxPaidActions'
           ],
           properties: {
             template: { type: 'string' },
@@ -734,11 +733,19 @@ export function GET() {
             },
             budgetCapMusd: { type: 'number' },
             maxPaidActions: { type: 'number' },
+            toolSelectionMode: {
+              type: 'string',
+              enum: ['ai', 'manual'],
+              description:
+                'ai lets the backend resolve the current agent-ready catalog; manual requires allowedTools.'
+            },
             allowedTools: {
               type: 'array',
               items: {
                 type: 'string'
-              }
+              },
+              description:
+                'Required only when toolSelectionMode is manual. AI mode resolves tools server-side.'
             }
           }
         },

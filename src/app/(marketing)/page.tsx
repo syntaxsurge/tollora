@@ -3,10 +3,12 @@ import Link from 'next/link'
 import {
   ArrowRight,
   Bot,
+  Braces,
   CircleDollarSign,
   Clapperboard,
   DatabaseZap,
   FileCheck2,
+  KeyRound,
   Network,
   ShieldCheck,
   Sparkles,
@@ -79,6 +81,32 @@ export default async function MarketingPage({
       icon: ShieldCheck,
       title: 'Auditable API spend',
       detail: 'Show customers what was paid, returned, and proved.'
+    }
+  ]
+  const earningPaths = [
+    {
+      icon: Braces,
+      title: 'Developers monetize their own APIs',
+      detail:
+        'List an endpoint, set fixed or metered pricing, and earn from every paid call routed through Tollora.'
+    },
+    {
+      icon: KeyRound,
+      title: 'Bring an upstream API key',
+      detail:
+        'Wrap a service you are authorized to use, keep the key server-side, and resell request access with your own margin.'
+    },
+    {
+      icon: WalletCards,
+      title: 'Accept MUSD without rebuilding billing',
+      detail:
+        'Use browser checkout, x402 programmatic calls, or funded agent runs without adding card billing flows.'
+    },
+    {
+      icon: ShieldCheck,
+      title: 'Show receipts customers can audit',
+      detail:
+        'Every paid action can attach order details, receipt IDs, settlement transactions, and proof metadata.'
     }
   ]
 
@@ -279,6 +307,31 @@ export default async function MarketingPage({
             List a paid API
             <ArrowRight className='h-4 w-4' aria-hidden />
           </Link>
+        </div>
+      </section>
+
+      <section className='container-page pb-16'>
+        <div className='mb-8 max-w-3xl space-y-3'>
+          <Badge>Provider upside</Badge>
+          <h2 className='font-display text-3xl font-semibold'>
+            Earn from APIs you build, own, or are allowed to resell.
+          </h2>
+          <p className='text-muted-foreground text-sm leading-6'>
+            Tollora is not only for buyers and agents. It gives developers,
+            creators, and power users a way to turn useful API access into a
+            paid marketplace product.
+          </p>
+        </div>
+        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+          {earningPaths.map(({ icon: Icon, title, detail }) => (
+            <Card key={title} className='min-h-44'>
+              <Icon className='text-primary h-5 w-5' aria-hidden />
+              <p className='mt-4 text-sm font-semibold'>{title}</p>
+              <p className='text-muted-foreground mt-2 text-sm leading-6'>
+                {detail}
+              </p>
+            </Card>
+          ))}
         </div>
       </section>
     </div>

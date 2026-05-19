@@ -14,11 +14,20 @@ import { buttonClasses } from '@/components/ui/button'
 import { AgentRunCreateForm } from '@/features/agents/agent-run-create-form'
 import { getAgentTemplate } from '@/features/agents/templates'
 import { getPublishedProducts } from '@/features/marketplace/products'
+import {
+  queryServerRows,
+  resolveServerTableState
+} from '@/lib/table/server-table'
 
 type NewAgentRunPageProps = {
   searchParams?: Promise<{
     template?: string
     tool?: string
+    q?: string
+    sort?: string
+    dir?: string
+    page?: string
+    pageSize?: string
   }>
 }
 
@@ -28,14 +37,35 @@ export default async function NewAgentRunPage({
   const params = await searchParams
   const template = getAgentTemplate(params?.template)
   const initialTool = params?.tool
-  const products = getPublishedProducts().map(product => ({
-    slug: product.slug,
-    name: product.name,
-    priceLabel: product.priceLabel,
-    providerName: product.providerName,
-    category: product.category,
-    isAgentReady: product.isAgentReady
-  }))
+  const agentReadyProducts = getPublishedProducts()
+    .filter(product => product.isAgentReady)
+    .map(product => ({
+      slug: product.slug,
+      name: product.name,
+      priceLabel: product.priceLabel,
+      providerName: product.providerName,
+      category: product.category
+    }))
+  const toolState = resolveServerTableState(params, {
+    defaultSort: 'name',
+    defaultPageSize: 6
+  })
+  const products = queryServerRows(agentReadyProducts, toolState, {
+    searchText: product =>
+      [
+        product.name,
+        product.slug,
+        product.providerName,
+        product.category,
+        product.priceLabel
+      ].join(' '),
+    sortValues: {
+      name: product => product.name,
+      provider: product => product.providerName,
+      category: product => product.category,
+      price: product => product.priceLabel
+    }
+  })
   const steps: { icon: LucideIcon; title: string; detail: string }[] = [
     { icon: Sparkles, title: 'Plan', detail: 'Select tools' },
     { icon: WalletCards, title: 'Pay', detail: 'x402 MUSD' },
@@ -79,7 +109,16 @@ export default async function NewAgentRunPage({
         </div>
       </section>
       <AgentRunCreateForm
-        products={products}
+        products={products.rows}
+        toolTable={{
+          query: toolState.q,
+          sort: toolState.sort,
+          dir: toolState.dir,
+          page: products.page,
+          pageSize: products.pageSize,
+          totalRows: products.totalRows,
+          totalPages: products.totalPages
+        }}
         template={template}
         initialTool={initialTool}
       />

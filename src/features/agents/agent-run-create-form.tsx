@@ -1,55 +1,73 @@
 'use client'
 
+import Link from 'next/link'
 import type { FormEvent, ReactNode } from 'react'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   Boxes,
   Check,
+  ChevronLeft,
+  ChevronRight,
   FileCheck2,
   type LucideIcon,
+  Search,
   Sparkles,
   Wallet
 } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import type { AgentTemplate } from '@/features/agents/templates'
 import type { AgentRun, AgentToolSlug } from '@/features/agents/types'
 import type { ApiProduct } from '@/features/marketplace/products'
+import type { ServerTableDirection } from '@/lib/table/server-table'
+import { cn } from '@/lib/utils/cn'
+
+type ToolRow = Pick<
+  ApiProduct,
+  'slug' | 'name' | 'priceLabel' | 'providerName' | 'category'
+>
+
+type ToolTableState = {
+  query: string
+  sort: string
+  dir: ServerTableDirection
+  page: number
+  pageSize: number
+  totalRows: number
+  totalPages: number
+}
 
 export function AgentRunCreateForm({
   products,
+  toolTable,
   template,
   initialTool
 }: {
   template?: AgentTemplate
   initialTool?: string
-  products: Pick<
-    ApiProduct,
-    | 'slug'
-    | 'name'
-    | 'priceLabel'
-    | 'providerName'
-    | 'category'
-    | 'isAgentReady'
-  >[]
+  products: ToolRow[]
+  toolTable: ToolTableState
 }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const agentReadyProducts = products.filter(product => product.isAgentReady)
-  const initialAgentTool = agentReadyProducts.some(
-    product => product.slug === initialTool
-  )
+  const [toolSearch, setToolSearch] = useState(toolTable.query)
+  const initialAgentTool = initialTool
     ? (initialTool as AgentToolSlug)
     : undefined
-  const [selectedTools, setSelectedTools] = useState<AgentToolSlug[]>(
-    initialAgentTool ? [initialAgentTool] : []
+  const selectionStorageKey = useMemo(
+    () =>
+      `tollora:agent-create:selected-tools:${template?.id ?? initialTool ?? 'blank'}`,
+    [initialTool, template?.id]
+  )
+  const [selectedTools, setSelectedTools] = useState<AgentToolSlug[]>(() =>
+    readStoredSelectedTools(selectionStorageKey, initialAgentTool)
   )
   const [toolMode, setToolMode] = useState<'ai' | 'manual'>(
     initialAgentTool ? 'manual' : 'ai'
@@ -78,10 +96,8 @@ export function AgentRunCreateForm({
           ownerWallet,
           budgetCapMusd: formData.get('budgetCapMusd'),
           maxPaidActions: formData.get('maxPaidActions'),
-          allowedTools:
-            toolMode === 'ai'
-              ? agentReadyProducts.map(product => product.slug)
-              : selectedTools,
+          toolSelectionMode: toolMode,
+          allowedTools: toolMode === 'manual' ? selectedTools : undefined,
           mode: 'production'
         })
       })
@@ -95,6 +111,7 @@ export function AgentRunCreateForm({
         `tollora:agent-run:${run.id}`,
         JSON.stringify(run)
       )
+      window.sessionStorage.removeItem(selectionStorageKey)
       router.push(`/agents/${run.id}`)
     } catch (caughtError) {
       setError(
@@ -115,25 +132,32 @@ export function AgentRunCreateForm({
     )
   }
 
-  function allowAgentToChoose() {
-    setToolMode('ai')
-    setSelectedTools(agentReadyProducts.map(product => product.slug))
+  useEffect(() => {
+    window.sessionStorage.setItem(
+      selectionStorageKey,
+      JSON.stringify(selectedTools)
+    )
+  }, [selectedTools, selectionStorageKey])
+
+  function goToToolsPage(page: number) {
+    router.push(buildToolsHref({ page, query: toolTable.query }))
+  }
+
+  function searchTools() {
+    router.push(buildToolsHref({ page: 1, query: toolSearch.trim() }))
   }
 
   return (
     <WalletAddressConsumer>
       {({ address, isConnected }) => (
-        <form
-          onSubmit={handleSubmit}
-          className='grid gap-5 xl:grid-cols-[1fr_340px]'
-        >
-          <div className='space-y-5'>
-            <Card className='space-y-5'>
-              <SectionTitle
-                icon={Sparkles}
-                eyebrow='Goal'
-                title='What should the agent accomplish?'
-              />
+        <form onSubmit={handleSubmit} className='space-y-5'>
+          <StepCard
+            icon={Sparkles}
+            eyebrow='Step 1'
+            title='Goal'
+            description='Tell OpenAI what business outcome this funded agent run should produce.'
+          >
+            <div className='grid gap-4'>
               <label className='block space-y-2'>
                 <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
                   Objective
@@ -157,246 +181,147 @@ export function AgentRunCreateForm({
                   className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-24 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
                 />
               </label>
-            </Card>
+            </div>
+          </StepCard>
 
-            <Card className='space-y-5'>
-              <SectionTitle
+          <StepCard
+            icon={Boxes}
+            eyebrow='Step 2'
+            title='Tools'
+            description='Let OpenAI choose from the marketplace, or manually limit the paid APIs it may call.'
+          >
+            <div className='grid gap-3 md:grid-cols-2'>
+              <ToolModeCard
+                active={toolMode === 'ai'}
+                icon={Sparkles}
+                title='Let AI decide'
+                detail={`${toolTable.totalRows.toLocaleString()} agent-ready tools available. The server resolves the catalog; the browser does not load every API.`}
+                onClick={() => setToolMode('ai')}
+              />
+              <ToolModeCard
+                active={toolMode === 'manual'}
                 icon={Boxes}
-                eyebrow='Tools'
-                title='Choose what OpenAI may use'
-                action={
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    disabled={agentReadyProducts.length === 0}
-                    onClick={allowAgentToChoose}
-                  >
-                    <Sparkles className='h-4 w-4' aria-hidden />
-                    AI decides
-                  </Button>
-                }
+                title='Manually limit tools'
+                detail='Search, sort, and page through the catalog before selecting the exact tools this run may use.'
+                onClick={() => setToolMode('manual')}
               />
-              <div className='grid gap-3 md:grid-cols-2'>
-                <label
-                  className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
-                    toolMode === 'ai'
-                      ? 'bg-primary/10 ring-primary/30 ring-1'
-                      : 'bg-card'
-                  }`}
-                >
-                  <input
-                    type='radio'
-                    name='toolMode'
-                    checked={toolMode === 'ai'}
-                    onChange={() => setToolMode('ai')}
-                    className='sr-only'
-                  />
-                  <span className='bg-primary/10 text-primary rounded-lg p-2'>
-                    <Sparkles className='h-4 w-4' aria-hidden />
-                  </span>
-                  <span>
-                    <span className='block font-semibold'>
-                      Let AI decide from all agent-ready tools
-                    </span>
-                    <span className='text-foreground/60 mt-1 block text-sm leading-6'>
-                      Best for demos and large marketplaces. OpenAI sees the
-                      catalog and only buys relevant tools inside budget.
-                    </span>
-                  </span>
-                </label>
-                <label
-                  className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
-                    toolMode === 'manual'
-                      ? 'bg-primary/10 ring-primary/30 ring-1'
-                      : 'bg-card'
-                  }`}
-                >
-                  <input
-                    type='radio'
-                    name='toolMode'
-                    checked={toolMode === 'manual'}
-                    onChange={() => setToolMode('manual')}
-                    className='sr-only'
-                  />
-                  <span className='bg-muted text-foreground rounded-lg p-2'>
-                    <Boxes className='h-4 w-4' aria-hidden />
-                  </span>
-                  <span>
-                    <span className='block font-semibold'>
-                      Manually limit the tool set
-                    </span>
-                    <span className='text-foreground/60 mt-1 block text-sm leading-6'>
-                      Use this when a buyer wants strict control over which paid
-                      APIs can be called.
-                    </span>
-                  </span>
-                </label>
+            </div>
+
+            {toolMode === 'manual' ? (
+              <ManualToolTable
+                products={products}
+                selectedTools={selectedTools}
+                toggleTool={toggleTool}
+                toolTable={toolTable}
+                toolSearch={toolSearch}
+                setToolSearch={setToolSearch}
+                searchTools={searchTools}
+                goToToolsPage={goToToolsPage}
+                buildToolsHref={buildToolsHref}
+              />
+            ) : (
+              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4'>
+                <div className='flex flex-wrap items-center justify-between gap-3'>
+                  <p className='font-semibold'>AI chooses server-side</p>
+                  <Badge>Auto catalog</Badge>
+                </div>
+                <p className='text-foreground/60 mt-2 text-sm leading-6'>
+                  Tollora sends the run intent to the backend. The planner sees
+                  the current agent-ready catalog, quotes each selected tool,
+                  skips irrelevant or over-budget calls, and records receipts
+                  only for paid actions it executes.
+                </p>
               </div>
+            )}
+          </StepCard>
 
-              {toolMode === 'manual' ? (
-                <div className='grid gap-3 md:grid-cols-2'>
-                  {agentReadyProducts.length === 0 ? (
-                    <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4 md:col-span-2'>
-                      <p className='font-semibold'>No agent-ready APIs yet</p>
-                      <p className='text-foreground/65 mt-1 text-sm leading-6'>
-                        Publish a provider product with agent access enabled
-                        first.
-                      </p>
-                    </div>
-                  ) : null}
-                  {agentReadyProducts.map(product => {
-                    const checked = selectedTools.includes(product.slug)
-
-                    return (
-                      <label
-                        key={product.slug}
-                        className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
-                          checked
-                            ? 'bg-primary/10 ring-primary/30 ring-1'
-                            : 'bg-card'
-                        }`}
-                      >
-                        <input
-                          type='checkbox'
-                          checked={checked}
-                          onChange={() => toggleTool(product.slug)}
-                          className='sr-only'
-                        />
-                        <span
-                          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
-                            checked
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-foreground/20'
-                          }`}
-                        >
-                          {checked ? (
-                            <Check className='h-4 w-4' aria-hidden />
-                          ) : null}
-                        </span>
-                        <span className='min-w-0'>
-                          <span className='block truncate font-semibold'>
-                            {product.name}
-                          </span>
-                          <span className='text-foreground/60 mt-1 block text-sm'>
-                            {product.priceLabel} - {product.providerName}
-                          </span>
-                        </span>
-                      </label>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4'>
-                  <div className='flex items-center justify-between gap-3'>
-                    <p className='font-semibold'>
-                      {agentReadyProducts.length} tools available to OpenAI
-                    </p>
-                    <Badge>Auto</Badge>
-                  </div>
-                  <p className='text-foreground/60 mt-2 text-sm leading-6'>
-                    The planner still quotes each tool, skips irrelevant or
-                    over-budget calls, and records receipts only for paid
-                    actions it actually executes.
-                  </p>
-                </div>
-              )}
-            </Card>
-          </div>
-
-          <aside className='space-y-5 xl:sticky xl:top-28 xl:self-start'>
-            <Card className='space-y-5'>
-              <SectionTitle
-                icon={Wallet}
-                eyebrow='Step 2'
-                title='Funded budget'
-              />
-              <div className='border-border bg-primary/5 rounded-lg border p-3 text-sm leading-6'>
+          <StepCard
+            icon={Wallet}
+            eyebrow='Step 3'
+            title='Funded budget'
+            description='The connected wallet owns the run and funds the budget vault after creation.'
+          >
+            <div className='grid gap-4 lg:grid-cols-[1fr_320px]'>
+              <div className='border-border bg-primary/5 rounded-lg border p-4 text-sm leading-6'>
                 Agent runs are created first, then funded on the run page with a
                 MUSD deposit into the agent budget vault before any paid action
-                can execute.
+                can execute. Unused budget can be refunded to the owner.
               </div>
-              <div className='grid gap-4'>
-                <div className='space-y-2'>
-                  <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                    Owner wallet
-                  </span>
-                  <input
-                    type='hidden'
-                    name='ownerWallet'
-                    value={address ?? ''}
-                    required
-                  />
-                  <div className='border-foreground/10 bg-muted/30 text-foreground min-h-11 rounded-lg border px-4 py-3 text-sm font-semibold break-all'>
-                    {address ?? 'Connect a wallet to create an agent run'}
-                  </div>
-                  <p className='text-foreground/60 text-xs leading-5'>
-                    This connected wallet owns the run, funds the vault, and
-                    receives any unused budget refund.
-                  </p>
-                </div>
-                <div className='grid grid-cols-2 gap-3'>
-                  <label className='space-y-2'>
-                    <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                      Budget
-                    </span>
-                    <Input
-                      name='budgetCapMusd'
-                      type='number'
-                      step='0.01'
-                      min='0.08'
-                      defaultValue={(
-                        template?.recommendedBudgetMusd ?? 0.9
-                      ).toFixed(2)}
-                      required
-                    />
-                  </label>
-                  <label className='space-y-2'>
-                    <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                      Actions
-                    </span>
-                    <Input
-                      name='maxPaidActions'
-                      type='number'
-                      min='1'
-                      max='4'
-                      defaultValue={template?.maxPaidActions ?? 4}
-                      required
-                    />
-                  </label>
+              <div className='space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Owner wallet
+                </span>
+                <input
+                  type='hidden'
+                  name='ownerWallet'
+                  value={address ?? ''}
+                  required
+                />
+                <div className='border-foreground/10 bg-muted/30 text-foreground min-h-11 rounded-lg border px-4 py-3 text-sm font-semibold break-all'>
+                  {address ?? 'Connect a wallet to create an agent run'}
                 </div>
               </div>
-            </Card>
+              <label className='space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Budget
+                </span>
+                <Input
+                  name='budgetCapMusd'
+                  type='number'
+                  step='0.01'
+                  min='0.08'
+                  defaultValue={(
+                    template?.recommendedBudgetMusd ?? 0.9
+                  ).toFixed(2)}
+                  required
+                />
+              </label>
+              <label className='space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Max paid actions
+                </span>
+                <Input
+                  name='maxPaidActions'
+                  type='number'
+                  min='1'
+                  max='4'
+                  defaultValue={template?.maxPaidActions ?? 4}
+                  required
+                />
+              </label>
+            </div>
+          </StepCard>
 
-            <Card className='space-y-5'>
-              <SectionTitle
-                icon={FileCheck2}
-                eyebrow='Step 3'
-                title='Review run'
-              />
-              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-3'>
+          <StepCard
+            icon={FileCheck2}
+            eyebrow='Step 4'
+            title='Review and create'
+            description='Create the run, then fund it on the next page before the agent can spend.'
+          >
+            <div className='grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center'>
+              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4'>
                 <div className='flex items-center justify-between gap-3'>
                   <span className='text-sm font-semibold'>Allowed tools</span>
                   <Badge>
                     {toolMode === 'ai'
-                      ? `${agentReadyProducts.length} available`
+                      ? `${toolTable.totalRows.toLocaleString()} available`
                       : selectedTools.length}
                   </Badge>
                 </div>
                 <p className='text-foreground/60 mt-2 text-sm leading-6'>
                   {toolMode === 'ai'
-                    ? 'OpenAI chooses relevant tools from the agent-ready catalog.'
+                    ? 'OpenAI chooses relevant tools from the server-side agent-ready catalog.'
                     : 'OpenAI chooses only from the manually selected tools.'}{' '}
                   Tollora still quotes, pays, and records receipts.
                 </p>
               </div>
               <Button
                 type='submit'
-                className='w-full'
+                className='min-h-12 w-full lg:w-56'
                 disabled={
                   isSubmitting ||
                   (toolMode === 'manual' && selectedTools.length === 0) ||
-                  (toolMode === 'ai' && agentReadyProducts.length === 0) ||
+                  (toolMode === 'ai' && toolTable.totalRows === 0) ||
                   !isConnected ||
                   !address
                 }
@@ -404,53 +329,358 @@ export function AgentRunCreateForm({
                 <FileCheck2 className='h-4 w-4' aria-hidden />
                 {isSubmitting ? 'Preparing' : 'Create run'}
               </Button>
-              {!isConnected || !address ? (
-                <p className='border-foreground/10 bg-muted/30 text-foreground/70 rounded-lg border p-3 text-sm leading-6'>
-                  Connect your wallet first so Tollora can assign ownership and
-                  prepare the funded budget vault.
-                </p>
-              ) : null}
-              {error ? (
-                <p
-                  className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-300'
-                  role='alert'
-                >
-                  {error}
-                </p>
-              ) : null}
-            </Card>
-          </aside>
+            </div>
+            {!isConnected || !address ? (
+              <p className='border-foreground/10 bg-muted/30 text-foreground/70 rounded-lg border p-3 text-sm leading-6'>
+                Connect your wallet first so Tollora can assign ownership and
+                prepare the funded budget vault.
+              </p>
+            ) : null}
+            {error ? (
+              <p
+                className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-300'
+                role='alert'
+              >
+                {error}
+              </p>
+            ) : null}
+          </StepCard>
         </form>
       )}
     </WalletAddressConsumer>
+  )
+
+  function buildToolsHref({
+    page,
+    query = toolTable.query,
+    sort = toolTable.sort,
+    dir = toolTable.dir
+  }: {
+    page: number
+    query?: string
+    sort?: string
+    dir?: ServerTableDirection
+  }) {
+    const params = new URLSearchParams()
+
+    if (template?.id) {
+      params.set('template', template.id)
+    }
+
+    if (initialTool) {
+      params.set('tool', initialTool)
+    }
+
+    if (query) {
+      params.set('q', query)
+    }
+
+    params.set('sort', sort)
+    params.set('dir', dir)
+    params.set('page', String(page))
+    params.set('pageSize', String(toolTable.pageSize))
+
+    return `/agents/new?${params.toString()}`
+  }
+}
+
+function readStoredSelectedTools(
+  key: string,
+  initialTool: AgentToolSlug | undefined
+) {
+  if (typeof window === 'undefined') {
+    return initialTool ? [initialTool] : []
+  }
+
+  const stored = window.sessionStorage.getItem(key)
+
+  if (!stored) {
+    return initialTool ? [initialTool] : []
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as unknown
+
+    if (!Array.isArray(parsed)) {
+      return initialTool ? [initialTool] : []
+    }
+
+    const selected = parsed.filter(
+      value => typeof value === 'string' && value.trim().length > 0
+    ) as AgentToolSlug[]
+
+    return selected.length > 0 || !initialTool ? selected : [initialTool]
+  } catch {
+    return initialTool ? [initialTool] : []
+  }
+}
+
+function ManualToolTable({
+  products,
+  selectedTools,
+  toggleTool,
+  toolTable,
+  toolSearch,
+  setToolSearch,
+  searchTools,
+  goToToolsPage,
+  buildToolsHref
+}: {
+  products: ToolRow[]
+  selectedTools: AgentToolSlug[]
+  toggleTool: (tool: AgentToolSlug) => void
+  toolTable: ToolTableState
+  toolSearch: string
+  setToolSearch: (value: string) => void
+  searchTools: () => void
+  goToToolsPage: (page: number) => void
+  buildToolsHref: (options: {
+    page: number
+    query?: string
+    sort?: string
+    dir?: ServerTableDirection
+  }) => string
+}) {
+  return (
+    <div className='border-border overflow-hidden rounded-lg border'>
+      <div className='border-border bg-background/50 border-b p-4'>
+        <div className='grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center'>
+          <label className='border-border bg-card focus-within:ring-ring/35 flex min-h-11 items-center gap-3 rounded-lg border px-3 transition focus-within:ring-2'>
+            <Search className='text-foreground/50 h-4 w-4' aria-hidden />
+            <span className='sr-only'>Search agent tools</span>
+            <input
+              value={toolSearch}
+              onChange={event => setToolSearch(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  searchTools()
+                }
+              }}
+              placeholder='Search tools, providers, categories, or prices'
+              className='placeholder:text-muted-foreground h-10 min-w-0 flex-1 bg-transparent text-sm outline-none'
+            />
+          </label>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button type='button' variant='outline' onClick={searchTools}>
+              Search
+            </Button>
+            <Badge>{selectedTools.length} selected</Badge>
+            <span className='text-muted-foreground text-sm'>
+              {toolTable.totalRows.toLocaleString()} results
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className='overflow-x-auto'>
+        <table className='w-full min-w-[760px] text-left text-sm'>
+          <thead className='bg-muted/30 text-muted-foreground'>
+            <tr>
+              <th className='w-12 px-4 py-3'>
+                <span className='sr-only'>Select</span>
+              </th>
+              {[
+                ['name', 'Tool'],
+                ['provider', 'Provider'],
+                ['category', 'Category'],
+                ['price', 'Price']
+              ].map(([sort, label]) => (
+                <th
+                  key={sort}
+                  className='px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase'
+                >
+                  <Link
+                    href={buildToolsHref({
+                      page: 1,
+                      sort,
+                      dir:
+                        toolTable.sort === sort && toolTable.dir === 'desc'
+                          ? 'asc'
+                          : 'desc'
+                    })}
+                    className='hover:text-foreground transition'
+                  >
+                    {label}
+                  </Link>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className='divide-border divide-y'>
+            {products.map(product => {
+              const checked = selectedTools.includes(product.slug)
+
+              return (
+                <tr key={product.slug} className='hover:bg-muted/25 transition'>
+                  <td className='px-4 py-4 align-top'>
+                    <button
+                      type='button'
+                      onClick={() => toggleTool(product.slug)}
+                      aria-pressed={checked}
+                      aria-label={`Select ${product.name}`}
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-md border transition',
+                        checked
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border hover:border-primary/70'
+                      )}
+                    >
+                      {checked ? (
+                        <Check className='h-4 w-4' aria-hidden />
+                      ) : null}
+                    </button>
+                  </td>
+                  <td className='px-4 py-4 align-top'>
+                    <p className='font-semibold'>{product.name}</p>
+                    <p className='text-muted-foreground mt-1 max-w-md text-xs break-all'>
+                      {product.slug}
+                    </p>
+                  </td>
+                  <td className='px-4 py-4 align-top'>
+                    {product.providerName}
+                  </td>
+                  <td className='px-4 py-4 align-top capitalize'>
+                    {product.category}
+                  </td>
+                  <td className='px-4 py-4 align-top font-semibold'>
+                    {product.priceLabel}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {products.length === 0 ? (
+        <div className='p-8 text-center'>
+          <p className='text-lg font-semibold'>No tools match this search</p>
+          <p className='text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-6'>
+            Clear the search or publish an agent-ready marketplace product.
+          </p>
+        </div>
+      ) : null}
+
+      <div className='border-border flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between'>
+        <p className='text-muted-foreground text-sm'>
+          Page {toolTable.page} of {toolTable.totalPages}
+        </p>
+        <div className='flex gap-2'>
+          <button
+            type='button'
+            disabled={toolTable.page <= 1}
+            onClick={() => goToToolsPage(Math.max(1, toolTable.page - 1))}
+            className={buttonClasses({
+              variant: 'outline',
+              size: 'sm',
+              className: toolTable.page <= 1 ? 'opacity-50' : ''
+            })}
+          >
+            <ChevronLeft className='h-4 w-4' aria-hidden />
+            Previous
+          </button>
+          <button
+            type='button'
+            disabled={toolTable.page >= toolTable.totalPages}
+            onClick={() =>
+              goToToolsPage(Math.min(toolTable.totalPages, toolTable.page + 1))
+            }
+            className={buttonClasses({
+              variant: 'outline',
+              size: 'sm',
+              className:
+                toolTable.page >= toolTable.totalPages ? 'opacity-50' : ''
+            })}
+          >
+            Next
+            <ChevronRight className='h-4 w-4' aria-hidden />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ToolModeCard({
+  active,
+  icon: Icon,
+  title,
+  detail,
+  onClick
+}: {
+  active: boolean
+  icon: LucideIcon
+  title: string
+  detail: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      className={cn(
+        'border-foreground/10 hover:border-primary/50 bg-card flex min-h-36 w-full gap-4 rounded-lg border p-4 text-left transition',
+        active ? 'bg-primary/10 ring-primary/30 ring-1' : ''
+      )}
+    >
+      <span className='bg-primary/10 text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-lg'>
+        <Icon className='h-5 w-5' aria-hidden />
+      </span>
+      <span className='min-w-0'>
+        <span className='block text-lg font-semibold'>{title}</span>
+        <span className='text-foreground/60 mt-2 block text-sm leading-6'>
+          {detail}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+function StepCard({
+  icon: Icon,
+  eyebrow,
+  title,
+  description,
+  children
+}: {
+  icon: LucideIcon
+  eyebrow: string
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <Card className='space-y-5'>
+      <SectionTitle icon={Icon} eyebrow={eyebrow} title={title} />
+      <p className='text-muted-foreground max-w-3xl text-sm leading-6'>
+        {description}
+      </p>
+      {children}
+    </Card>
   )
 }
 
 function SectionTitle({
   icon: Icon,
   eyebrow,
-  title,
-  action
+  title
 }: {
   icon: LucideIcon
   eyebrow: string
   title: string
-  action?: ReactNode
 }) {
   return (
-    <div className='flex items-start justify-between gap-4'>
-      <div className='flex items-start gap-3'>
-        <span className='bg-primary/10 text-primary rounded-lg p-2'>
-          <Icon className='h-4 w-4' aria-hidden />
+    <div className='flex items-start gap-3'>
+      <span className='bg-primary/10 text-primary rounded-lg p-2'>
+        <Icon className='h-4 w-4' aria-hidden />
+      </span>
+      <span>
+        <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+          {eyebrow}
         </span>
-        <span>
-          <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            {eyebrow}
-          </span>
-          <span className='mt-1 block text-lg font-semibold'>{title}</span>
-        </span>
-      </div>
-      {action}
+        <span className='mt-1 block text-lg font-semibold'>{title}</span>
+      </span>
     </div>
   )
 }

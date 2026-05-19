@@ -425,7 +425,9 @@ Before creating a new helper or service file:
   balance, and records a receipt linked to the top-up transaction.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
   autonomous agent runs with optional template ID, objective, source context,
-  owner wallet, budget cap, max paid actions, and allowed marketplace tools.
+  owner wallet, budget cap, max paid actions, and tool selection mode. AI
+  selection resolves the current agent-ready catalog server-side; manual
+  selection accepts an explicit bounded tool slug list.
 - `GET /api/agents/runs/[runId]` — returns agent run status, paid actions,
   deliverables, receipts, and proof state.
 - `DELETE /api/agents/runs/[runId]` — stops future execution for an autonomous
@@ -556,11 +558,14 @@ Before creating a new helper or service file:
   selection and bulk deletion, while templates omit selection controls.
   `/agents/new` configures objective, source context, owner wallet from the
   connected wallet session, budget cap, max paid actions, and allowed paid
-  tools. Blank runs start with empty objective/context fields; template links
+  tools in a single vertical four-step flow: goal, tools, funded budget, and
+  review. Blank runs start with empty objective/context fields; template links
   prefill those fields from the selected template; marketplace tool links open
   manual mode with that tool selected. Tool access defaults to “AI decides from
-  all agent-ready tools,” with an optional manual mode that limits OpenAI to
-  explicitly selected tools;
+  all agent-ready tools,” which resolves the catalog server-side instead of
+  sending every tool slug to the browser. Manual mode uses a server-paginated,
+  searchable, sortable tool table so large catalogs do not load all APIs on the
+  page;
   `/agents/[runId]` funds production runs through the agent budget vault,
   executes the ranked plan, shows planner mode/model, selected and skipped
   tools, planner rationale, budget ledger, receipt links, Markdown-rendered

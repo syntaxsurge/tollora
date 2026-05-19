@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { createAgentRunSchema } from '@/features/agents/schemas'
 import { createAgentRun, listAgentRuns } from '@/features/agents/store'
+import { getPublishedProducts } from '@/features/marketplace/products'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,16 @@ export async function POST(request: Request) {
     )
   }
 
-  const run = createAgentRun(parsed.data)
+  const allowedTools =
+    parsed.data.toolSelectionMode === 'manual'
+      ? (parsed.data.allowedTools ?? [])
+      : getPublishedProducts()
+          .filter(product => product.isAgentReady)
+          .map(product => product.slug)
+  const run = createAgentRun({
+    ...parsed.data,
+    allowedTools
+  })
 
   return NextResponse.json(run)
 }
