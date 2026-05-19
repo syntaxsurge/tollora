@@ -12,6 +12,8 @@ providing deployment shortcuts.
 - `blockchain/contracts/ApiPaymentEscrow.sol` - escrow for prepaid
   credit-metered API calls that must be released or refunded after provider
   completion.
+- `blockchain/contracts/AgentRunVault.sol` - user-funded MUSD budget vault for
+  autonomous agent runs.
 - `blockchain/hardhat.config.ts` - Hardhat configuration for Mezo Testnet.
 - `blockchain/scripts/deploySubscriptionManager.ts` - deployment script that
   writes the deployed address to `blockchain/deployment.log`.
@@ -19,6 +21,8 @@ providing deployment shortcuts.
   prints `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`.
 - `blockchain/scripts/deployApiPaymentEscrow.ts` - deployment script that prints
   `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`.
+- `blockchain/scripts/deployAgentRunVault.ts` - deployment script that prints
+  `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS`.
 - `src/lib/contracts/` - frontend-facing subscription ABI and address helpers.
 
 ## Setup
@@ -26,8 +30,8 @@ providing deployment shortcuts.
 1. Copy `blockchain/.env.example` to `blockchain/.env` and fill in RPC,
    deployer, admin, and platform addresses.
 2. Install dependencies from the blockchain workspace.
-3. Compile and deploy the subscription, agent attestor, and API payment escrow
-   contracts.
+3. Compile and deploy the subscription, agent attestor, API payment escrow, and
+   agent run vault contracts.
 
 ```bash
 cd blockchain
@@ -36,6 +40,7 @@ pnpm compile
 pnpm deploy:subscription
 pnpm deploy:agent-attestor
 pnpm deploy:api-escrow
+pnpm deploy:agent-vault
 ```
 
 ## Notes
@@ -47,4 +52,7 @@ pnpm deploy:api-escrow
 - Copy `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS` from the escrow deployment
   output into the root `.env.local` after deployment, then set
   `API_ESCROW_OPERATOR_PRIVATE_KEY` to an account with `OPERATOR_ROLE`.
+- Copy `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS` from the vault deployment output
+  into the root `.env.local` after deployment, then set
+  `AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY` to an account with `OPERATOR_ROLE`.
 - Avoid importing from `blockchain/**` in the Next.js runtime.

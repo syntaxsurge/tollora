@@ -69,6 +69,9 @@ export const supportedAppChains = Object.values(appChains)
 export const supportedViemChains = [appChains.mezoTestnet.viemChain] as const
 export const defaultAppChain = appChains.mezoTestnet
 export const x402Network = envClient.NEXT_PUBLIC_X402_NETWORK ?? 'eip155:31611'
+export const mezoMusdTokenAddress =
+  envClient.NEXT_PUBLIC_MUSD_TOKEN_ADDRESS ??
+  '0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'
 
 export function getAppChainById(chainId?: number | null) {
   return (

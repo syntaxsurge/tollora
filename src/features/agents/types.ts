@@ -18,6 +18,35 @@ export type AgentActionStatus =
 
 export type AgentRunMode = 'local' | 'production'
 export type AgentPlannerMode = 'openai' | 'deterministic'
+export type AgentFundingStatus =
+  | 'not_required'
+  | 'unfunded'
+  | 'funding_pending'
+  | 'funded'
+  | 'partially_spent'
+  | 'refund_available'
+  | 'refunded'
+
+export type AgentLedgerEventType =
+  | 'funding_prepared'
+  | 'funded'
+  | 'run_started'
+  | 'spend_recorded'
+  | 'spend_refunded'
+  | 'run_completed'
+  | 'unused_refunded'
+  | 'funding_note'
+
+export type AgentLedgerEvent = {
+  id: string
+  type: AgentLedgerEventType
+  label: string
+  amountMusd?: string
+  txHash?: string | null
+  explorerUrl?: string | null
+  actionId?: string
+  createdAt: string
+}
 
 export type AgentToolSlug = string
 
@@ -74,6 +103,23 @@ export type AgentRun = {
   allowedTools: AgentToolSlug[]
   mode: AgentRunMode
   status: AgentRunStatus
+  fundingStatus: AgentFundingStatus
+  vaultPaymentId?: string
+  vaultAddress?: string
+  vaultExplorerUrl?: string | null
+  fundedAmountMusd: string
+  spentAmountMusd: string
+  reservedAmountMusd: string
+  refundedAmountMusd: string
+  availableAmountMusd: string
+  fundingTxHash?: string
+  fundingExplorerUrl?: string | null
+  approvalTxHash?: string
+  approvalExplorerUrl?: string | null
+  refundTxHash?: string
+  refundExplorerUrl?: string | null
+  fundingExpiresAt?: string
+  ledgerEvents: AgentLedgerEvent[]
   summary: string
   deliverables: {
     plannerMode?: AgentPlannerMode

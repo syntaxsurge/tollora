@@ -70,6 +70,17 @@ export function getOperationalReadiness() {
         'Server-side agent runs use this signer for autonomous x402 MUSD payments.'
     },
     {
+      label: 'Agent budget vault',
+      value:
+        envClient.NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS ??
+        'Contract not configured',
+      state: envClient.NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS
+        ? 'ready'
+        : 'attention',
+      detail:
+        'Production agent runs require a user-funded MUSD budget vault before spending.'
+    },
+    {
       label: 'Agent attestor',
       value:
         envClient.NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS ??

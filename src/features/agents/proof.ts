@@ -8,6 +8,25 @@ export function hashAgentRunProof(run: AgentRun): `0x${string}` {
     objective: run.objective,
     allowedTools: run.allowedTools,
     budgetCapMusd: run.budgetCapMusd,
+    funding: {
+      status: run.fundingStatus,
+      vaultPaymentId: run.vaultPaymentId,
+      vaultAddress: run.vaultAddress,
+      fundedAmountMusd: run.fundedAmountMusd,
+      spentAmountMusd: run.spentAmountMusd,
+      reservedAmountMusd: run.reservedAmountMusd,
+      refundedAmountMusd: run.refundedAmountMusd,
+      availableAmountMusd: run.availableAmountMusd,
+      fundingTxHash: run.fundingTxHash,
+      refundTxHash: run.refundTxHash,
+      ledgerEvents: run.ledgerEvents.map(event => ({
+        type: event.type,
+        label: event.label,
+        amountMusd: event.amountMusd,
+        txHash: event.txHash,
+        actionId: event.actionId
+      }))
+    },
     planner: {
       mode: run.deliverables.plannerMode,
       model: run.deliverables.plannerModel,

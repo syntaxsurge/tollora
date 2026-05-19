@@ -39,12 +39,14 @@ Mezo.
 11. Open `/agents/new`, enter a goal, budget cap, owner wallet, max paid actions,
    select the published API tools or click `Let agent choose tools`, and choose
    signer mode.
-12. Open `/agents/[runId]`, run paid actions, show `Planner: OpenAI gpt-5.2`
-    when `AGENT_LLM_API_KEY` is configured, then show selected tools, skipped
-    tools, receipts, synthesized deliverables, and proof controls.
+12. Open `/agents/[runId]`, fund the production agent budget vault with MUSD,
+    then run paid actions. Show `Planner: OpenAI gpt-5.2` when
+    `AGENT_LLM_API_KEY` is configured, then show selected tools, skipped tools,
+    receipts, budget ledger events, Markdown-rendered deliverables, unused
+    refund controls, and proof controls.
 13. Attest the completed run and open `/proofs/[proofId]` to show the public
-   proof hash, receipt IDs, total spend, attestation transaction, and Mezo
-   explorer link.
+   proof hash, receipt IDs, total spend, funding/refund metadata, attestation
+   transaction, and Mezo explorer link.
 14. Open `/billing`, create a managed credit API key, and explain that credits
     are an optional API-key layer that reserves quoted MUSD before provider work
     and returns unused reserved credit when final usage is lower.
@@ -66,8 +68,9 @@ Mezo.
   settlement.
 - Credit-metered products quote first, settle MUSD before expensive work, and
   use an x402 claim payment when final usage exceeds the prepaid amount.
-- Launch Pack Agent proves autonomous task execution by linking paid actions,
-  receipts, deliverables, proof hash, and a Mezo attestation transaction.
+- Launch Pack Agent proves autonomous task execution by linking a user-funded
+  agent budget, paid actions, receipts, deliverables, proof hash, and a Mezo
+  attestation transaction.
 - Provider-created listings prove Tollora can sell premium AI workflows and
   ordinary HTTP APIs through the same generic external adapter.
 - Tollora records the platform fee and provider amount for every successful paid

@@ -206,6 +206,19 @@ async function buildDeliverables(
   actions: AgentAction[],
   planMetadata: AgentPlanMetadata
 ) {
+  const completedActions = actions.filter(
+    action => action.status === 'completed'
+  )
+  const paidCompletedActions = completedActions.filter(action => action.receipt)
+
+  if (
+    run.mode === 'production' &&
+    actions.length > 0 &&
+    paidCompletedActions.length === 0
+  ) {
+    return buildFailedPaidActionDeliverables(run, actions, planMetadata)
+  }
+
   if (envServer.AGENT_LLM_API_KEY) {
     const synthesized = await synthesizeWithOpenAi(
       run,
@@ -222,6 +235,29 @@ async function buildDeliverables(
   }
 
   return buildLocalDeliverables(run, actions, planMetadata)
+}
+
+function buildFailedPaidActionDeliverables(
+  run: AgentRun,
+  actions: AgentAction[],
+  planMetadata: AgentPlanMetadata
+) {
+  const failed = actions.filter(action => action.status === 'failed')
+  const skipped = actions.filter(action => action.status === 'skipped')
+
+  return {
+    ...planMetadata,
+    launchBrief:
+      'The agent did not produce a final launch pack because no paid tool returned a completed receipt-backed result.',
+    developerCopy:
+      'Retry the failed tools after funding and provider health are confirmed, or switch to local mode for an offline planning-only demo.',
+    marketSignal:
+      failed.length > 0
+        ? `No external market signal is available. ${failed.length} paid action(s) failed and ${skipped.length} action(s) were skipped.`
+        : 'No external market signal is available because the agent did not complete a paid action.',
+    videoResultUrl: '',
+    proofExplanation: `The production agent selected ${actions.length} tool(s), but no paid action completed with a receipt. The proof should preserve failed action reasons without presenting generated copy as externally verified evidence for: ${run.objective}`
+  }
 }
 
 function buildLocalDeliverables(

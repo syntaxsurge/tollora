@@ -19,6 +19,9 @@ Use this checklist before submitting or presenting the app.
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
+- `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS`
+- `AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY`
+- `NEXT_PUBLIC_MUSD_TOKEN_ADDRESS`
 
 ## Verification Commands
 
@@ -36,8 +39,15 @@ pnpm build
 - `POST /api/agents/runs` creates a Launch Pack Agent run.
 - `POST /api/agents/runs/[runId]/execute` uses OpenAI planning and synthesis
   when `AGENT_LLM_API_KEY` is configured, clearly labels deterministic fallback
-  when it is not, and completes paid actions when the agent spender is
-  configured.
+  when it is not, requires funded production runs before spending, and
+  completes paid actions when the agent spender is configured.
+- `POST /api/agents/runs/[runId]/funding/prepare` and
+  `POST /api/agents/runs/[runId]/funding/confirm` prepare and record the MUSD
+  vault deposit for production agent runs.
+- `GET /api/agents/runs/[runId]/ledger` shows funding, spend, and refund
+  events for a run.
+- `POST /api/agents/runs/[runId]/refund` records unused agent budget refunds
+  after terminal states.
 - `POST /api/agents/runs/[runId]/attest` returns a proof with a Mezo explorer
   link.
 - `GET /api/proofs/[proofId]` returns the public proof package.

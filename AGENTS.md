@@ -426,6 +426,15 @@ Before creating a new helper or service file:
   mode.
 - `GET /api/agents/runs/[runId]` — returns agent run status, paid actions,
   deliverables, receipts, and proof state.
+- `POST /api/agents/runs/[runId]/funding/prepare` — prepares a production
+  agent run vault funding payload with run ID, MUSD token, vault address,
+  budget amount, authorized agent signer, and expiry.
+- `POST /api/agents/runs/[runId]/funding/confirm` — records the wallet funding
+  and approval transactions for a production agent run budget.
+- `GET /api/agents/runs/[runId]/ledger` — returns the agent budget ledger
+  events for funding, spend, refunds, and proof context.
+- `POST /api/agents/runs/[runId]/refund` — records or submits unused budget
+  refund state after a production run reaches a terminal state.
 - `POST /api/agents/runs/[runId]/execute` — runs the autonomous workflow,
   calling selected Tollora x402 product endpoints with the configured agent
   spender when available and returning local tool results without fabricated
@@ -462,9 +471,11 @@ Before creating a new helper or service file:
 - Hardhat blockchain workspace in `blockchain/` with
   `contracts/SubscriptionManager.sol` plus `contracts/AgentRunAttestor.sol` for
   Mezo proof hashes and `contracts/ApiPaymentEscrow.sol` for prepaid
-  credit-metered API payments. The agent attestor deploy script prints
+  credit-metered API payments plus `contracts/AgentRunVault.sol` for
+  user-funded autonomous agent budgets. The agent attestor deploy script prints
   `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS` for the root app environment; the API
-  escrow deploy script prints `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`.
+  escrow deploy script prints `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`; the
+  agent vault deploy script prints `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS`.
 - Shared UI primitives in `src/components/ui` and layout shells in
   `src/components/layout`.
 - Shared JSON rendering lives in `src/components/data-display/json-viewer.tsx`
@@ -495,27 +506,34 @@ Before creating a new helper or service file:
   `.tollora/provider-products.json` catalog so draft, paused, and published
   products remain manageable across local server restarts.
 - Autonomous Launch Pack Agent models, OpenAI planning and synthesis,
-  deterministic fallback planning, run storage, paid action execution, proof
-  hashing, status labels, and UI clients live in `src/features/agents`. When
+  deterministic fallback planning, run storage, funded budget ledgers, paid
+  action execution, proof hashing, status labels, and UI clients live in
+  `src/features/agents`. Production runs require the owner to fund the
+  `AgentRunVault` with MUSD before the configured agent signer can execute x402
+  paid actions; local runs use a simulated offline budget. When
   `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
   with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
   payloads, skip unrelated tools, set a budget strategy, and synthesize the
-  final launch pack from paid responses and receipts. When the key is absent,
-  the deterministic fallback ranks the allowed marketplace tools from the
-  objective and source context. Both planner modes record the prompt, model or
-  fallback label, rationale, skipped tools, selected tools, and synthesis
-  metadata in run deliverables, action cards, and proof payloads.
+  final launch pack from completed paid responses and receipts. When no paid
+  action completes in production, the run remains failed and presents
+  diagnostics instead of treating generated copy as verified output. When the
+  key is absent, the deterministic fallback ranks the allowed marketplace tools
+  from the objective and source context. Both planner modes record the prompt,
+  model or fallback label, rationale, skipped tools, selected tools, funding
+  ledger, and synthesis metadata in run deliverables, action cards, and proof
+  payloads.
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
   failed work; `/agents/new` configures objective, source context, owner wallet,
   budget cap, max paid actions, allowed paid tools, and local/production signer
   mode with all marketplace tools deselected until the user selects them or
   allows the agent to consider all published agent-ready listings;
-  `/agents/[runId]` executes the ranked plan, shows planner mode/model,
-  selected and skipped tools, planner rationale, receipts, synthesized
-  deliverables, and writes Mezo proof attestations.
+  `/agents/[runId]` funds production runs through the agent budget vault,
+  executes the ranked plan, shows planner mode/model, selected and skipped
+  tools, planner rationale, budget ledger, receipt links, Markdown-rendered
+  deliverables, unused refund controls, and writes Mezo proof attestations.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
-  metadata, proof hash, receipt IDs, total MUSD spend, attestation transaction,
-  and Mezo explorer link.
+  metadata, proof hash, receipt IDs, budget funding and refund metadata, total
+  MUSD spend, attestation transaction, and Mezo explorer link.
 - Provider adapters live in `src/features/provider-adapters`; the registry uses
   the generic external HTTP adapter for provider-created listings. The external
   HTTP adapter forwards paid requests to the configured upstream endpoint,

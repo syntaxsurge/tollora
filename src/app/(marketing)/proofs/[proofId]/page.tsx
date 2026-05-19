@@ -56,6 +56,8 @@ export default async function ProofPage({ params }: ProofPageProps) {
             ['Owner wallet', proof.ownerWallet],
             ['Proof hash', proof.proofHash],
             ['Total spend', `${proof.totalSpendMusd} MUSD`],
+            ['Funded budget', run?.fundedAmountMusd ?? 'Not available'],
+            ['Refunded budget', run?.refundedAmountMusd ?? 'Not available'],
             [
               'Receipts',
               proof.receiptIds.length > 0
@@ -100,7 +102,7 @@ export default async function ProofPage({ params }: ProofPageProps) {
       </section>
 
       {run ? (
-        <Card>
+        <Card className='space-y-4'>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             Public run summary
           </p>
@@ -108,10 +110,28 @@ export default async function ProofPage({ params }: ProofPageProps) {
           <p className='text-foreground/70 mt-3 text-sm leading-6'>
             {run.summary}
           </p>
+          <div className='grid gap-3 md:grid-cols-3'>
+            {[
+              ['Vault', run.vaultAddress ?? 'Not configured'],
+              ['Funding tx', run.fundingTxHash ?? 'Not recorded'],
+              ['Refund tx', run.refundTxHash ?? 'Not recorded']
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className='border-border bg-muted/30 rounded-lg border p-3'
+              >
+                <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
+                  {label}
+                </p>
+                <p className='mt-1 text-sm font-semibold break-words'>
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
           <JsonViewer
             title='Public deliverables JSON'
             value={run.deliverables}
-            className='mt-4'
             copyLabel='Copy deliverables'
           />
         </Card>

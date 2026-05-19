@@ -21,6 +21,7 @@ const serverSchema = z.object({
   AGENT_SPENDER_PRIVATE_KEY: optionalString,
   AGENT_ATTESTER_PRIVATE_KEY: optionalString,
   API_ESCROW_OPERATOR_PRIVATE_KEY: optionalString,
+  AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY: optionalString,
   AGENT_LLM_API_KEY: optionalString,
   AGENT_LLM_MODEL: optionalString,
   NODE_ENV: z.enum(['development', 'test', 'production']).optional()
@@ -35,6 +36,8 @@ export const envServer = serverSchema.parse({
   AGENT_SPENDER_PRIVATE_KEY: process.env.AGENT_SPENDER_PRIVATE_KEY,
   AGENT_ATTESTER_PRIVATE_KEY: process.env.AGENT_ATTESTER_PRIVATE_KEY,
   API_ESCROW_OPERATOR_PRIVATE_KEY: process.env.API_ESCROW_OPERATOR_PRIVATE_KEY,
+  AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY:
+    process.env.AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY,
   AGENT_LLM_API_KEY: process.env.AGENT_LLM_API_KEY,
   AGENT_LLM_MODEL: process.env.AGENT_LLM_MODEL,
   NODE_ENV: process.env.NODE_ENV

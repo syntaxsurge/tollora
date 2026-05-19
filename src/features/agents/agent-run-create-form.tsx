@@ -4,10 +4,10 @@ import type { FormEvent, ReactNode } from 'react'
 import { useState } from 'react'
 
 import {
-  Bot,
   Boxes,
   Check,
   Cpu,
+  FileCheck2,
   type LucideIcon,
   Sparkles,
   Wallet
@@ -199,11 +199,12 @@ export function AgentRunCreateForm({
 
       <aside className='space-y-5 xl:sticky xl:top-28 xl:self-start'>
         <Card className='space-y-5'>
-          <SectionTitle
-            icon={Wallet}
-            eyebrow='Run limits'
-            title='Budget guardrails'
-          />
+          <SectionTitle icon={Wallet} eyebrow='Step 2' title='Funded budget' />
+          <div className='border-border bg-primary/5 rounded-lg border p-3 text-sm leading-6'>
+            Production runs are created first, then funded on the run page with
+            a MUSD deposit into the agent budget vault. Local runs use a
+            simulated budget for offline demos.
+          </div>
           <div className='grid gap-4'>
             <label className='space-y-2'>
               <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
@@ -247,7 +248,7 @@ export function AgentRunCreateForm({
         </Card>
 
         <Card className='space-y-5'>
-          <SectionTitle icon={Cpu} eyebrow='Execution' title='Signer mode' />
+          <SectionTitle icon={Cpu} eyebrow='Step 3' title='Signer mode' />
           <fieldset className='grid gap-3'>
             <legend className='sr-only'>Agent execution mode</legend>
             {[
@@ -283,8 +284,8 @@ export function AgentRunCreateForm({
             className='w-full'
             disabled={isSubmitting || selectedTools.length === 0}
           >
-            <Bot className='h-4 w-4' aria-hidden />
-            {isSubmitting ? 'Preparing' : 'Start agent'}
+            <FileCheck2 className='h-4 w-4' aria-hidden />
+            {isSubmitting ? 'Preparing' : 'Create run'}
           </Button>
           {error ? (
             <p

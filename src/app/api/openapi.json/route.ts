@@ -376,6 +376,65 @@ export function GET() {
           }
         }
       },
+      '/api/agents/runs/{runId}/funding/prepare': {
+        post: {
+          tags: ['Agents'],
+          summary: 'Prepare a user-funded agent budget vault transaction',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': { description: 'Funding transaction details' },
+            '404': { description: 'Agent run not found' },
+            '412': { description: 'Agent vault not configured' }
+          }
+        }
+      },
+      '/api/agents/runs/{runId}/funding/confirm': {
+        post: {
+          tags: ['Agents'],
+          summary: 'Confirm an agent budget vault funding transaction',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': {
+              description: 'Funded agent run',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentRun' }
+                }
+              }
+            },
+            '404': { description: 'Agent run not found' }
+          }
+        }
+      },
+      '/api/agents/runs/{runId}/refund': {
+        post: {
+          tags: ['Agents'],
+          summary: 'Refund unused agent budget',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': {
+              description: 'Refunded agent run',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/AgentRun' }
+                }
+              }
+            },
+            '404': { description: 'Agent run not found' }
+          }
+        }
+      },
+      '/api/agents/runs/{runId}/ledger': {
+        get: {
+          tags: ['Agents'],
+          summary: 'Get agent budget ledger events',
+          parameters: [pathStringParameter('runId')],
+          responses: {
+            '200': { description: 'Agent funding and spend ledger' },
+            '404': { description: 'Agent run not found' }
+          }
+        }
+      },
       '/api/agents/runs/{runId}/attest': {
         post: {
           tags: ['Agents'],
@@ -629,6 +688,20 @@ export function GET() {
             budgetCapMusd: { type: 'number' },
             maxPaidActions: { type: 'number' },
             status: { type: 'string' },
+            fundingStatus: { type: 'string' },
+            vaultPaymentId: { type: 'string' },
+            vaultAddress: { type: 'string' },
+            fundedAmountMusd: { type: 'string' },
+            spentAmountMusd: { type: 'string' },
+            reservedAmountMusd: { type: 'string' },
+            refundedAmountMusd: { type: 'string' },
+            availableAmountMusd: { type: 'string' },
+            fundingTxHash: { type: 'string' },
+            refundTxHash: { type: 'string' },
+            ledgerEvents: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/AgentLedgerEvent' }
+            },
             summary: { type: 'string' },
             deliverables: {
               type: 'object',
@@ -672,6 +745,19 @@ export function GET() {
               items: { $ref: '#/components/schemas/AgentAction' }
             },
             proof: { $ref: '#/components/schemas/AgentProof' }
+          }
+        },
+        AgentLedgerEvent: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            label: { type: 'string' },
+            amountMusd: { type: 'string' },
+            txHash: { type: 'string' },
+            explorerUrl: { type: 'string' },
+            actionId: { type: 'string' },
+            createdAt: { type: 'string' }
           }
         },
         AgentAction: {
