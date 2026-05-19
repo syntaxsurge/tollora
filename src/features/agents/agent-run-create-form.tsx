@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import type { AgentRun, AgentToolSlug } from '@/features/agents/types'
 import type { ApiProduct } from '@/features/marketplace/products'
 
@@ -45,15 +46,20 @@ export function AgentRunCreateForm({
     setIsSubmitting(true)
 
     const formData = new FormData(event.currentTarget)
+    const ownerWallet = formData.get('ownerWallet')
 
     try {
+      if (!ownerWallet) {
+        throw new Error('Connect your wallet before creating an agent run.')
+      }
+
       const response = await fetch('/api/agents/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           objective: formData.get('objective'),
           sourceText: formData.get('sourceText') || undefined,
-          ownerWallet: formData.get('ownerWallet'),
+          ownerWallet,
           budgetCapMusd: formData.get('budgetCapMusd'),
           maxPaidActions: formData.get('maxPaidActions'),
           allowedTools: selectedTools,
@@ -95,188 +101,224 @@ export function AgentRunCreateForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className='grid gap-5 xl:grid-cols-[1fr_340px]'
-    >
-      <div className='space-y-5'>
-        <Card className='space-y-5'>
-          <SectionTitle
-            icon={Sparkles}
-            eyebrow='Goal'
-            title='What should the agent accomplish?'
-          />
-          <label className='block space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Objective
-            </span>
-            <textarea
-              name='objective'
-              defaultValue='Create a launch pack for my MUSD-native paid API product.'
-              className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-28 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
-              required
-            />
-          </label>
-          <label className='block space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Context
-            </span>
-            <textarea
-              name='sourceText'
-              defaultValue='The product sells premium API responses to AI agents and records MUSD receipts on Mezo.'
-              className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-24 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
-            />
-          </label>
-        </Card>
+    <WalletAddressConsumer>
+      {({ address, isConnected }) => (
+        <form
+          onSubmit={handleSubmit}
+          className='grid gap-5 xl:grid-cols-[1fr_340px]'
+        >
+          <div className='space-y-5'>
+            <Card className='space-y-5'>
+              <SectionTitle
+                icon={Sparkles}
+                eyebrow='Goal'
+                title='What should the agent accomplish?'
+              />
+              <label className='block space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Objective
+                </span>
+                <textarea
+                  name='objective'
+                  defaultValue='Create a launch pack for my MUSD-native paid API product.'
+                  className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-28 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+                  required
+                />
+              </label>
+              <label className='block space-y-2'>
+                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  Context
+                </span>
+                <textarea
+                  name='sourceText'
+                  defaultValue='The product sells premium API responses to AI agents and records MUSD receipts on Mezo.'
+                  className='border-foreground/15 bg-background text-foreground focus-visible:ring-ring focus-visible:ring-offset-background min-h-24 w-full resize-y rounded-lg border px-4 py-3 text-sm leading-6 shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+                />
+              </label>
+            </Card>
 
-        <Card className='space-y-5'>
-          <SectionTitle
-            icon={Boxes}
-            eyebrow='Tools'
-            title='Choose what OpenAI may use'
-            action={
-              <Button
-                type='button'
-                variant='outline'
-                size='sm'
-                disabled={agentReadyProducts.length === 0}
-                onClick={allowAgentToChoose}
-              >
-                <Sparkles className='h-4 w-4' aria-hidden />
-                Select all
-              </Button>
-            }
-          />
-          <div className='grid gap-3 md:grid-cols-2'>
-            {agentReadyProducts.length === 0 ? (
-              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4 md:col-span-2'>
-                <p className='font-semibold'>No agent-ready APIs yet</p>
-                <p className='text-foreground/65 mt-1 text-sm leading-6'>
-                  Publish a provider product with agent access enabled first.
+            <Card className='space-y-5'>
+              <SectionTitle
+                icon={Boxes}
+                eyebrow='Tools'
+                title='Choose what OpenAI may use'
+                action={
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    disabled={agentReadyProducts.length === 0}
+                    onClick={allowAgentToChoose}
+                  >
+                    <Sparkles className='h-4 w-4' aria-hidden />
+                    Select all
+                  </Button>
+                }
+              />
+              <div className='grid gap-3 md:grid-cols-2'>
+                {agentReadyProducts.length === 0 ? (
+                  <div className='border-foreground/10 bg-muted/30 rounded-lg border p-4 md:col-span-2'>
+                    <p className='font-semibold'>No agent-ready APIs yet</p>
+                    <p className='text-foreground/65 mt-1 text-sm leading-6'>
+                      Publish a provider product with agent access enabled
+                      first.
+                    </p>
+                  </div>
+                ) : null}
+                {agentReadyProducts.map(product => {
+                  const checked = selectedTools.includes(product.slug)
+
+                  return (
+                    <label
+                      key={product.slug}
+                      className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
+                        checked
+                          ? 'bg-primary/10 ring-primary/30 ring-1'
+                          : 'bg-card'
+                      }`}
+                    >
+                      <input
+                        type='checkbox'
+                        checked={checked}
+                        onChange={() => toggleTool(product.slug)}
+                        className='sr-only'
+                      />
+                      <span
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
+                          checked
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-foreground/20'
+                        }`}
+                      >
+                        {checked ? (
+                          <Check className='h-4 w-4' aria-hidden />
+                        ) : null}
+                      </span>
+                      <span className='min-w-0'>
+                        <span className='block truncate font-semibold'>
+                          {product.name}
+                        </span>
+                        <span className='text-foreground/60 mt-1 block text-sm'>
+                          {product.priceLabel} - {product.providerName}
+                        </span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </Card>
+          </div>
+
+          <aside className='space-y-5 xl:sticky xl:top-28 xl:self-start'>
+            <Card className='space-y-5'>
+              <SectionTitle
+                icon={Wallet}
+                eyebrow='Step 2'
+                title='Funded budget'
+              />
+              <div className='border-border bg-primary/5 rounded-lg border p-3 text-sm leading-6'>
+                Agent runs are created first, then funded on the run page with a
+                MUSD deposit into the agent budget vault before any paid action
+                can execute.
+              </div>
+              <div className='grid gap-4'>
+                <div className='space-y-2'>
+                  <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                    Owner wallet
+                  </span>
+                  <input
+                    type='hidden'
+                    name='ownerWallet'
+                    value={address ?? ''}
+                    required
+                  />
+                  <div className='border-foreground/10 bg-muted/30 text-foreground min-h-11 rounded-lg border px-4 py-3 text-sm font-semibold break-all'>
+                    {address ?? 'Connect a wallet to create an agent run'}
+                  </div>
+                  <p className='text-foreground/60 text-xs leading-5'>
+                    This connected wallet owns the run, funds the vault, and
+                    receives any unused budget refund.
+                  </p>
+                </div>
+                <div className='grid grid-cols-2 gap-3'>
+                  <label className='space-y-2'>
+                    <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                      Budget
+                    </span>
+                    <Input
+                      name='budgetCapMusd'
+                      type='number'
+                      step='0.01'
+                      min='0.08'
+                      defaultValue='0.90'
+                      required
+                    />
+                  </label>
+                  <label className='space-y-2'>
+                    <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                      Actions
+                    </span>
+                    <Input
+                      name='maxPaidActions'
+                      type='number'
+                      min='1'
+                      max='4'
+                      defaultValue='4'
+                      required
+                    />
+                  </label>
+                </div>
+              </div>
+            </Card>
+
+            <Card className='space-y-5'>
+              <SectionTitle
+                icon={FileCheck2}
+                eyebrow='Step 3'
+                title='Review run'
+              />
+              <div className='border-foreground/10 bg-muted/30 rounded-lg border p-3'>
+                <div className='flex items-center justify-between gap-3'>
+                  <span className='text-sm font-semibold'>Allowed tools</span>
+                  <Badge>{selectedTools.length}</Badge>
+                </div>
+                <p className='text-foreground/60 mt-2 text-sm leading-6'>
+                  OpenAI chooses from this set. Tollora still quotes, pays, and
+                  records receipts.
                 </p>
               </div>
-            ) : null}
-            {agentReadyProducts.map(product => {
-              const checked = selectedTools.includes(product.slug)
-
-              return (
-                <label
-                  key={product.slug}
-                  className={`border-foreground/10 hover:border-primary/50 flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
-                    checked ? 'bg-primary/10 ring-primary/30 ring-1' : 'bg-card'
-                  }`}
+              <Button
+                type='submit'
+                className='w-full'
+                disabled={
+                  isSubmitting ||
+                  selectedTools.length === 0 ||
+                  !isConnected ||
+                  !address
+                }
+              >
+                <FileCheck2 className='h-4 w-4' aria-hidden />
+                {isSubmitting ? 'Preparing' : 'Create run'}
+              </Button>
+              {!isConnected || !address ? (
+                <p className='border-foreground/10 bg-muted/30 text-foreground/70 rounded-lg border p-3 text-sm leading-6'>
+                  Connect your wallet first so Tollora can assign ownership and
+                  prepare the funded budget vault.
+                </p>
+              ) : null}
+              {error ? (
+                <p
+                  className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-300'
+                  role='alert'
                 >
-                  <input
-                    type='checkbox'
-                    checked={checked}
-                    onChange={() => toggleTool(product.slug)}
-                    className='sr-only'
-                  />
-                  <span
-                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
-                      checked
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-foreground/20'
-                    }`}
-                  >
-                    {checked ? <Check className='h-4 w-4' aria-hidden /> : null}
-                  </span>
-                  <span className='min-w-0'>
-                    <span className='block truncate font-semibold'>
-                      {product.name}
-                    </span>
-                    <span className='text-foreground/60 mt-1 block text-sm'>
-                      {product.priceLabel} - {product.providerName}
-                    </span>
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-        </Card>
-      </div>
-
-      <aside className='space-y-5 xl:sticky xl:top-28 xl:self-start'>
-        <Card className='space-y-5'>
-          <SectionTitle icon={Wallet} eyebrow='Step 2' title='Funded budget' />
-          <div className='border-border bg-primary/5 rounded-lg border p-3 text-sm leading-6'>
-            Agent runs are created first, then funded on the run page with a
-            MUSD deposit into the agent budget vault before any paid action can
-            execute.
-          </div>
-          <div className='grid gap-4'>
-            <label className='space-y-2'>
-              <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                Owner wallet
-              </span>
-              <Input
-                name='ownerWallet'
-                defaultValue='0x7CE33579392AEAF1791c9B0c8302a502B5867688'
-                required
-              />
-            </label>
-            <div className='grid grid-cols-2 gap-3'>
-              <label className='space-y-2'>
-                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                  Budget
-                </span>
-                <Input
-                  name='budgetCapMusd'
-                  type='number'
-                  step='0.01'
-                  min='0.08'
-                  defaultValue='0.90'
-                  required
-                />
-              </label>
-              <label className='space-y-2'>
-                <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                  Actions
-                </span>
-                <Input
-                  name='maxPaidActions'
-                  type='number'
-                  min='1'
-                  max='4'
-                  defaultValue='4'
-                  required
-                />
-              </label>
-            </div>
-          </div>
-        </Card>
-
-        <Card className='space-y-5'>
-          <SectionTitle icon={FileCheck2} eyebrow='Step 3' title='Review run' />
-          <div className='border-foreground/10 bg-muted/30 rounded-lg border p-3'>
-            <div className='flex items-center justify-between gap-3'>
-              <span className='text-sm font-semibold'>Allowed tools</span>
-              <Badge>{selectedTools.length}</Badge>
-            </div>
-            <p className='text-foreground/60 mt-2 text-sm leading-6'>
-              OpenAI chooses from this set. Tollora still quotes, pays, and
-              records receipts.
-            </p>
-          </div>
-          <Button
-            type='submit'
-            className='w-full'
-            disabled={isSubmitting || selectedTools.length === 0}
-          >
-            <FileCheck2 className='h-4 w-4' aria-hidden />
-            {isSubmitting ? 'Preparing' : 'Create run'}
-          </Button>
-          {error ? (
-            <p
-              className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-300'
-              role='alert'
-            >
-              {error}
-            </p>
-          ) : null}
-        </Card>
-      </aside>
-    </form>
+                  {error}
+                </p>
+              ) : null}
+            </Card>
+          </aside>
+        </form>
+      )}
+    </WalletAddressConsumer>
   )
 }
 

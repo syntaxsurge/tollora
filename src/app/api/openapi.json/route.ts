@@ -689,7 +689,12 @@ export function GET() {
           properties: {
             objective: { type: 'string' },
             sourceText: { type: 'string' },
-            ownerWallet: { type: 'string' },
+            ownerWallet: {
+              type: 'string',
+              pattern: '^0x[a-fA-F0-9]{40}$',
+              description:
+                'Connected wallet address that owns and funds the agent run.'
+            },
             budgetCapMusd: { type: 'number' },
             maxPaidActions: { type: 'number' },
             allowedTools: {

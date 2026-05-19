@@ -36,8 +36,9 @@ Mezo.
    amount, fee split, and Mezo explorer link.
 10. Open `/agents` and show the Launch Pack Agent template, recent runs, spend,
    and proof counts.
-11. Open `/agents/new`, enter a goal, budget cap, owner wallet, max paid actions,
-   and select the published API tools or click `Let agent choose tools`.
+11. Open `/agents/new`, enter a goal, budget cap, max paid actions, and select
+   the published API tools or click `Let agent choose tools`. The connected
+   wallet is used as the run owner.
 12. Open `/agents/[runId]`, fund the production agent budget vault with MUSD,
     then run paid actions. Show `Planner: OpenAI gpt-5.2` when
     `AGENT_LLM_API_KEY` is configured, then show selected tools, skipped tools,

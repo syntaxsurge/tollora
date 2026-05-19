@@ -526,9 +526,10 @@ Before creating a new helper or service file:
 - `/agents` lists agent templates, recent runs, spend, completed proofs, and
   failed work, with deletion controls that stop future execution and remove
   unwanted runs; `/agents/new` configures objective, source context, owner
-  wallet, budget cap, max paid actions, and allowed paid tools with all
-  marketplace tools deselected until the user selects them or allows the agent
-  to consider all published agent-ready listings;
+  wallet from the connected wallet session, budget cap, max paid actions, and
+  allowed paid tools with all marketplace tools deselected until the user
+  selects them or allows the agent to consider all published agent-ready
+  listings;
   `/agents/[runId]` funds production runs through the agent budget vault,
   executes the ranked plan, shows planner mode/model, selected and skipped
   tools, planner rationale, budget ledger, receipt links, Markdown-rendered

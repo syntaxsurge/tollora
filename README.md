@@ -129,7 +129,8 @@ Key values:
 ## Autonomous Agent Walkthrough
 
 1. Open `/agents/new`.
-2. Enter a launch-pack goal, budget cap, owner wallet, and allowed tools.
+2. Enter a launch-pack goal, budget cap, and allowed tools. The owner is the
+   connected wallet and is not typed manually.
 3. Start the run, open `/agents/[runId]`, and execute paid actions.
 4. Attest the completed run and open `/proofs/[proofId]`.
 5. For the judged OpenAI demo, set `AGENT_LLM_API_KEY` and optionally
