@@ -659,9 +659,9 @@ Before creating a new helper or service file:
 - RainbowKit configuration uses the shared Mezo Testnet chain registry when
   `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is configured, and initializes on Mezo
   Testnet.
-- RainbowKit wallet controls live inside the shared header account menu, where
-  the connected address is shown below the wallet button and balance/disconnect
-  actions remain in the RainbowKit dialog.
+- RainbowKit wallet controls live inside the shared header account menu, with
+  account details, copy-address, and disconnect actions handled by the
+  RainbowKit dialog.
 - Wallet configuration helpers in `src/lib/wallet`.
 - App route protection uses `src/middleware.ts`,
   `src/lib/auth/wallet-session.ts`, and
@@ -673,11 +673,12 @@ Before creating a new helper or service file:
   dismissible notice through `src/components/feedback/auth-required-toast.tsx`.
 - Browser-local account preferences are managed in
   `src/lib/settings/user-settings.ts` and surfaced through settings and profile
-  components.
+  components. Profile settings exclude subscription tier controls; plan changes
+  are initiated from pricing and billing subscription flows.
 - Server-readable admin user records and table controls live in
   `src/lib/admin/admin-users.ts`.
-- Subscription checkout, billing renewal/cancellation controls, user payment
-  history links, and admin subscription operations use
+- Pricing subscription checkout, billing renewal/cancellation controls, user
+  payment history links, and admin subscription operations use
   `src/lib/contracts/subscription.ts`,
   `src/lib/contracts/subscription-admin.ts`, the chain registry, and the
   configured `NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS`.

@@ -15,7 +15,6 @@ import {
 
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
-import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import { primaryNav } from '@/lib/config/navigation'
 import { siteConfig } from '@/lib/config/site'
 import {
@@ -183,16 +182,7 @@ function ProfileMenu() {
           <p className='text-muted-foreground mb-2 text-xs font-semibold'>
             Wallet
           </p>
-          <WalletAddressConsumer>
-            {wallet => (
-              <div className='space-y-2'>
-                <WalletConnectButton className='w-full max-w-none justify-center' />
-                <p className='text-muted-foreground truncate text-xs'>
-                  {wallet.address ?? 'Connect to view address'}
-                </p>
-              </div>
-            )}
-          </WalletAddressConsumer>
+          <WalletConnectButton className='w-full max-w-none justify-center' />
         </div>
       </div>
     </details>

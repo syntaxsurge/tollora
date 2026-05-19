@@ -1,8 +1,10 @@
 import Link from 'next/link'
 
+import { SubscriptionCheckout } from '@/components/billing/subscription-checkout'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { subscriptionPlans } from '@/lib/contracts/subscription'
 
 const pricingCards = [
   {
@@ -87,6 +89,43 @@ export default function PricingPage() {
             Providers keep 95% of successful paid calls, with receipts for each
             request.
           </p>
+        </div>
+
+        <div className='mb-10 grid gap-5 lg:grid-cols-3'>
+          {subscriptionPlans.map(plan => (
+            <Card
+              key={plan.key}
+              className={
+                plan.key === 'base'
+                  ? 'border-accent bg-panel-sheen relative overflow-hidden'
+                  : 'bg-card'
+              }
+            >
+              {plan.key === 'base' ? (
+                <span className='bg-accent text-accent-foreground absolute top-4 right-4 rounded-md px-2.5 py-1 text-xs font-semibold'>
+                  Popular
+                </span>
+              ) : null}
+              <div className='space-y-4'>
+                <div>
+                  <p className='text-lg font-semibold'>{plan.name}</p>
+                  <p className='text-foreground/65 mt-2 text-sm leading-6'>
+                    {plan.description}
+                  </p>
+                </div>
+                <p className='font-display text-4xl'>{plan.priceLabel}</p>
+                <SubscriptionCheckout planKey={plan.key} />
+              </div>
+              <ul className='mt-6 space-y-3 text-sm'>
+                {plan.features.map(feature => (
+                  <li key={feature} className='flex gap-3'>
+                    <span className='bg-accent mt-1.5 h-2 w-2 rounded-full' />
+                    <span className='text-foreground/75'>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ))}
         </div>
 
         <div className='grid gap-5 lg:grid-cols-4'>

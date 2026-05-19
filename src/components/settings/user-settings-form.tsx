@@ -9,8 +9,6 @@ import {
   DashboardDensity,
   DashboardLanding,
   UserSettings,
-  UserPlan,
-  clearUserSettings,
   defaultUserSettings,
   readUserSettings,
   writeUserSettings
@@ -50,8 +48,13 @@ export function UserSettingsForm() {
   }
 
   function handleReset() {
-    clearUserSettings()
-    setSettings(defaultUserSettings)
+    const nextSettings = {
+      ...defaultUserSettings,
+      plan: readUserSettings().plan
+    }
+
+    writeUserSettings(nextSettings)
+    setSettings(nextSettings)
     setStatus('Settings reset to Tollora defaults.')
   }
 
@@ -100,22 +103,6 @@ export function UserSettingsForm() {
             value={settings.website}
             onChange={value => updateField('website', value)}
           />
-          <label className='space-y-2'>
-            <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Plan
-            </span>
-            <select
-              value={settings.plan}
-              onChange={event =>
-                updateField('plan', event.target.value as UserPlan)
-              }
-              className='border-foreground/15 bg-background text-foreground focus-visible:ring-foreground/30 h-11 w-full rounded-2xl border px-4 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
-            >
-              <option value='free'>Free</option>
-              <option value='base'>Base</option>
-              <option value='plus'>Plus</option>
-            </select>
-          </label>
           <label className='space-y-2'>
             <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Timezone

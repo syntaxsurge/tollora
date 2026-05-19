@@ -5,6 +5,7 @@ import * as React from 'react'
 import { useActiveAccount } from 'thirdweb/react'
 import { useAccount } from 'wagmi'
 
+import { useWalletRuntimeReady } from '@/components/providers/wallet-provider'
 import { walletProvider } from '@/lib/config/wallet'
 
 type WalletAddressConsumerProps = {
@@ -17,6 +18,12 @@ type WalletAddressConsumerProps = {
 export function WalletAddressConsumer({
   children
 }: WalletAddressConsumerProps) {
+  const walletRuntimeReady = useWalletRuntimeReady()
+
+  if (!walletRuntimeReady) {
+    return children({ address: null, isConnected: false })
+  }
+
   if (walletProvider === 'rainbow-kit') {
     return (
       <RainbowWalletAddressConsumer>{children}</RainbowWalletAddressConsumer>
