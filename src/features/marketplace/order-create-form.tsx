@@ -373,7 +373,7 @@ function RequestSchemaField({
 }) {
   const label = humanizeFieldName(name)
   const required = isRequiredField(typeLabel)
-  const options = getUnionOptions(typeLabel)
+  const options = getLiteralOptions(typeLabel)
   const lowerName = name.toLowerCase()
   const lowerType = typeLabel.toLowerCase()
   const isBoolean = lowerType.includes('boolean')
@@ -413,7 +413,7 @@ function RequestSchemaField({
           <option value='true'>true</option>
           <option value='false'>false</option>
         </select>
-      ) : options.length > 1 ? (
+      ) : options.length > 0 ? (
         <select
           value={String(value)}
           onChange={event => onChange(event.target.value)}
@@ -498,6 +498,7 @@ function coerceFieldValue(
   const lowerName = fieldName.toLowerCase()
   const required = isRequiredField(typeLabel)
   const isArray = isArrayType(lowerType)
+  const literalOptions = getLiteralOptions(typeLabel)
 
   if (value === undefined || value === '') {
     if (required) {
@@ -509,6 +510,18 @@ function coerceFieldValue(
 
   if (typeof value === 'boolean') {
     return value
+  }
+
+  if (literalOptions.length > 0) {
+    const literalValue = String(value)
+
+    if (!literalOptions.includes(literalValue)) {
+      throw new Error(
+        `${humanizeFieldName(fieldName)} must be ${literalOptions.join(' or ')}.`
+      )
+    }
+
+    return literalValue
   }
 
   if (isArray) {
@@ -707,15 +720,19 @@ function isRequiredField(typeLabel: string) {
   return /\brequired\b/i.test(typeLabel)
 }
 
-function getUnionOptions(typeLabel: string) {
-  if (!typeLabel.includes('|')) {
-    return []
-  }
-
+function getLiteralOptions(typeLabel: string) {
   return stripRequirementLabel(typeLabel)
     .split('|')
     .map(option => option.trim().replace(/^['"]|['"]$/g, ''))
-    .filter(option => !/undefined|optional|null/i.test(option))
+    .filter(option => {
+      if (!option || /undefined|optional|null/i.test(option)) {
+        return false
+      }
+
+      return !/^(string|number|integer|float|boolean|object|array|json)$/i.test(
+        option
+      )
+    })
 }
 
 function isArrayType(lowerTypeLabel: string) {
