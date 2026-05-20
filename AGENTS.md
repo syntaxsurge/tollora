@@ -587,13 +587,15 @@ Before creating a new helper or service file:
   the generic external HTTP adapter for provider-created listings. The external
   HTTP adapter forwards paid requests to the configured upstream endpoint,
   applies bearer, API-key, query-key, or basic auth server-side, sends
-  idempotency headers, extracts external job IDs, result URLs, public project
-  handoff URLs, and clone URLs through configured and conventional JSON paths,
-  and polls provider status endpoints for async products. Credit-metered async
-  providers always receive `billingMode: "external_prepaid"` plus generic
-  external prepaid metadata with order, receipt, buyer, requested billing mode,
-  and settlement references so provider APIs can report estimated, charged, and
-  refunded usage without importing Tollora settlement logic.
+  idempotency headers, removes empty optional request fields from listing
+  schema-generated payloads before quoting or forwarding, extracts external job
+  IDs, result URLs, public project handoff URLs, and clone URLs through
+  configured and conventional JSON paths, and polls provider status endpoints
+  for async products. Credit-metered async providers always receive
+  `billingMode: "external_prepaid"` plus generic external prepaid metadata with
+  order, receipt, buyer, requested billing mode, and settlement references so
+  provider APIs can report estimated, charged, and refunded usage without
+  importing Tollora settlement logic.
 - `/marketplace` lists published provider-created MUSD-paid API products in the
   shared server-fed table with category filters, price badges, provider names,
   execution/result delivery context, agent-ready badges, and entry points for

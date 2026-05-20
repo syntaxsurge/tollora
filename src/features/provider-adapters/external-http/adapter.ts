@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 
 import { getProductBySlug } from '@/features/marketplace/products'
+import { sanitizeProductRequestPayload } from '@/features/marketplace/request-payload'
 import type {
   ProviderAdapter,
   ProviderAdapterInput,
@@ -75,22 +76,27 @@ function buildProviderRequestPayload({
   product: NonNullable<ReturnType<typeof getProductBySlug>>
   input: ProviderAdapterInput
 }) {
+  const requestPayload = sanitizeProductRequestPayload({
+    product,
+    payload: input.requestPayload
+  })
+
   if (
     product.pricing.model !== 'credit_metered' ||
     product.executionMode !== 'asynchronous' ||
-    !isRecord(input.requestPayload)
+    !isRecord(requestPayload)
   ) {
-    return input.requestPayload
+    return requestPayload
   }
 
   return {
-    ...input.requestPayload,
+    ...requestPayload,
     billingMode: 'external_prepaid',
     externalReference: {
-      ...asRecord(input.requestPayload.externalReference),
+      ...asRecord(requestPayload.externalReference),
       requestedBillingMode:
-        typeof input.requestPayload.billingMode === 'string'
-          ? input.requestPayload.billingMode
+        typeof requestPayload.billingMode === 'string'
+          ? requestPayload.billingMode
           : undefined,
       orderId: input.orderId,
       receiptId: input.receiptId,

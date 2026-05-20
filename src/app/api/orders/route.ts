@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { recordMarketplaceOrder } from '@/features/marketplace/orders'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { sanitizeProductRequestPayload } from '@/features/marketplace/request-payload'
 import { createOrderSchema } from '@/features/marketplace/schemas'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 
@@ -57,9 +58,13 @@ export async function POST(request: Request) {
     )
   }
 
+  const sanitizedRequestPayload = sanitizeProductRequestPayload({
+    product,
+    payload: requestPayload
+  })
   const resolvedPrice = await resolveProductPrice({
     product,
-    requestPayload
+    requestPayload: sanitizedRequestPayload
   }).catch(error => ({
     error:
       error instanceof Error
@@ -99,7 +104,7 @@ export async function POST(request: Request) {
         : 'not_applicable',
     isProviderTest: product.status === 'draft' && parsed.data.allowDraftTest,
     requestId,
-    requestPayloadJson: parsed.data.requestPayloadJson,
+    requestPayloadJson: JSON.stringify(sanitizedRequestPayload),
     createdAt,
     updatedAt: createdAt
   }

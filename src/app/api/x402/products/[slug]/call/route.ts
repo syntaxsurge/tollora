@@ -23,6 +23,7 @@ import {
   buildReceiptAmounts,
   recordMarketplaceReceipt
 } from '@/features/marketplace/receipts'
+import { sanitizeProductRequestPayload } from '@/features/marketplace/request-payload'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
@@ -86,7 +87,7 @@ export async function POST(
 async function handlePaidProductCall(
   request: NextRequest,
   slug: string,
-  payload: unknown
+  rawPayload: unknown
 ) {
   const product = getProductBySlug(slug)
   const requestedOrderId = request.headers.get('x-tollora-order-id')
@@ -107,6 +108,10 @@ async function handlePaidProductCall(
     )
   }
 
+  const payload = sanitizeProductRequestPayload({
+    product,
+    payload: rawPayload
+  })
   const adapter = new NextRequestAdapter(request, payload)
   const context = {
     adapter,

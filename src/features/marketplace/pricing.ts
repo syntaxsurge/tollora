@@ -4,6 +4,7 @@ import type {
   ApiProduct,
   ApiProductProviderAuth
 } from '@/features/marketplace/products'
+import { sanitizeProductRequestPayload } from '@/features/marketplace/request-payload'
 import { formatMusdAmount } from '@/features/marketplace/schemas'
 
 export type ResolvedProductPrice = {
@@ -38,6 +39,11 @@ export async function resolveProductPrice({
   requestPayload: unknown
   providerResponse?: unknown
 }): Promise<ResolvedProductPrice> {
+  const sanitizedRequestPayload = sanitizeProductRequestPayload({
+    product,
+    payload: requestPayload
+  })
+
   if (product.pricing.model === 'fixed') {
     return toResolvedFixedPrice(product.priceUsd)
   }
@@ -50,9 +56,9 @@ export async function resolveProductPrice({
           endpointUrl: pricing.quoteEndpointUrl,
           method: pricing.quoteMethod ?? 'POST',
           auth: product.providerAuth,
-          requestPayload
+          requestPayload: sanitizedRequestPayload
         })
-      : requestPayload
+      : sanitizedRequestPayload
   const creditUnitPath =
     providerResponse && pricing.usageCreditPath
       ? pricing.usageCreditPath
