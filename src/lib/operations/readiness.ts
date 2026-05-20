@@ -1,5 +1,5 @@
 import { getPublishedProducts } from '@/features/marketplace/products'
-import { settlementReceipts } from '@/features/marketplace/receipts'
+import { settlementReceipts } from '@/features/marketplace/receipt-store'
 import { x402Network } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'

@@ -9,7 +9,7 @@ import { getProductBySlug } from '@/features/marketplace/products'
 import {
   getMarketplaceReceiptById,
   recordMarketplaceReceipt
-} from '@/features/marketplace/receipts'
+} from '@/features/marketplace/receipt-store'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import {

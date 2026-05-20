@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getAgentMetrics } from '@/features/agents/store'
-import { settlementReceipts } from '@/features/marketplace/receipts'
+import { settlementReceipts } from '@/features/marketplace/receipt-store'
 import { getProjectSnapshot } from '@/lib/config/project'
 
 const checklist = ['x402 settlement', 'MUSD receipts', '95% provider share']

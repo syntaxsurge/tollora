@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getMarketplaceReceiptById } from '@/features/marketplace/receipts'
+import { getMarketplaceReceiptById } from '@/features/marketplace/receipt-store'
 
 type ReceiptRouteProps = {
   params: Promise<{

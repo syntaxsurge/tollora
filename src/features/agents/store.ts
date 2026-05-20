@@ -23,6 +23,10 @@ import {
   parseMusdToAtomic,
   writeAgentRunVault
 } from '@/lib/contracts/agent-run-vault'
+import {
+  readWorkspaceJsonArray,
+  writeWorkspaceJsonArray
+} from '@/lib/persistence/workspace-json-store'
 
 type AgentGlobalStore = {
   runs: Map<string, AgentRun>
@@ -37,8 +41,18 @@ const globalStore = globalThis as typeof globalThis & {
 const store =
   globalStore.__tolloraAgentStore ??
   (globalStore.__tolloraAgentStore = {
-    runs: new Map<string, AgentRun>(),
-    proofs: new Map<string, AgentProof>(),
+    runs: new Map(
+      readWorkspaceJsonArray({
+        fileName: 'agent-runs.json',
+        isItem: isAgentRun
+      }).map(run => [run.id, run])
+    ),
+    proofs: new Map(
+      readWorkspaceJsonArray({
+        fileName: 'agent-proofs.json',
+        isItem: isAgentProof
+      }).map(proof => [proof.id, proof])
+    ),
     cancelledRuns: new Set<string>()
   })
 
@@ -47,6 +61,9 @@ store.cancelledRuns ??= new Set<string>()
 const runs = store.runs
 const proofs = store.proofs
 const cancelledRuns = store.cancelledRuns
+
+persistAgentRuns()
+persistAgentProofs()
 
 export function listAgentRuns() {
   return Array.from(runs.values()).sort((a, b) =>
@@ -98,6 +115,7 @@ export function createAgentRun(input: CreateAgentRunInput) {
   }
 
   runs.set(run.id, run)
+  persistAgentRuns()
   cancelledRuns.delete(run.id)
 
   return run
@@ -130,11 +148,13 @@ export async function deleteAgentRun(runId: string) {
   }
 
   runs.delete(runId)
+  persistAgentRuns()
   Array.from(proofs.entries()).forEach(([proofId, proof]) => {
     if (proof.runId === runId) {
       proofs.delete(proofId)
     }
   })
+  persistAgentProofs()
 
   return run
 }
@@ -176,6 +196,7 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
     updatedAt: new Date().toISOString()
   } satisfies AgentRun
   runs.set(run.id, running)
+  persistAgentRuns()
 
   await writeAgentRunVault({
     functionName: 'markRunning',
@@ -211,6 +232,7 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
+  persistAgentRuns()
 
   await writeAgentRunVault({
     functionName: 'markCompleted',
@@ -255,6 +277,7 @@ export function prepareAgentRunFunding(runId: string) {
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
+  persistAgentRuns()
 
   return {
     run: nextRun,
@@ -311,6 +334,7 @@ export function confirmAgentRunFunding({
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
+  persistAgentRuns()
 
   return nextRun
 }
@@ -359,6 +383,7 @@ export async function refundAgentRunUnusedBudget({
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
+  persistAgentRuns()
 
   return nextRun
 }
@@ -394,6 +419,7 @@ export async function attestStoredAgentRun(runId: string) {
     status: 'attesting',
     updatedAt: now
   })
+  persistAgentRuns()
 
   const attestation = await attestAgentRunOnMezo(run, proofBase)
   const proof: AgentProof = {
@@ -410,6 +436,8 @@ export async function attestStoredAgentRun(runId: string) {
 
   proofs.set(proof.id, proof)
   runs.set(run.id, nextRun)
+  persistAgentProofs()
+  persistAgentRuns()
 
   return nextRun
 }
@@ -519,4 +547,46 @@ function parseMusd(value: string) {
 
 function addMusd(first: string, second: string) {
   return `${(parseMusd(first) + parseMusd(second)).toFixed(2)} MUSD`
+}
+
+function persistAgentRuns() {
+  writeWorkspaceJsonArray('agent-runs.json', listAgentRuns())
+}
+
+function persistAgentProofs() {
+  writeWorkspaceJsonArray('agent-proofs.json', Array.from(proofs.values()))
+}
+
+function isAgentRun(value: unknown): value is AgentRun {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const run = value as Partial<AgentRun>
+
+  return (
+    typeof run.id === 'string' &&
+    typeof run.title === 'string' &&
+    typeof run.objective === 'string' &&
+    typeof run.ownerWallet === 'string' &&
+    typeof run.status === 'string' &&
+    Array.isArray(run.actions) &&
+    typeof run.createdAt === 'string'
+  )
+}
+
+function isAgentProof(value: unknown): value is AgentProof {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const proof = value as Partial<AgentProof>
+
+  return (
+    typeof proof.id === 'string' &&
+    typeof proof.runId === 'string' &&
+    typeof proof.ownerWallet === 'string' &&
+    typeof proof.proofHash === 'string' &&
+    typeof proof.createdAt === 'string'
+  )
 }

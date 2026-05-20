@@ -11,10 +11,12 @@ import {
 } from '@/features/marketplace/orders'
 import { getProductBySlug } from '@/features/marketplace/products'
 import {
-  buildExplorerUrl,
-  buildReceiptAmounts,
   getMarketplaceReceiptById,
   recordMarketplaceReceipt
+} from '@/features/marketplace/receipt-store'
+import {
+  buildExplorerUrl,
+  buildReceiptAmounts
 } from '@/features/marketplace/receipts'
 import { x402Network } from '@/lib/config/chains'
 import { releaseEscrowPayment } from '@/lib/contracts/api-payment-escrow'

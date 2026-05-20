@@ -522,6 +522,10 @@ Before creating a new helper or service file:
   schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
   and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
+  Marketplace orders persist to `.tollora/marketplace-orders.json`, settlement
+  receipts persist to `.tollora/settlement-receipts.json`, and provider call
+  counts, success rates, gross volume, platform fees, and earnings are derived
+  from those order and receipt ledgers instead of static product counters.
   Platform-owned public data wrappers for Wikipedia search, Hacker News trend
   search, GitHub repository search, npm package search, OpenAlex research
   search, and GDELT news search use no upstream account or API key, stay
@@ -537,6 +541,10 @@ Before creating a new helper or service file:
 - Autonomous agent templates, OpenAI planning and synthesis, deterministic
   fallback planning, run storage, funded budget ledgers, paid action execution,
   proof hashing, status labels, and UI clients live in `src/features/agents`.
+  Agent runs and proof records persist to `.tollora/agent-runs.json` and
+  `.tollora/agent-proofs.json` so recent runs, statuses, funding ledgers,
+  paid-action diagnostics, receipts, and proofs remain visible across local
+  server restarts.
   Template definitions live in `src/features/agents/templates.ts` and include
   reusable objectives, context, budgets, action limits, tool strategy, and
   deliverables for launch, research, documentation, readiness, and creative
@@ -549,7 +557,10 @@ Before creating a new helper or service file:
   allowance is insufficient, waits until the allowance is readable, and then
   executes the hosted x402 call from the same origin that triggered the run.
   Paid action failures preserve the response body, settlement guidance, and
-  provider details in action diagnostics. When
+  provider details in action diagnostics. Agent-paid x402 calls include the
+  agent run ID in gateway order and receipt records so provider dashboards and
+  usage pages count autonomous tool calls in the same revenue ledger as browser
+  and developer API calls. When
   `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
   with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
   payloads, skip unrelated tools, set a budget strategy, and synthesize the

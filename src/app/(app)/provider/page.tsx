@@ -1,21 +1,33 @@
 import Link from 'next/link'
 
-import { BarChart3, PackageSearch } from 'lucide-react'
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  CircleDollarSign,
+  PackageSearch,
+  Receipt,
+  TrendingUp
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getAgentMetrics } from '@/features/agents/store'
-import { marketplaceOrders } from '@/features/marketplace/orders'
 import {
+  getProviderDashboardMetrics,
+  getProviderOrders,
   getMarketplaceMetrics,
   getPublishedProducts
 } from '@/features/marketplace/products'
+import { orderStatusLabels } from '@/features/marketplace/status'
 
 export default function ProviderPage() {
   const products = getPublishedProducts()
   const metrics = getMarketplaceMetrics()
+  const providerMetrics = getProviderDashboardMetrics()
   const agentMetrics = getAgentMetrics()
+  const orders = getProviderOrders()
   const topProduct = products
     .slice()
     .sort((a, b) => Number(b.revenueMusd) - Number(a.revenueMusd))[0]
@@ -67,30 +79,67 @@ export default function ProviderPage() {
 
       <section className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
         {[
-          ['Total MUSD earned', metrics.totalRevenueMusd],
-          ['Total API calls', metrics.totalCalls.toLocaleString()],
-          ['Agent runs', agentMetrics.totalRuns.toString()],
-          ['Provider share', '95%']
-        ].map(([label, value]) => (
+          {
+            label: 'Provider earnings',
+            value: `${providerMetrics.providerRevenueMusd} MUSD`,
+            detail: 'Released provider payout share',
+            icon: CircleDollarSign
+          },
+          {
+            label: 'Total API calls',
+            value: providerMetrics.orderCount.toLocaleString(),
+            detail: `${providerMetrics.completedCalls} completed, ${providerMetrics.processingCalls} in progress`,
+            icon: Activity
+          },
+          {
+            label: 'Agent runs',
+            value: agentMetrics.totalRuns.toString(),
+            detail: `${agentMetrics.totalSpendMusd} MUSD agent spend`,
+            icon: Receipt
+          },
+          {
+            label: 'Success rate',
+            value: providerMetrics.successRate,
+            detail: `${providerMetrics.failedCalls} failed calls tracked`,
+            icon: TrendingUp
+          }
+        ].map(({ label, value, detail, icon: Icon }) => (
           <Card key={label} className='relative overflow-hidden'>
             <div className='bg-accent absolute top-0 left-0 h-1 w-full' />
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              {label}
-            </p>
-            <p className='mt-3 text-2xl font-semibold'>{value}</p>
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                  {label}
+                </p>
+                <p className='mt-3 text-2xl font-semibold'>{value}</p>
+                <p className='text-foreground/60 mt-2 text-sm'>{detail}</p>
+              </div>
+              <span className='bg-primary/10 text-primary rounded-lg p-2'>
+                <Icon className='h-5 w-5' aria-hidden />
+              </span>
+            </div>
           </Card>
         ))}
       </section>
 
       <section className='grid gap-5 xl:grid-cols-[1.15fr_0.85fr]'>
         <Card className='space-y-5'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              API products
-            </p>
-            <h2 className='font-display mt-2 text-2xl'>
-              Listings and gateway health
-            </h2>
+          <div className='flex flex-col justify-between gap-4 sm:flex-row sm:items-end'>
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                API products
+              </p>
+              <h2 className='font-display mt-2 text-2xl'>
+                Listings and revenue
+              </h2>
+            </div>
+            <Link
+              href='/provider/products'
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+            >
+              Manage all
+              <ArrowRight className='h-4 w-4' aria-hidden />
+            </Link>
           </div>
           <div className='grid gap-3'>
             {products.length === 0 ? (
@@ -106,7 +155,7 @@ export default function ProviderPage() {
               <Link
                 key={product.slug}
                 href={`/marketplace/${product.slug}`}
-                className='border-foreground/10 hover:border-foreground/25 grid gap-4 rounded-lg border p-4 transition lg:grid-cols-[1fr_140px_120px]'
+                className='border-foreground/10 hover:border-foreground/25 grid gap-4 rounded-lg border p-4 transition lg:grid-cols-[1fr_100px_130px_110px]'
               >
                 <div>
                   <p className='font-semibold'>{product.name}</p>
@@ -117,6 +166,12 @@ export default function ProviderPage() {
                 <div>
                   <p className='text-foreground/60 text-xs uppercase'>Calls</p>
                   <p className='font-semibold'>{product.calls}</p>
+                </div>
+                <div>
+                  <p className='text-foreground/60 text-xs uppercase'>
+                    Earnings
+                  </p>
+                  <p className='font-semibold'>{product.revenueMusd} MUSD</p>
                 </div>
                 <div>
                   <p className='text-foreground/60 text-xs uppercase'>
@@ -132,19 +187,22 @@ export default function ProviderPage() {
         <Card className='space-y-5'>
           <div>
             <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Settlement model
+              Settlement ledger
             </p>
-            <h2 className='font-display mt-2 text-2xl'>Fee split</h2>
+            <h2 className='font-display mt-2 text-2xl'>Revenue split</h2>
             <p className='text-foreground/65 mt-2 text-sm leading-6'>
-              Every paid request records provider revenue and platform fees.
+              Paid calls and agent actions roll into the same provider ledger.
             </p>
           </div>
           <div className='grid gap-3'>
             {[
-              ['Provider amount', `${metrics.providerShareBps / 100}%`],
-              ['Platform fee', `${metrics.platformFeeBps / 100}%`],
-              ['Network', 'Mezo Testnet'],
-              ['Receipt asset', 'MUSD']
+              ['Gross volume', `${providerMetrics.grossVolumeMusd} MUSD`],
+              [
+                'Provider earned',
+                `${providerMetrics.providerRevenueMusd} MUSD`
+              ],
+              ['Platform fees', `${providerMetrics.platformFeeMusd} MUSD`],
+              ['Provider split', `${metrics.providerShareBps / 100}%`]
             ].map(([label, value]) => (
               <div key={label} className='bg-muted rounded-lg p-4'>
                 <p className='text-foreground/60 text-xs uppercase'>{label}</p>
@@ -157,27 +215,51 @@ export default function ProviderPage() {
 
       <section>
         <Card className='space-y-5'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Recent orders
-            </p>
-            <h2 className='font-display mt-2 text-2xl'>
-              Paid request activity
-            </h2>
+          <div className='flex flex-col justify-between gap-4 sm:flex-row sm:items-end'>
+            <div>
+              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+                Recent orders
+              </p>
+              <h2 className='font-display mt-2 text-2xl'>
+                Paid request activity
+              </h2>
+            </div>
+            <Link
+              href='/provider/usage'
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+            >
+              View usage
+              <ArrowRight className='h-4 w-4' aria-hidden />
+            </Link>
           </div>
           <div className='grid gap-3'>
-            {marketplaceOrders.length > 0 ? (
-              marketplaceOrders.slice(0, 3).map(order => (
+            {orders.length > 0 ? (
+              orders.slice(0, 5).map(order => (
                 <Link
                   key={order.id}
                   href={`/orders/${order.id}`}
-                  className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
+                  className='border-foreground/10 hover:border-foreground/25 grid gap-4 rounded-lg border p-4 transition md:grid-cols-[1fr_140px_130px]'
                 >
-                  <p className='font-semibold'>{order.productName}</p>
-                  <div className='text-foreground/60 mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs'>
-                    <span>{order.amountMusd}</span>
-                    <span>{order.status.replace(/_/g, ' ')}</span>
-                    <span>{order.requestId}</span>
+                  <div>
+                    <p className='font-semibold'>{order.productName}</p>
+                    <div className='text-foreground/60 mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs'>
+                      <span>{order.requestId}</span>
+                      {order.agentRunId ? <span>Agent run</span> : null}
+                    </div>
+                  </div>
+                  <div>
+                    <p className='text-foreground/60 text-xs uppercase'>
+                      Amount
+                    </p>
+                    <p className='font-semibold'>{order.amountMusd}</p>
+                  </div>
+                  <div>
+                    <p className='text-foreground/60 text-xs uppercase'>
+                      Status
+                    </p>
+                    <p className='font-semibold'>
+                      {orderStatusLabels[order.status]}
+                    </p>
                   </div>
                 </Link>
               ))

@@ -163,7 +163,11 @@ async function executeAgentAction(
 
   try {
     await ensureAgentCanPayWithPermit2(quotedPrice.amountUsd)
-    const paidResult = await callPaidProductWithAgentWallet(started, appUrl)
+    const paidResult = await callPaidProductWithAgentWallet(
+      run.id,
+      started,
+      appUrl
+    )
 
     return {
       ...started,
@@ -194,6 +198,7 @@ function parseMusdLabel(value: string) {
 }
 
 async function callPaidProductWithAgentWallet(
+  runId: string,
   action: AgentAction,
   appUrl: string
 ) {
@@ -214,7 +219,8 @@ async function callPaidProductWithAgentWallet(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Accept: 'application/json'
+        Accept: 'application/json',
+        'x-tollora-agent-run-id': runId
       },
       body: JSON.stringify(action.requestPayload)
     }

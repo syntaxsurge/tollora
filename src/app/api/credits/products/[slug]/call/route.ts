@@ -15,10 +15,10 @@ import {
   resolveProductPrice
 } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { recordMarketplaceReceipt } from '@/features/marketplace/receipt-store'
 import {
   buildExplorerUrl,
-  buildReceiptAmounts,
-  recordMarketplaceReceipt
+  buildReceiptAmounts
 } from '@/features/marketplace/receipts'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'

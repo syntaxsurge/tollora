@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ReceiptDetailClient } from '@/features/marketplace/receipt-detail-client'
-import { getMarketplaceReceiptById } from '@/features/marketplace/receipts'
+import { getMarketplaceReceiptById } from '@/features/marketplace/receipt-store'
 
 type ReceiptDetailPageProps = {
   params: Promise<{

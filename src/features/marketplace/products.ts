@@ -1,6 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import { marketplaceOrders } from '@/features/marketplace/orders'
+import { settlementReceipts } from '@/features/marketplace/receipt-store'
+import type { MarketplaceOrder } from '@/features/marketplace/types'
+
 export type ApiProductCategory =
   | 'ai'
   | 'data'
@@ -389,9 +393,9 @@ export function getPublishedProducts() {
 }
 
 export function getAllProducts() {
-  return [...providerCreatedProducts, ...marketplaceProducts].map(
-    withDisplayPriceLabel
-  )
+  return [...providerCreatedProducts, ...marketplaceProducts]
+    .map(withDisplayPriceLabel)
+    .map(withUsageMetrics)
 }
 
 export function getFeaturedProduct() {
@@ -488,6 +492,61 @@ export function getMarketplaceMetrics() {
   }
 }
 
+export function getProviderDashboardMetrics(providerWallet?: string) {
+  const products = getAllProducts().filter(product =>
+    providerWallet
+      ? product.providerWallet.toLowerCase() === providerWallet.toLowerCase()
+      : true
+  )
+  const productSlugs = new Set(products.map(product => product.slug))
+  const orders = marketplaceOrders.filter(order =>
+    productSlugs.has(order.productSlug)
+  )
+  const receipts = settlementReceipts.filter(receipt =>
+    productSlugs.has(receipt.productSlug)
+  )
+  const completedOrders = orders.filter(isCompletedProviderOrder)
+  const failedOrders = orders.filter(order => order.status === 'failed')
+  const processingOrders = orders.filter(order =>
+    ['paid', 'processing', 'ready', 'delta_payment_required'].includes(
+      order.status
+    )
+  )
+  const providerRevenue = receipts
+    .filter(receipt => isProviderEarningReceipt(receipt.orderId))
+    .reduce((sum, receipt) => sum + parseMusd(receipt.providerAmountMusd), 0)
+  const grossVolume = receipts.reduce(
+    (sum, receipt) => sum + parseMusd(receipt.amountMusd),
+    0
+  )
+
+  return {
+    productCount: products.length,
+    orderCount: orders.length,
+    completedCalls: completedOrders.length,
+    failedCalls: failedOrders.length,
+    processingCalls: processingOrders.length,
+    grossVolumeMusd: grossVolume.toFixed(2),
+    providerRevenueMusd: providerRevenue.toFixed(2),
+    platformFeeMusd: Math.max(0, grossVolume - providerRevenue).toFixed(2),
+    successRate:
+      orders.length > 0
+        ? `${Math.round((completedOrders.length / orders.length) * 100)}%`
+        : 'No calls yet'
+  }
+}
+
+export function getProviderOrders(providerWallet?: string) {
+  const products = getAllProducts().filter(product =>
+    providerWallet
+      ? product.providerWallet.toLowerCase() === providerWallet.toLowerCase()
+      : true
+  )
+  const productSlugs = new Set(products.map(product => product.slug))
+
+  return marketplaceOrders.filter(order => productSlugs.has(order.productSlug))
+}
+
 function readProviderProducts() {
   if (!existsSync(providerProductsStorePath)) {
     return []
@@ -521,6 +580,53 @@ function withDisplayPriceLabel(product: ApiProduct): ApiProduct {
     ...product,
     priceLabel: 'Metered quote'
   }
+}
+
+function withUsageMetrics(product: ApiProduct): ApiProduct {
+  const productOrders = marketplaceOrders.filter(
+    order => order.productSlug === product.slug
+  )
+  const completedOrders = productOrders.filter(isCompletedProviderOrder)
+  const productReceipts = settlementReceipts.filter(
+    receipt => receipt.productSlug === product.slug
+  )
+  const revenue = productReceipts
+    .filter(receipt => isProviderEarningReceipt(receipt.orderId))
+    .reduce((sum, receipt) => sum + parseMusd(receipt.providerAmountMusd), 0)
+
+  return {
+    ...product,
+    calls: productOrders.length,
+    successRate:
+      productOrders.length > 0
+        ? `${Math.round((completedOrders.length / productOrders.length) * 100)}%`
+        : product.successRate,
+    revenueMusd: revenue.toFixed(2)
+  }
+}
+
+function isCompletedProviderOrder(order: MarketplaceOrder) {
+  return (
+    order.status === 'completed' ||
+    order.resultReleaseStatus === 'released' ||
+    order.escrowStatus === 'released'
+  )
+}
+
+function isProviderEarningReceipt(orderId: string) {
+  const order = marketplaceOrders.find(item => item.id === orderId)
+
+  if (!order) {
+    return false
+  }
+
+  return isCompletedProviderOrder(order)
+}
+
+function parseMusd(value: string | undefined) {
+  const amount = Number((value ?? '').replace(/[^0-9.]/g, ''))
+
+  return Number.isFinite(amount) ? amount : 0
 }
 
 function persistProviderProducts(products: ApiProduct[]) {

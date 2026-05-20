@@ -18,10 +18,10 @@ import {
   resolveProductPrice
 } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { recordMarketplaceReceipt } from '@/features/marketplace/receipt-store'
 import {
   buildExplorerUrl,
-  buildReceiptAmounts,
-  recordMarketplaceReceipt
+  buildReceiptAmounts
 } from '@/features/marketplace/receipts'
 import { sanitizeProductRequestPayload } from '@/features/marketplace/request-payload'
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
@@ -91,6 +91,7 @@ async function handlePaidProductCall(
 ) {
   const product = getProductBySlug(slug)
   const requestedOrderId = request.headers.get('x-tollora-order-id')
+  const agentRunId = request.headers.get('x-tollora-agent-run-id') ?? undefined
   const existingOrder = requestedOrderId
     ? getMarketplaceOrderById(requestedOrderId)
     : undefined
@@ -204,7 +205,8 @@ async function handlePaidProductCall(
       receiptId,
       resolvedPrice,
       createdAt,
-      existingOrder
+      existingOrder,
+      agentRunId
     })
   }
 
@@ -270,7 +272,8 @@ async function handlePaidProductCall(
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),
     createdAt,
-    resultUrl: adapterResult.resultUrl
+    resultUrl: adapterResult.resultUrl,
+    agentRunId
   }
   recordMarketplaceReceipt(receipt)
 
@@ -309,6 +312,7 @@ async function handlePaidProductCall(
     explorerUrl: receipt.explorerUrl,
     responsePayload: adapterResult.responsePayload ?? finalBody.data,
     resultUrl: adapterResult.resultUrl,
+    agentRunId,
     createdAt: existingOrder?.createdAt ?? createdAt,
     updatedAt: createdAt
   }
@@ -366,7 +370,8 @@ async function handlePrepaidAsyncProviderCall({
   receiptId,
   resolvedPrice,
   createdAt,
-  existingOrder
+  existingOrder,
+  agentRunId
 }: {
   server: Awaited<ReturnType<typeof getTolloraX402Server>>
   processResult: VerifiedPaymentResult
@@ -380,6 +385,7 @@ async function handlePrepaidAsyncProviderCall({
   resolvedPrice: ResolvedProductPrice
   createdAt: string
   existingOrder: ReturnType<typeof getMarketplaceOrderById> | undefined
+  agentRunId?: string
 }) {
   const reservationResponse = buildReservationResponse({
     product,
@@ -424,6 +430,7 @@ async function handlePrepaidAsyncProviderCall({
     escrowAddress: escrowContext?.escrowAddress,
     escrowPaymentId: escrowContext?.paymentId,
     escrowStatus: escrowContext ? ('reserved' as const) : undefined,
+    agentRunId,
     createdAt
   }
   recordMarketplaceReceipt(receipt)
@@ -452,6 +459,7 @@ async function handlePrepaidAsyncProviderCall({
       existingOrder?.requestPayloadJson ?? JSON.stringify(payload, null, 2),
     receiptId,
     explorerUrl: receipt.explorerUrl,
+    agentRunId,
     createdAt: existingOrder?.createdAt ?? createdAt,
     updatedAt: createdAt
   }
