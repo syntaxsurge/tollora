@@ -30,9 +30,8 @@ type LegacyUserSettings = Partial<UserSettings> & {
   website?: unknown
 }
 
-const userSettingsStorageKey = 'tollora:user-settings'
-
 const adminProviderWallet = '0x7CE33579392AEAF1791c9B0c8302a502B5867688'
+const userSettingsCache = new Map<string, UserSettings>()
 
 const publicProfilesByWallet: Record<
   string,
@@ -42,14 +41,6 @@ const publicProfilesByWallet: Record<
     fullName: 'Tollora Labs',
     username: 'tollora'
   }
-}
-
-function settingsStorageKey(walletAddress?: string | null) {
-  if (!walletAddress) {
-    return `${userSettingsStorageKey}:anonymous`
-  }
-
-  return `${userSettingsStorageKey}:${walletAddress.toLowerCase()}`
 }
 
 export const defaultUserSettings: UserSettings = {
@@ -67,40 +58,29 @@ export const defaultUserSettings: UserSettings = {
 }
 
 export function readUserSettings(walletAddress?: string | null): UserSettings {
-  if (typeof window === 'undefined') {
-    return defaultUserSettings
-  }
-
-  const rawSettings = window.localStorage.getItem(
-    settingsStorageKey(walletAddress)
-  )
-
-  if (!rawSettings) {
-    return defaultUserSettings
-  }
-
-  try {
-    const parsed = JSON.parse(rawSettings) as LegacyUserSettings
-    return normalizeUserSettings(parsed)
-  } catch {
-    return defaultUserSettings
-  }
+  return userSettingsCache.get(cacheKey(walletAddress)) ?? defaultUserSettings
 }
 
 export function writeUserSettings(
   settings: UserSettings,
   walletAddress?: string | null
 ) {
-  window.localStorage.setItem(
-    settingsStorageKey(walletAddress),
-    JSON.stringify(normalizeUserSettings(settings))
+  userSettingsCache.set(
+    cacheKey(walletAddress),
+    normalizeUserSettings(settings)
   )
-  window.dispatchEvent(new Event('tollora:user-settings-updated'))
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('tollora:user-settings-updated'))
+  }
 }
 
 export function clearUserSettings(walletAddress?: string | null) {
-  window.localStorage.removeItem(settingsStorageKey(walletAddress))
-  window.dispatchEvent(new Event('tollora:user-settings-updated'))
+  userSettingsCache.delete(cacheKey(walletAddress))
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('tollora:user-settings-updated'))
+  }
 }
 
 export function normalizeUsername(value: string) {
@@ -156,7 +136,9 @@ export async function fetchUserSettings(
   )
 
   if (!response.ok) {
-    return readUserSettings(walletAddress)
+    throw new Error(
+      `Could not load profile. (${response.status} ${response.statusText})`
+    )
   }
 
   const body = (await response.json()) as { settings?: LegacyUserSettings }
@@ -325,4 +307,8 @@ function isDashboardDensity(value: unknown): value is DashboardDensity {
 
 function isUserPlan(value: unknown): value is UserPlan {
   return value === 'free' || value === 'base' || value === 'plus'
+}
+
+function cacheKey(walletAddress?: string | null) {
+  return walletAddress?.toLowerCase() ?? 'anonymous'
 }

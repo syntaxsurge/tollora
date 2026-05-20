@@ -389,14 +389,18 @@ Before creating a new helper or service file:
 
 ## API endpoints
 
-- `POST /api/auth` — auth route stub (returns 501)
+- `POST /api/auth` and `DELETE /api/auth` — create or clear the wallet session
+  cookies used by protected app routes and return the connected wallet's Convex
+  user profile when available.
 - `GET /api/health` — returns Tollora readiness checks for Mezo, x402, wallet
   onboarding, external API forwarding, marketplace listings, and receipts.
-- `POST /api/webhooks` — webhook intake stub
+- `POST /api/webhooks` — records inbound webhook events to Convex with source,
+  event type, sanitized headers, raw payload text, and parsed JSON payload when
+  available.
 - `GET /api/settings/profile` and `PUT /api/settings/profile` — read and
-  persist wallet-scoped creator profile settings in the server-side workspace
-  store, enforce unique usernames across saved profiles, and return profile
-  validation errors for onboarding and settings pages.
+  persist wallet-scoped creator profile settings in the Convex `users` table,
+  enforce unique usernames across saved profiles, and return profile validation
+  errors for onboarding and settings pages.
 - `POST /api/providers/self/products` — validates provider API product input,
   schema JSON, wallet fields, upstream endpoint URL, upstream auth, async
   polling mappings, runtime model, price, agent readiness, and visibility, then
@@ -480,10 +484,11 @@ Before creating a new helper or service file:
 
 - Next.js 15 App Router under `src/app` with `(marketing)` and `(app)` route
   groups.
-- Convex backend in `convex/` with marketplace tables for providers, API
-  products, product versions, orders, receipts, API requests, webhooks, usage
-  events, payouts, autonomous agent runs, agent actions, agent proofs, saved
-  examples, and reviews; client helper in `src/lib/db/convex/client.ts`.
+- Convex backend in `convex/` with marketplace tables for users, providers,
+  API products, product versions, orders, receipts, API requests, webhook events,
+  usage events, payouts, autonomous agent runs, agent actions, agent proofs,
+  saved examples, and reviews; client helper in
+  `src/lib/db/convex/client.ts`.
 - Hardhat blockchain workspace in `blockchain/` with
   `contracts/SubscriptionManager.sol` plus `contracts/AgentRunAttestor.sol` for
   Mezo proof hashes and `contracts/ApiPaymentEscrow.sol` for prepaid
@@ -525,8 +530,8 @@ Before creating a new helper or service file:
   disconnect a wrong wallet before creating a profile. Profile data powers
   creator identity displays on marketplace, provider, receipt, and agent
   surfaces. Creator profile settings persist through
-  `/api/settings/profile` into `.tollora/user-profiles.json`; browser
-  localStorage is only a cache for fast rendering and offline fallback.
+  `/api/settings/profile` into the Convex `users` table; browser localStorage is
+  not used for profile persistence.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.

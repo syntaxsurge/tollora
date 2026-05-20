@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import {
-  getUserProfile,
-  saveUserProfile
-} from '@/lib/settings/user-profile-store'
+import { getConvexClient } from '@/lib/db/convex/client'
 import { defaultUserSettings } from '@/lib/settings/user-settings'
 import type { UserSettings } from '@/lib/settings/user-settings'
 
+import { api } from '../../../../../convex/_generated/api'
+
 export const dynamic = 'force-dynamic'
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const walletAddress = request.nextUrl.searchParams.get('walletAddress')
 
   if (!walletAddress) {
@@ -21,10 +20,12 @@ export function GET(request: NextRequest) {
     )
   }
 
-  const profile = getUserProfile(walletAddress)
+  const profile = await getConvexClient().query(api.users.getByWallet, {
+    walletAddress
+  })
 
   return NextResponse.json({
-    settings: profile?.settings ?? defaultUserSettings,
+    settings: profile ? userToSettings(profile) : defaultUserSettings,
     profile: profile ?? null
   })
 }
@@ -53,25 +54,40 @@ export async function PUT(request: Request) {
     )
   }
 
-  const result = saveUserProfile({
-    walletAddress: body.walletAddress,
-    settings: body.settings
-  })
+  try {
+    const profile = await getConvexClient().mutation(api.users.upsertProfile, {
+      walletAddress: body.walletAddress,
+      fullName: body.settings.fullName,
+      username: body.settings.username,
+      email: body.settings.email,
+      plan: body.settings.plan,
+      timezone: body.settings.timezone,
+      dashboardLanding: body.settings.dashboardLanding,
+      dashboardDensity: body.settings.dashboardDensity,
+      emailDigest: body.settings.emailDigest,
+      productUpdates: body.settings.productUpdates,
+      securityAlerts: body.settings.securityAlerts,
+      publicProfile: body.settings.publicProfile
+    })
 
-  if (!result.ok) {
+    return NextResponse.json({
+      settings: profile ? userToSettings(profile) : body.settings,
+      profile
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? normalizeConvexError(error.message) : ''
+
     return NextResponse.json(
       {
-        error: result.error,
-        message: result.error
+        error: message || 'Could not save profile.',
+        message: message || 'Could not save profile.'
       },
-      { status: result.status }
+      {
+        status: message === 'That username is already taken.' ? 409 : 400
+      }
     )
   }
-
-  return NextResponse.json({
-    settings: result.profile.settings,
-    profile: result.profile
-  })
 }
 
 function isUserSettingsInput(value: unknown): value is UserSettings {
@@ -93,5 +109,37 @@ function isUserSettingsInput(value: unknown): value is UserSettings {
     typeof candidate.productUpdates === 'boolean' &&
     typeof candidate.securityAlerts === 'boolean' &&
     typeof candidate.publicProfile === 'boolean'
+  )
+}
+
+function userToSettings(user: UserSettings & Record<string, unknown>) {
+  return {
+    fullName: user.fullName,
+    username: user.username,
+    email: user.email,
+    plan: user.plan,
+    timezone: user.timezone,
+    dashboardLanding: user.dashboardLanding,
+    dashboardDensity: user.dashboardDensity,
+    emailDigest: user.emailDigest,
+    productUpdates: user.productUpdates,
+    securityAlerts: user.securityAlerts,
+    publicProfile: user.publicProfile
+  } satisfies UserSettings
+}
+
+function normalizeConvexError(message: string) {
+  const marker = 'Uncaught Error:'
+  const markerIndex = message.indexOf(marker)
+
+  if (markerIndex === -1) {
+    return message
+  }
+
+  return (
+    message
+      .slice(markerIndex + marker.length)
+      .split('\n')[0]
+      ?.trim() ?? ''
   )
 }

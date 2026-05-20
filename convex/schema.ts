@@ -6,6 +6,47 @@ export default defineSchema({
     name: v.string(),
     createdAt: v.number()
   }).index('by_name', ['name']),
+  users: defineTable({
+    walletAddress: v.string(),
+    fullName: v.string(),
+    username: v.string(),
+    normalizedUsername: v.string(),
+    email: v.string(),
+    plan: v.union(v.literal('free'), v.literal('base'), v.literal('plus')),
+    timezone: v.string(),
+    dashboardLanding: v.union(
+      v.literal('overview'),
+      v.literal('activity'),
+      v.literal('billing')
+    ),
+    dashboardDensity: v.union(v.literal('comfortable'), v.literal('compact')),
+    emailDigest: v.boolean(),
+    productUpdates: v.boolean(),
+    securityAlerts: v.boolean(),
+    publicProfile: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_wallet_address', ['walletAddress'])
+    .index('by_normalized_username', ['normalizedUsername']),
+  webhookEvents: defineTable({
+    source: v.string(),
+    eventType: v.string(),
+    payloadText: v.string(),
+    payloadJson: v.optional(v.any()),
+    headers: v.array(
+      v.object({
+        name: v.string(),
+        value: v.string()
+      })
+    ),
+    status: v.union(v.literal('received'), v.literal('processed')),
+    receivedAt: v.number(),
+    processedAt: v.optional(v.number())
+  })
+    .index('by_source', ['source'])
+    .index('by_event_type', ['eventType'])
+    .index('by_received_at', ['receivedAt']),
   providers: defineTable({
     ownerWallet: v.string(),
     displayName: v.string(),

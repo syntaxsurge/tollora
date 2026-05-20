@@ -16,12 +16,14 @@ export const truncateAll = mutation({
 
     const tables = [
       'workspaces',
+      'users',
       'providers',
       'apiProducts',
       'apiProductVersions',
       'orders',
       'receipts',
       'apiRequests',
+      'webhookEvents',
       'webhookEndpoints',
       'webhookDeliveries',
       'apiUsageEvents',

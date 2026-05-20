@@ -15,6 +15,8 @@ import type * as functions_workspaces from "../functions/workspaces.js";
 import type * as orders from "../orders.js";
 import type * as providers from "../providers.js";
 import type * as receipts from "../receipts.js";
+import type * as users from "../users.js";
+import type * as webhooks from "../webhooks.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +32,8 @@ declare const fullApi: ApiFromModules<{
   orders: typeof orders;
   providers: typeof providers;
   receipts: typeof receipts;
+  users: typeof users;
+  webhooks: typeof webhooks;
 }>;
 
 /**
