@@ -526,7 +526,11 @@ Before creating a new helper or service file:
   search, GitHub repository search, npm package search, OpenAlex research
   search, and GDELT news search use no upstream account or API key, stay
   x402-protected as paid Tollora marketplace products, and are agent-ready for
-  no-key demo runs.
+  no-key demo runs. These products execute through the dedicated
+  `src/features/provider-adapters/public-data/adapter.ts` adapter, which
+  normalizes provider-specific request parameters, applies bounded upstream
+  timeouts, and uses no-key public fallback sources for providers that rate
+  limit, reject narrow queries, or return temporary gateway errors.
   Provider-created listings are persisted to the workspace-local
   `.tollora/provider-products.json` catalog so draft, paused, and published
   products remain manageable across local server restarts.

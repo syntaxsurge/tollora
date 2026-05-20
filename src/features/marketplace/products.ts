@@ -363,7 +363,7 @@ export const marketplaceProducts: ApiProduct[] = [
       articles: 'array'
     },
     referencePayload: {
-      query: 'AI agents API payments',
+      query: 'artificial intelligence agents API payments',
       mode: 'ArtList',
       format: 'json',
       maxrecords: 5,
