@@ -131,17 +131,6 @@ function UserSettingsFormFields({
             value={settings.email}
             onChange={value => updateField('email', value)}
           />
-          <LabeledInput
-            label='Role'
-            value={settings.role}
-            onChange={value => updateField('role', value)}
-          />
-          <LabeledInput
-            label='Website'
-            type='url'
-            value={settings.website}
-            onChange={value => updateField('website', value)}
-          />
           <label className='space-y-2'>
             <span className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
               Timezone

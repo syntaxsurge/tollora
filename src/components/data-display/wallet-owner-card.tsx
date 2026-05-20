@@ -1,4 +1,4 @@
-import { ExternalLink, UserRound } from 'lucide-react'
+import { UserRound } from 'lucide-react'
 
 import {
   formatWalletAddress,
@@ -47,17 +47,6 @@ export function WalletOwnerCard({
             {formatWalletAddress(walletAddress)}
           </span>
         </div>
-        {!compact && profile.website ? (
-          <a
-            href={profile.website}
-            target='_blank'
-            rel='noreferrer'
-            className='text-primary hover:text-foreground mt-2 inline-flex items-center gap-1 text-xs font-semibold'
-          >
-            Provider site
-            <ExternalLink className='h-3 w-3' aria-hidden />
-          </a>
-        ) : null}
       </div>
     </div>
   )

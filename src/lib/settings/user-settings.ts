@@ -8,8 +8,6 @@ export type UserSettings = {
   fullName: string
   username: string
   email: string
-  role: string
-  website: string
   plan: UserPlan
   timezone: string
   dashboardLanding: DashboardLanding
@@ -24,9 +22,12 @@ export type PublicUserProfile = {
   walletAddress: string
   fullName: string
   username: string
-  role: string
-  website: string
   avatarInitials: string
+}
+
+type LegacyUserSettings = Partial<UserSettings> & {
+  role?: unknown
+  website?: unknown
 }
 
 const userSettingsStorageKey = 'tollora:user-settings'
@@ -39,9 +40,7 @@ const publicProfilesByWallet: Record<
 > = {
   [adminProviderWallet.toLowerCase()]: {
     fullName: 'Tollora Labs',
-    username: 'tollora',
-    role: 'Marketplace operator',
-    website: 'https://tollora.xyz'
+    username: 'tollora'
   }
 }
 
@@ -57,8 +56,6 @@ export const defaultUserSettings: UserSettings = {
   fullName: '',
   username: '',
   email: '',
-  role: '',
-  website: '',
   plan: 'free',
   timezone: 'Asia/Manila',
   dashboardLanding: 'overview',
@@ -83,7 +80,7 @@ export function readUserSettings(walletAddress?: string | null): UserSettings {
   }
 
   try {
-    const parsed = JSON.parse(rawSettings) as Partial<UserSettings>
+    const parsed = JSON.parse(rawSettings) as LegacyUserSettings
     return normalizeUserSettings(parsed)
   } catch {
     return defaultUserSettings
@@ -188,16 +185,12 @@ export function getPublicUserProfile(
     knownProfile?.username ||
     normalizeUsername(fallbackName).replaceAll('-', '').slice(0, 18) ||
     'creator'
-  const role = knownProfile?.role || 'API provider'
-  const website = knownProfile?.website || ''
   const avatarInitials = initialsFromName(fullName)
 
   return {
     walletAddress: walletAddress ?? '',
     fullName,
     username,
-    role,
-    website,
     avatarInitials
   }
 }
@@ -235,7 +228,7 @@ function isUsernameTakenLocally(
       const settings = normalizeUserSettings(
         JSON.parse(
           window.localStorage.getItem(key) ?? '{}'
-        ) as Partial<UserSettings>
+        ) as LegacyUserSettings
       )
 
       if (normalizeUsername(settings.username) === username) {
@@ -264,11 +257,15 @@ function initialsFromName(name: string) {
 }
 
 function normalizeUserSettings(
-  settings: Partial<UserSettings> = {}
+  settings: LegacyUserSettings = {}
 ): UserSettings {
+  const currentSettings: LegacyUserSettings = { ...settings }
+  delete currentSettings.role
+  delete currentSettings.website
+
   return {
     ...defaultUserSettings,
-    ...settings,
+    ...currentSettings,
     dashboardLanding: isDashboardLanding(settings.dashboardLanding)
       ? settings.dashboardLanding
       : defaultUserSettings.dashboardLanding,

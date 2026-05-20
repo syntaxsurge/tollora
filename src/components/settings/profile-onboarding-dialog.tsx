@@ -6,11 +6,11 @@ import { AtSign, UserRound } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import {
   UserSettings,
   defaultUserSettings,
-  formatWalletAddress,
   isUserSettingsComplete,
   normalizeUsername,
   readUserSettings,
@@ -122,12 +122,14 @@ function ProfileOnboardingFields({
         </div>
 
         <form onSubmit={handleSubmit} className='space-y-5 p-6'>
-          <div className='border-border bg-background/70 rounded-lg border p-4'>
-            <p className='text-muted-foreground text-xs font-semibold uppercase'>
+          <div className='border-border bg-background/70 space-y-3 rounded-lg border p-4'>
+            <p className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
               Connected wallet
             </p>
-            <p className='mt-1 font-mono text-sm font-semibold break-all'>
-              {formatWalletAddress(walletAddress)}
+            <WalletConnectButton className='w-full justify-center' />
+            <p className='text-muted-foreground text-xs leading-5'>
+              Connected the wrong wallet? Open the wallet menu here and choose
+              disconnect before creating this profile.
             </p>
           </div>
 
@@ -168,27 +170,6 @@ function ProfileOnboardingFields({
                   maxLength={24}
                 />
               </div>
-            </label>
-            <label className='space-y-2'>
-              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
-                Role
-              </span>
-              <Input
-                value={settings.role}
-                onChange={event => updateField('role', event.target.value)}
-                placeholder='API provider'
-              />
-            </label>
-            <label className='space-y-2'>
-              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
-                Website
-              </span>
-              <Input
-                type='url'
-                value={settings.website}
-                onChange={event => updateField('website', event.target.value)}
-                placeholder='https://example.com'
-              />
             </label>
           </div>
 

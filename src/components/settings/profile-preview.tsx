@@ -56,12 +56,7 @@ function ProfilePreviewContent({
         </div>
         <div className='space-y-3 text-sm'>
           <ProfileLine label='Email' value={settings.email || 'Not provided'} />
-          <ProfileLine label='Role' value={settings.role || 'Not provided'} />
           <ProfileLine label='Plan' value={settings.plan} />
-          <ProfileLine
-            label='Website'
-            value={settings.website || 'Not provided'}
-          />
         </div>
         <Link
           href='/settings'
