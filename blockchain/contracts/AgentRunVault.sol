@@ -58,13 +58,7 @@ contract AgentRunVault is AccessControl {
     _grantRole(OPERATOR_ROLE, admin);
   }
 
-  function fundRun(
-    bytes32 runId,
-    address token,
-    uint256 amount,
-    address agentSigner,
-    uint256 expiresAt
-  ) external {
+  function fundRun(bytes32 runId, address token, uint256 amount, address agentSigner, uint256 expiresAt) external {
     require(runId != bytes32(0), "AgentRunVault: invalid run");
     require(token != address(0), "AgentRunVault: invalid token");
     require(amount > 0, "AgentRunVault: invalid amount");
@@ -138,10 +132,7 @@ contract AgentRunVault is AccessControl {
   function cancelRun(bytes32 runId) external {
     RunBudget storage budget = _requireBudget(runId);
     require(msg.sender == budget.owner || hasRole(OPERATOR_ROLE, msg.sender), "AgentRunVault: not authorized");
-    require(
-      budget.state == RunState.Funded || budget.state == RunState.Running,
-      "AgentRunVault: cannot cancel"
-    );
+    require(budget.state == RunState.Funded || budget.state == RunState.Running, "AgentRunVault: cannot cancel");
 
     budget.state = RunState.Cancelled;
     budget.updatedAt = block.timestamp;
@@ -153,9 +144,7 @@ contract AgentRunVault is AccessControl {
     RunBudget storage budget = _requireBudget(runId);
     require(msg.sender == budget.owner || hasRole(OPERATOR_ROLE, msg.sender), "AgentRunVault: not authorized");
     require(
-      budget.state == RunState.Completed ||
-        budget.state == RunState.Cancelled ||
-        block.timestamp >= budget.expiresAt,
+      budget.state == RunState.Completed || budget.state == RunState.Cancelled || block.timestamp >= budget.expiresAt,
       "AgentRunVault: not refundable"
     );
 
@@ -163,9 +152,9 @@ contract AgentRunVault is AccessControl {
     require(refundableAmount > 0, "AgentRunVault: nothing to refund");
 
     budget.refundedAmount += refundableAmount;
-    budget.state = budget.refundedAmount + budget.spentAmount >= budget.fundedAmount
-      ? RunState.Refunded
-      : budget.state;
+    if (budget.refundedAmount + budget.spentAmount >= budget.fundedAmount) {
+      budget.state = RunState.Refunded;
+    }
     budget.updatedAt = block.timestamp;
 
     IERC20(budget.token).safeTransfer(budget.owner, refundableAmount);
@@ -198,10 +187,7 @@ contract AgentRunVault is AccessControl {
   function _requireActiveBudget(bytes32 runId) private view returns (RunBudget storage) {
     RunBudget storage budget = _requireBudget(runId);
 
-    require(
-      budget.state == RunState.Funded || budget.state == RunState.Running,
-      "AgentRunVault: not active"
-    );
+    require(budget.state == RunState.Funded || budget.state == RunState.Running, "AgentRunVault: not active");
     require(block.timestamp < budget.expiresAt, "AgentRunVault: expired");
 
     return budget;

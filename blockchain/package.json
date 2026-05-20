@@ -12,7 +12,7 @@
     "lint:fix-typescript": "eslint \"{scripts,test}/**/*.ts\" --fix",
     "lint:fix-solidity": "solhint \"contracts/**/*.sol\" --fix",
     "lint:check-typescript": "eslint \"{scripts,test}/**/*.ts\"",
-    "lint:check-solidity": "solhint \"contracts/**/*.sol\"",
+    "lint:check-solidity": "solhint --quiet --disc \"contracts/**/*.sol\"",
     "format:fix": "pnpm format:fix-typescript && pnpm format:fix-solidity",
     "format:check": "pnpm format:check-typescript && pnpm format:check-solidity",
     "format:check-typescript": "prettier --check --no-error-on-unmatched-pattern \"scripts/**/*.ts\" \"test/**/*.ts\"",

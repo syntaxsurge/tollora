@@ -338,7 +338,7 @@ function RequestFailurePanel({
           <h3 className='text-xl font-semibold break-words'>
             Pricing request was rejected
           </h3>
-          <p className='text-foreground/75 max-h-40 overflow-auto text-sm leading-6 [overflow-wrap:anywhere] break-words whitespace-pre-wrap'>
+          <p className='text-foreground/75 max-h-40 overflow-auto text-sm leading-6 [overflow-wrap:anywhere] whitespace-pre-wrap'>
             {providerMessage}
           </p>
         </div>

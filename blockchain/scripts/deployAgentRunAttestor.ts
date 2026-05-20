@@ -14,9 +14,7 @@ async function main() {
   const attestorAddress = await attestor.getAddress();
 
   console.log(`AgentRunAttestor deployed at ${attestorAddress}`);
-  console.log(
-    `Set NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS=${attestorAddress} in the root app environment.`
-  );
+  console.log(`Set NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS=${attestorAddress} in the root app environment.`);
 }
 
 main().catch(error => {
