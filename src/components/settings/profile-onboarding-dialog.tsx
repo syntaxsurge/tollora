@@ -32,16 +32,19 @@ function ProfileOnboardingFields({
   walletAddress: string | null
 }) {
   const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
+  const [hasSavedProfile, setHasSavedProfile] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setSettings(readUserSettings(walletAddress))
+    const savedSettings = readUserSettings(walletAddress)
+    setSettings(savedSettings)
+    setHasSavedProfile(isUserSettingsComplete(savedSettings))
     setIsReady(true)
     setError('')
   }, [walletAddress])
 
-  if (!walletAddress || !isReady || isUserSettingsComplete(settings)) {
+  if (!walletAddress || !isReady || hasSavedProfile) {
     return null
   }
 
@@ -70,16 +73,16 @@ function ProfileOnboardingFields({
       return
     }
 
-    writeUserSettings(
-      {
-        ...settings,
-        fullName,
-        username,
-        publicProfile: true
-      },
-      walletAddress
-    )
+    const nextSettings = {
+      ...settings,
+      fullName,
+      username,
+      publicProfile: true
+    }
+
+    writeUserSettings(nextSettings, walletAddress)
     setSettings(readUserSettings(walletAddress))
+    setHasSavedProfile(true)
   }
 
   return (

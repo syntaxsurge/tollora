@@ -515,10 +515,12 @@ Before creating a new helper or service file:
   admin shortcut for allowlisted wallets, and keeps the active RainbowKit wallet
   control available without occupying persistent header space. Connected wallets
   must complete the profile onboarding overlay with a unique username and public
-  display name before continuing through the app; the onboarding overlay embeds
-  the active RainbowKit wallet control so users can disconnect a wrong wallet
-  before creating a profile. Profile data powers creator identity displays on
-  marketplace, provider, receipt, and agent surfaces.
+  display name before continuing through the app; the overlay stays open while
+  users type and closes only after the completed profile is saved. The
+  onboarding overlay embeds the active RainbowKit wallet control so users can
+  disconnect a wrong wallet before creating a profile. Profile data powers
+  creator identity displays on marketplace, provider, receipt, and agent
+  surfaces.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
