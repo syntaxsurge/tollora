@@ -4,6 +4,9 @@ import {
   normalizeWalletAddress,
   parseAdminWalletAddresses
 } from '@/lib/auth/admin'
+import { getConvexClient } from '@/lib/db/convex/client'
+
+import { api } from '../../../convex/_generated/api'
 
 export type AdminUserPlan = 'free' | 'base' | 'plus'
 export type AdminUserStatus = 'active' | 'invited' | 'paused'
@@ -56,6 +59,16 @@ export type AdminUserOverride = Partial<
 
 export type AdminUserOverrides = Record<string, AdminUserOverride>
 
+type ConvexUserProfile = {
+  walletAddress: string
+  fullName: string
+  username: string
+  email: string
+  plan: AdminUserPlan
+  createdAt: number
+  updatedAt: number
+}
+
 const sortableColumns: AdminUserSortKey[] = [
   'displayName',
   'username',
@@ -95,6 +108,39 @@ export function getAdminUserSeed(currentWallet?: string | null) {
         index === 0 ? now : new Date(Date.now() - index * 60000).toISOString()
     }
   })
+}
+
+export async function listAdminDirectoryUsers() {
+  const profiles: ConvexUserProfile[] = await getConvexClient()
+    .query(api.users.listProfiles, {})
+    .catch(() => [])
+  const configuredAdmins = parseAdminWalletAddresses(
+    process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES
+  )
+  const profileRows = profiles.map(
+    (profile: ConvexUserProfile): AdminUserRecord => {
+      const walletAddress = normalizeWalletAddress(profile.walletAddress)
+
+      return {
+        id: walletAddress,
+        walletAddress,
+        displayName: profile.fullName,
+        username: profile.username,
+        email: profile.email,
+        role: configuredAdmins.includes(walletAddress) ? 'admin' : 'member',
+        plan: profile.plan,
+        status: 'active',
+        createdAt: new Date(profile.createdAt).toISOString(),
+        lastSeenAt: new Date(profile.updatedAt).toISOString()
+      }
+    }
+  )
+  const profileWallets = new Set(profileRows.map(user => user.walletAddress))
+  const missingAdminSeeds = getAdminUserSeed()
+    .filter(user => configuredAdmins.includes(user.walletAddress))
+    .filter(user => !profileWallets.has(user.walletAddress))
+
+  return [...profileRows, ...missingAdminSeeds]
 }
 
 export function parseAdminUserOverrides(value?: string) {

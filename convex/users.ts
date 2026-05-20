@@ -47,6 +47,13 @@ export const getByWallet = query({
   }
 })
 
+export const listProfiles = query({
+  args: {},
+  handler: async (ctx: any) => {
+    return await ctx.db.query('users').collect()
+  }
+})
+
 export const upsertProfile = mutation({
   args: {
     walletAddress: v.string(),

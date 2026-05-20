@@ -401,6 +401,9 @@ Before creating a new helper or service file:
   persist wallet-scoped creator profile settings in the Convex `users` table,
   enforce unique usernames across saved profiles, and return profile validation
   errors for onboarding and settings pages.
+- `GET /api/admin/access` — verifies that the active browser wallet matches the
+  wallet session cookie and an allowlisted admin address before the header
+  renders the admin shortcut.
 - `POST /api/admin/users/bulk-delete` — allows admin wallets to delete selected
   user directory rows through the shared server-fed table bulk action contract.
 - `POST /api/admin/products/bulk-delete` — allows admin wallets to delete
@@ -766,9 +769,10 @@ Before creating a new helper or service file:
   and `remark-gfm`, uses a sticky table of contents, and exposes stable section
   and field anchors used by provider form documentation links.
 - Admin routes use `src/components/layout/admin-sidebar.tsx`; the users table is
-  server-rendered from URL search, filter, sort, and pagination parameters,
-  shows creator identity, wallet, email, role, subscription, status, and last
-  seen metadata, and supports current-page selection with bulk deletion.
+  server-rendered from Convex user profiles plus admin allowlist metadata using
+  URL search, filter, sort, and pagination parameters. It shows creator
+  identity, wallet, email, role, subscription, status, and last seen metadata,
+  and supports current-page selection with bulk deletion.
 - Admin user row actions use three-dot menus with reusable responsive dialogs
   for editing user details, subscription tier, and destructive confirmations.
 - Chain metadata, native currency labels, and explorer URL generation are
