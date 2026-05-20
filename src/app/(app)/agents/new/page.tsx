@@ -12,7 +12,10 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { AgentRunCreateForm } from '@/features/agents/agent-run-create-form'
-import { getAgentTemplate } from '@/features/agents/templates'
+import {
+  type AgentTemplate,
+  getAgentTemplate
+} from '@/features/agents/templates'
 import { getPublishedProducts } from '@/features/marketplace/products'
 import {
   queryServerRows,
@@ -119,7 +122,7 @@ export default async function NewAgentRunPage({
           totalRows: products.totalRows,
           totalPages: products.totalPages
         }}
-        template={template}
+        template={template ? serializeAgentTemplate(template) : undefined}
         initialTool={initialTool}
       />
       <Link
@@ -131,4 +134,10 @@ export default async function NewAgentRunPage({
       </Link>
     </div>
   )
+}
+
+function serializeAgentTemplate(template: AgentTemplate) {
+  const { icon: _icon, ...serializableTemplate } = template
+
+  return serializableTemplate
 }

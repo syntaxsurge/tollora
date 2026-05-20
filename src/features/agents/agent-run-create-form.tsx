@@ -44,13 +44,15 @@ type ToolTableState = {
   totalPages: number
 }
 
+type AgentRunFormTemplate = Omit<AgentTemplate, 'icon'>
+
 export function AgentRunCreateForm({
   products,
   toolTable,
   template,
   initialTool
 }: {
-  template?: AgentTemplate
+  template?: AgentRunFormTemplate
   initialTool?: string
   products: ToolRow[]
   toolTable: ToolTableState
