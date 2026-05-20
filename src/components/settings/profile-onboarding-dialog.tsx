@@ -43,12 +43,19 @@ function ProfileOnboardingFields({
     const cachedSettings = readUserSettings(walletAddress)
 
     setSettings(cachedSettings)
-    setHasSavedProfile(isUserSettingsComplete(cachedSettings))
-    setIsReady(true)
+    setHasSavedProfile(false)
+    setIsReady(false)
     setError('')
 
     if (!walletAddress) {
+      setHasSavedProfile(false)
+      setIsReady(true)
       return
+    }
+
+    if (isUserSettingsComplete(cachedSettings)) {
+      setHasSavedProfile(true)
+      setIsReady(true)
     }
 
     fetchUserSettings(walletAddress)
@@ -59,9 +66,12 @@ function ProfileOnboardingFields({
 
         setSettings(savedSettings)
         setHasSavedProfile(isUserSettingsComplete(savedSettings))
+        setIsReady(true)
       })
       .catch(() => {
         if (isMounted) {
+          setHasSavedProfile(isUserSettingsComplete(cachedSettings))
+          setIsReady(true)
           setError('Could not load your saved profile. Try refreshing.')
         }
       })
