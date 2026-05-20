@@ -11,11 +11,12 @@ import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consum
 import {
   UserSettings,
   defaultUserSettings,
+  fetchUserSettings,
   isUserSettingsComplete,
   normalizeUsername,
   readUserSettings,
-  validateUsername,
-  writeUserSettings
+  saveUserSettings,
+  validateUsername
 } from '@/lib/settings/user-settings'
 
 export function ProfileOnboardingDialog() {
@@ -37,11 +38,36 @@ function ProfileOnboardingFields({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const savedSettings = readUserSettings(walletAddress)
-    setSettings(savedSettings)
-    setHasSavedProfile(isUserSettingsComplete(savedSettings))
+    let isMounted = true
+    const cachedSettings = readUserSettings(walletAddress)
+
+    setSettings(cachedSettings)
+    setHasSavedProfile(isUserSettingsComplete(cachedSettings))
     setIsReady(true)
     setError('')
+
+    if (!walletAddress) {
+      return
+    }
+
+    fetchUserSettings(walletAddress)
+      .then(savedSettings => {
+        if (!isMounted) {
+          return
+        }
+
+        setSettings(savedSettings)
+        setHasSavedProfile(isUserSettingsComplete(savedSettings))
+      })
+      .catch(() => {
+        if (isMounted) {
+          setError('Could not load your saved profile. Try refreshing.')
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [walletAddress])
 
   if (!walletAddress || !isReady || hasSavedProfile) {
@@ -56,7 +82,7 @@ function ProfileOnboardingFields({
     setError('')
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const fullName = settings.fullName.trim()
@@ -80,9 +106,17 @@ function ProfileOnboardingFields({
       publicProfile: true
     }
 
-    writeUserSettings(nextSettings, walletAddress)
-    setSettings(readUserSettings(walletAddress))
-    setHasSavedProfile(true)
+    try {
+      const savedSettings = await saveUserSettings(nextSettings, walletAddress)
+      setSettings(savedSettings)
+      setHasSavedProfile(true)
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : 'Could not save profile.'
+      )
+    }
   }
 
   return (

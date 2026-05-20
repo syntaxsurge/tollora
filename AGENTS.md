@@ -393,6 +393,10 @@ Before creating a new helper or service file:
 - `GET /api/health` — returns Tollora readiness checks for Mezo, x402, wallet
   onboarding, external API forwarding, marketplace listings, and receipts.
 - `POST /api/webhooks` — webhook intake stub
+- `GET /api/settings/profile` and `PUT /api/settings/profile` — read and
+  persist wallet-scoped creator profile settings in the server-side workspace
+  store, enforce unique usernames across saved profiles, and return profile
+  validation errors for onboarding and settings pages.
 - `POST /api/providers/self/products` — validates provider API product input,
   schema JSON, wallet fields, upstream endpoint URL, upstream auth, async
   polling mappings, runtime model, price, agent readiness, and visibility, then
@@ -520,7 +524,9 @@ Before creating a new helper or service file:
   onboarding overlay embeds the active RainbowKit wallet control so users can
   disconnect a wrong wallet before creating a profile. Profile data powers
   creator identity displays on marketplace, provider, receipt, and agent
-  surfaces.
+  surfaces. Creator profile settings persist through
+  `/api/settings/profile` into `.tollora/user-profiles.json`; browser
+  localStorage is only a cache for fast rendering and offline fallback.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.

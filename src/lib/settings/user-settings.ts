@@ -140,11 +140,69 @@ export function validateUsername(
     return 'That username is already taken.'
   }
 
-  if (isUsernameTakenLocally(normalizedUsername, walletAddress)) {
-    return 'That username is already taken on this device.'
+  return ''
+}
+
+export async function fetchUserSettings(
+  walletAddress?: string | null
+): Promise<UserSettings> {
+  if (!walletAddress) {
+    return defaultUserSettings
   }
 
-  return ''
+  const response = await fetch(
+    `/api/settings/profile?walletAddress=${encodeURIComponent(walletAddress)}`,
+    { cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    return readUserSettings(walletAddress)
+  }
+
+  const body = (await response.json()) as { settings?: LegacyUserSettings }
+  const settings = normalizeUserSettings(body.settings ?? {})
+  writeUserSettings(settings, walletAddress)
+
+  return settings
+}
+
+export async function saveUserSettings(
+  settings: UserSettings,
+  walletAddress?: string | null
+): Promise<UserSettings> {
+  if (!walletAddress) {
+    throw new Error('Connect a wallet before saving your profile.')
+  }
+
+  const response = await fetch('/api/settings/profile', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      walletAddress,
+      settings: normalizeUserSettings(settings)
+    })
+  })
+
+  const body = (await response.json().catch(() => null)) as {
+    settings?: LegacyUserSettings
+    error?: string
+    message?: string
+  } | null
+
+  if (!response.ok) {
+    throw new Error(
+      body?.message ||
+        body?.error ||
+        `Could not save profile. (${response.status} ${response.statusText})`
+    )
+  }
+
+  const savedSettings = normalizeUserSettings(body?.settings ?? settings)
+  writeUserSettings(savedSettings, walletAddress)
+
+  return savedSettings
 }
 
 export function userDisplayName(settings: UserSettings) {
@@ -205,41 +263,6 @@ function isUsernameReservedForAnotherWallet(
     ([profileWallet, profile]) =>
       profileWallet !== currentWallet && profile.username === username
   )
-}
-
-function isUsernameTakenLocally(
-  username: string,
-  walletAddress?: string | null
-) {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
-  const currentKey = settingsStorageKey(walletAddress)
-
-  for (let index = 0; index < window.localStorage.length; index += 1) {
-    const key = window.localStorage.key(index)
-
-    if (!key?.startsWith(`${userSettingsStorageKey}:`) || key === currentKey) {
-      continue
-    }
-
-    try {
-      const settings = normalizeUserSettings(
-        JSON.parse(
-          window.localStorage.getItem(key) ?? '{}'
-        ) as LegacyUserSettings
-      )
-
-      if (normalizeUsername(settings.username) === username) {
-        return true
-      }
-    } catch {
-      continue
-    }
-  }
-
-  return false
 }
 
 function initialsFromName(name: string) {

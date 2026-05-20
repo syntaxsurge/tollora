@@ -13,8 +13,10 @@ import {
   DashboardLanding,
   UserSettings,
   defaultUserSettings,
+  fetchUserSettings,
   normalizeUsername,
   readUserSettings,
+  saveUserSettings,
   validateUsername,
   writeUserSettings
 } from '@/lib/settings/user-settings'
@@ -46,8 +48,31 @@ function UserSettingsFormFields({
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    setSettings(readUserSettings(walletAddress))
+    let isMounted = true
+    const cachedSettings = readUserSettings(walletAddress)
+
+    setSettings(cachedSettings)
     setIsReady(true)
+
+    if (!walletAddress) {
+      return
+    }
+
+    fetchUserSettings(walletAddress)
+      .then(savedSettings => {
+        if (isMounted) {
+          setSettings(savedSettings)
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setStatus('Could not load saved profile settings.')
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [walletAddress])
 
   function updateField<Field extends keyof UserSettings>(
@@ -58,7 +83,7 @@ function UserSettingsFormFields({
     setStatus('')
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const username = normalizeUsername(settings.username)
     const usernameError = validateUsername(username, walletAddress)
@@ -73,26 +98,52 @@ function UserSettingsFormFields({
       return
     }
 
-    writeUserSettings(
-      {
-        ...settings,
-        fullName: settings.fullName.trim(),
-        username
-      },
-      walletAddress
-    )
-    setStatus('Settings saved on this device.')
+    try {
+      const savedSettings = await saveUserSettings(
+        {
+          ...settings,
+          fullName: settings.fullName.trim(),
+          username
+        },
+        walletAddress
+      )
+      setSettings(savedSettings)
+      setStatus('Settings saved.')
+    } catch (saveError) {
+      setStatus(
+        saveError instanceof Error
+          ? saveError.message
+          : 'Could not save settings.'
+      )
+    }
   }
 
-  function handleReset() {
+  async function handleReset() {
     const nextSettings = {
       ...defaultUserSettings,
+      fullName: settings.fullName,
+      username: settings.username,
       plan: readUserSettings(walletAddress).plan
     }
 
-    writeUserSettings(nextSettings, walletAddress)
-    setSettings(nextSettings)
-    setStatus('Settings reset to Tollora defaults.')
+    try {
+      const savedSettings = walletAddress
+        ? await saveUserSettings(nextSettings, walletAddress)
+        : nextSettings
+
+      if (!walletAddress) {
+        writeUserSettings(nextSettings, walletAddress)
+      }
+
+      setSettings(savedSettings)
+      setStatus('Settings reset to Tollora defaults.')
+    } catch (saveError) {
+      setStatus(
+        saveError instanceof Error
+          ? saveError.message
+          : 'Could not reset settings.'
+      )
+    }
   }
 
   if (!isReady) {
@@ -108,8 +159,8 @@ function UserSettingsFormFields({
           </p>
           <h2 className='font-display mt-2 text-2xl'>Profile details</h2>
           <p className='text-foreground/65 mt-2 max-w-2xl text-sm leading-6'>
-            These values power the local profile preview and keep account
-            preferences available before provider and buyer records sync.
+            These values power your creator profile across marketplace,
+            provider, receipt, and agent activity surfaces.
           </p>
         </div>
         <div className='grid gap-4 md:grid-cols-2'>
