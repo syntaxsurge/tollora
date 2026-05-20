@@ -133,7 +133,15 @@ export default async function AdminOrdersPage({
         searchPlaceholder='Search orders, request IDs, products, providers, wallets, statuses, or agent runs'
         emptyTitle='No Tollora gateway orders yet'
         emptyDescription='Buyer, API-key, and autonomous agent orders appear here.'
-        enableSelection={false}
+        enableSelection
+        bulkActions={[
+          {
+            label: 'Delete selected',
+            endpoint: '/api/admin/orders/bulk-delete',
+            confirmMessage:
+              'Delete the selected order records from the admin ledger?'
+          }
+        ]}
       />
     </div>
   )

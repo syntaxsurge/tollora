@@ -9,6 +9,9 @@ export type AdminUserPlan = 'free' | 'base' | 'plus'
 export type AdminUserStatus = 'active' | 'invited' | 'paused'
 export type AdminUserRole = 'admin' | 'member'
 export type AdminUserSortKey =
+  | 'displayName'
+  | 'username'
+  | 'email'
   | 'walletAddress'
   | 'role'
   | 'subscriptionStatus'
@@ -20,6 +23,7 @@ export type AdminUserRecord = {
   id: string
   walletAddress: string
   displayName: string
+  username: string
   email: string
   role: AdminUserRole
   plan: AdminUserPlan
@@ -30,17 +34,22 @@ export type AdminUserRecord = {
 
 export type AdminUserQuery = {
   search?: string
+  q?: string
   role?: string
   plan?: string
   status?: string
   sort?: string
   direction?: string
+  dir?: string
   page?: string
   pageSize?: string
 }
 
 export type AdminUserOverride = Partial<
-  Pick<AdminUserRecord, 'displayName' | 'email' | 'role' | 'plan' | 'status'>
+  Pick<
+    AdminUserRecord,
+    'displayName' | 'username' | 'email' | 'role' | 'plan' | 'status'
+  >
 > & {
   deleted?: boolean
 }
@@ -48,6 +57,9 @@ export type AdminUserOverride = Partial<
 export type AdminUserOverrides = Record<string, AdminUserOverride>
 
 const sortableColumns: AdminUserSortKey[] = [
+  'displayName',
+  'username',
+  'email',
   'walletAddress',
   'role',
   'subscriptionStatus',
@@ -72,8 +84,9 @@ export function getAdminUserSeed(currentWallet?: string | null) {
     return {
       id: address,
       walletAddress: address,
-      displayName: isAdmin ? 'Admin wallet' : 'Connected wallet',
-      email: '',
+      displayName: isAdmin ? 'Tollora Labs' : 'Connected builder',
+      username: isAdmin ? 'tollora' : `builder-${address.slice(2, 8)}`,
+      email: isAdmin ? 'hello@tollora.com' : '',
       role: isAdmin ? 'admin' : 'member',
       plan: 'free',
       status: 'active',
@@ -127,9 +140,10 @@ export function queryAdminUsers(
   query: AdminUserQuery,
   overrides: AdminUserOverrides
 ) {
-  const search = (query.search ?? '').trim().toLowerCase()
+  const search = (query.q ?? query.search ?? '').trim().toLowerCase()
   const sort = isSortableColumn(query.sort) ? query.sort : 'lastSeenAt'
-  const direction: 'asc' | 'desc' = query.direction === 'asc' ? 'asc' : 'desc'
+  const direction: 'asc' | 'desc' =
+    query.dir === 'asc' || query.direction === 'asc' ? 'asc' : 'desc'
   const page = clampPositiveInt(query.page, 1)
   const pageSize = Math.min(
     clampPositiveInt(query.pageSize, defaultPageSize),
@@ -148,6 +162,7 @@ export function queryAdminUsers(
       return [
         user.walletAddress,
         user.displayName,
+        user.username,
         user.email,
         user.role,
         getSubscriptionStatus(user.plan),

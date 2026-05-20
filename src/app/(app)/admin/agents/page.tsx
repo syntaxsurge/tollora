@@ -128,7 +128,15 @@ export default async function AdminAgentsPage({
         searchPlaceholder='Search run IDs, owners, objectives, statuses, or planner models'
         emptyTitle='No agent runs yet'
         emptyDescription='Funded autonomous runs appear here after users create them.'
-        enableSelection={false}
+        enableSelection
+        bulkActions={[
+          {
+            label: 'Delete selected',
+            endpoint: '/api/agents/runs/bulk-delete',
+            confirmMessage:
+              'Delete the selected agent runs and stop future execution?'
+          }
+        ]}
       />
     </div>
   )

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+import { ServerDataTableMasterCheckbox } from '@/components/data-display/server-data-table-master-checkbox'
 import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
 import { ServerDataTableSearch } from '@/components/data-display/server-data-table-search'
 import {
@@ -38,6 +39,7 @@ export function ServerDataTable<T>({
   emptyTitle,
   emptyDescription,
   searchPlaceholder = 'Search',
+  showSearch = true,
   bulkActions = [],
   enableSelection = bulkActions.length > 0
 }: {
@@ -57,6 +59,7 @@ export function ServerDataTable<T>({
   emptyTitle: string
   emptyDescription: string
   searchPlaceholder?: string
+  showSearch?: boolean
   enableSelection?: boolean
   bulkActions?: ServerDataTableBulkAction[]
 }) {
@@ -64,15 +67,19 @@ export function ServerDataTable<T>({
     <div className='border-border bg-card/90 overflow-hidden rounded-lg border shadow-sm'>
       <div className='border-border bg-background/50 border-b p-4'>
         <div className='flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
-          <ServerDataTableSearch
-            basePath={basePath}
-            preserveParams={preserveParams}
-            query={query}
-            sort={sort}
-            dir={dir}
-            pageSize={pageSize}
-            searchPlaceholder={searchPlaceholder}
-          />
+          {showSearch ? (
+            <ServerDataTableSearch
+              basePath={basePath}
+              preserveParams={preserveParams}
+              query={query}
+              sort={sort}
+              dir={dir}
+              pageSize={pageSize}
+              searchPlaceholder={searchPlaceholder}
+            />
+          ) : (
+            <div />
+          )}
           <div className='text-muted-foreground text-sm'>
             {totalRows.toLocaleString()} result{totalRows === 1 ? '' : 's'}
           </div>
@@ -94,7 +101,7 @@ export function ServerDataTable<T>({
             <tr>
               {enableSelection ? (
                 <th className='w-12 px-4 py-3'>
-                  <span className='sr-only'>Select rows</span>
+                  <ServerDataTableMasterCheckbox tableId={id} />
                 </th>
               ) : null}
               {columns.map(column => (

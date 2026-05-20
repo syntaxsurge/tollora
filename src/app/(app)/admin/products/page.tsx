@@ -141,7 +141,15 @@ export default async function AdminProductsPage({
         searchPlaceholder='Search products, owners, providers, endpoints, statuses, or categories'
         emptyTitle='No API listings found'
         emptyDescription='Admin-owned and provider-created API products appear here.'
-        enableSelection={false}
+        enableSelection
+        bulkActions={[
+          {
+            label: 'Delete selected',
+            endpoint: '/api/admin/products/bulk-delete',
+            confirmMessage:
+              'Delete selected provider-created products? Built-in public demo APIs are ignored.'
+          }
+        ]}
       />
     </div>
   )

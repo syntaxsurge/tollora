@@ -34,6 +34,7 @@ export default async function AdminUsersPage({
       query={params}
       total={result.total}
       page={result.page}
+      pageSize={result.pageSize}
       pageCount={result.pageCount}
       sort={result.sort}
       direction={result.direction}

@@ -61,6 +61,25 @@ export function updateMarketplaceOrder(
   return nextOrder
 }
 
+export function deleteMarketplaceOrders(orderIds: string[]) {
+  const orderIdSet = new Set(orderIds)
+  const initialCount = marketplaceOrders.length
+
+  for (let index = marketplaceOrders.length - 1; index >= 0; index -= 1) {
+    if (orderIdSet.has(marketplaceOrders[index].id)) {
+      marketplaceOrders.splice(index, 1)
+    }
+  }
+
+  const deletedCount = initialCount - marketplaceOrders.length
+
+  if (deletedCount > 0) {
+    persistMarketplaceOrders()
+  }
+
+  return deletedCount
+}
+
 function persistMarketplaceOrders() {
   writeWorkspaceJsonArray('marketplace-orders.json', marketplaceOrders)
 }

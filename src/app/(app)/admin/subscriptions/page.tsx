@@ -130,9 +130,9 @@ export default async function AdminSubscriptionsPage({
 
       <AdminSubscriptionsTable
         subscribers={snapshot.subscribers}
-        query={params}
         total={snapshot.subscriberCount}
         page={snapshot.page}
+        pageSize={snapshot.pageSize}
         pageCount={snapshot.pageCount}
       />
     </div>

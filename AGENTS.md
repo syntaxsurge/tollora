@@ -401,6 +401,13 @@ Before creating a new helper or service file:
   persist wallet-scoped creator profile settings in the Convex `users` table,
   enforce unique usernames across saved profiles, and return profile validation
   errors for onboarding and settings pages.
+- `POST /api/admin/users/bulk-delete` — allows admin wallets to delete selected
+  user directory rows through the shared server-fed table bulk action contract.
+- `POST /api/admin/products/bulk-delete` — allows admin wallets to delete
+  selected provider-created products through the shared server-fed table; static
+  Tollora public data products are not removed by this endpoint.
+- `POST /api/admin/orders/bulk-delete` — allows admin wallets to delete
+  selected marketplace order records from the persisted admin ledger.
 - `POST /api/providers/self/products` — validates provider API product input,
   schema JSON, wallet fields, upstream endpoint URL, upstream auth, async
   polling mappings, runtime model, price, agent readiness, and visibility, then
@@ -507,12 +514,15 @@ Before creating a new helper or service file:
   `src/components/data-display/server-data-table.tsx` with URL-driven search,
   sorting, pagination, optional current-page row selection, and optional bulk
   actions. Sortable headers use a shared icon-led sort button that shows
-  unsorted, ascending, and descending states. Table search, sort, pagination,
-  and filter controls update the URL with client-side router pushes that
-  preserve scroll position so server-fed table interactions feel local instead
-  of page-jumping. Selection is enabled only for tables that need row-level or
-  bulk operations, and the shared selection controller supports current-page
-  master selection plus controlled selection state for custom workflows.
+  unsorted, ascending, and descending states. Selectable tables render a master
+  checkbox in the first header column for selecting all rows on the current
+  server-paginated page, plus a compact bulk-action toolbar above the table.
+  Table search, sort, pagination, and filter controls update the URL with
+  client-side router pushes that preserve scroll position so server-fed table
+  interactions feel local instead of page-jumping. Selection is enabled only
+  for tables that need row-level or bulk operations, and the shared selection
+  controller supports current-page master selection plus controlled selection
+  state for custom workflows.
   Server-side query helpers live in `src/lib/table/server-table.ts` and are
   used by agent templates/runs, marketplace products, orders, and provider
   product management.
@@ -739,11 +749,13 @@ Before creating a new helper or service file:
 - `/billing` displays workspace billing context, managed credit API-key
   creation, MUSD top-up records, API-key debit history, payment readiness,
   autonomous agent spend, proof counts, and recent MUSD receipt records.
-- `/admin/products`, `/admin/orders`, `/admin/agents`, and `/admin/receipts`
-  provide allowlisted operational review for marketplace ownership, paid API
-  request records, autonomous agent budgets and statuses, and MUSD settlement
-  receipts. Each page uses the shared server-fed table for scalable search,
-  sorting, and pagination.
+- `/admin/products`, `/admin/orders`, `/admin/agents`, `/admin/receipts`,
+  `/admin/subscriptions`, and `/admin/operations` provide allowlisted
+  operational review for marketplace ownership, paid API request records,
+  autonomous agent budgets and statuses, MUSD settlement receipts, on-chain
+  subscribers, deployment readiness, contract configuration, and provider
+  adapter health. These pages use the shared server-fed table for scalable
+  search, sorting, pagination, and scoped bulk actions where lists can grow.
 - `/developers` and `/developers/docs` describe provider onboarding, OpenAPI
   import, x402 paid calls, fixed-price provider contracts, credit-metered
   quote-first provider contracts, external prepaid async job metadata, public
@@ -754,7 +766,9 @@ Before creating a new helper or service file:
   and `remark-gfm`, uses a sticky table of contents, and exposes stable section
   and field anchors used by provider form documentation links.
 - Admin routes use `src/components/layout/admin-sidebar.tsx`; the users table is
-  server-rendered from URL search, filter, sort, and pagination parameters.
+  server-rendered from URL search, filter, sort, and pagination parameters,
+  shows creator identity, wallet, email, role, subscription, status, and last
+  seen metadata, and supports current-page selection with bulk deletion.
 - Admin user row actions use three-dot menus with reusable responsive dialogs
   for editing user details, subscription tier, and destructive confirmations.
 - Chain metadata, native currency labels, and explorer URL generation are

@@ -509,6 +509,25 @@ export function deleteProviderProduct(
   return deletedProduct
 }
 
+export function deleteAdminProviderProducts(slugs: string[]) {
+  const slugSet = new Set(slugs)
+  const initialCount = providerCreatedProducts.length
+
+  for (let index = providerCreatedProducts.length - 1; index >= 0; index -= 1) {
+    if (slugSet.has(providerCreatedProducts[index].slug)) {
+      providerCreatedProducts.splice(index, 1)
+    }
+  }
+
+  const deletedCount = initialCount - providerCreatedProducts.length
+
+  if (deletedCount > 0) {
+    persistProviderProducts(providerCreatedProducts)
+  }
+
+  return deletedCount
+}
+
 export function getMarketplaceMetrics() {
   const products = getPublishedProducts()
   const totalCalls = products.reduce((sum, product) => sum + product.calls, 0)

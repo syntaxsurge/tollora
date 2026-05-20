@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
+import { notifyServerTableSelectionUpdated } from '@/components/data-display/server-data-table-master-checkbox'
 import { Button } from '@/components/ui/button'
 
 export type ServerDataTableBulkAction = {
@@ -79,6 +80,8 @@ export function ServerDataTableSelection({
       masterCheckboxRef.current.checked = allVisibleSelected
       masterCheckboxRef.current.indeterminate = hasPartialVisibleSelection
     }
+
+    notifyServerTableSelectionUpdated(tableId)
   }, [
     allVisibleSelected,
     hasPartialVisibleSelection,
@@ -102,6 +105,8 @@ export function ServerDataTableSelection({
   }
 
   function updateSelection(nextIds: string[]) {
+    notifyServerTableSelectionUpdated(tableId)
+
     if (onSelectionChange) {
       onSelectionChange(nextIds)
       return

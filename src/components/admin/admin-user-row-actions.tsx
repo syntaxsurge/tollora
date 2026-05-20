@@ -158,6 +158,9 @@ function EditUserDialog({
           <Field label='Display name'>
             <Input name='displayName' defaultValue={user.displayName} />
           </Field>
+          <Field label='Username'>
+            <Input name='username' defaultValue={user.username} />
+          </Field>
           <Field label='Email'>
             <Input name='email' type='email' defaultValue={user.email} />
           </Field>

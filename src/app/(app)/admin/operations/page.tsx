@@ -1,11 +1,22 @@
 import { ExternalLink } from 'lucide-react'
 
+import {
+  ServerDataTable,
+  type ServerDataTableColumn
+} from '@/components/data-display/server-data-table'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { getPublishedProducts } from '@/features/marketplace/products'
+import {
+  type ApiProduct,
+  getPublishedProducts
+} from '@/features/marketplace/products'
 import { getProjectSnapshot } from '@/lib/config/project'
 import { getOperationalReadiness } from '@/lib/operations/readiness'
+import {
+  queryServerRows,
+  resolveServerTableState
+} from '@/lib/table/server-table'
 
 const deploymentSteps = [
   'Set NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_CONVEX_URL, and wallet provider values in the root environment.',
@@ -16,10 +27,38 @@ const deploymentSteps = [
   'Confirm /api/health, /api/openapi.json, /api/reference, /agents, /proofs/[proofId], and an unpaid x402 product call return expected responses.'
 ]
 
-export default async function AdminOperationsPage() {
+export default async function AdminOperationsPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const params = await searchParams
+  const adapterState = resolveServerTableState(params, {
+    defaultSort: 'name',
+    defaultDir: 'asc',
+    defaultPageSize: 10
+  })
   const snapshot = await getProjectSnapshot()
   const readiness = getOperationalReadiness()
   const products = getPublishedProducts()
+  const adapters = queryServerRows(products, adapterState, {
+    searchText: product =>
+      [
+        product.name,
+        product.slug,
+        product.providerName,
+        product.endpointPath,
+        product.priceLabel,
+        product.successRate
+      ].join(' '),
+    sortValues: {
+      name: product => product.name,
+      provider: product => product.providerName,
+      price: product => product.priceUsd,
+      calls: product => product.calls,
+      successRate: product => Number.parseFloat(product.successRate) || 0
+    }
+  })
 
   return (
     <div className='space-y-8'>
@@ -55,23 +94,34 @@ export default async function AdminOperationsPage() {
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             Deployment readiness
           </p>
-          <div className='space-y-3'>
+          <div className='grid gap-3'>
             {readiness.items.map(item => (
               <div
                 key={item.label}
-                className='border-foreground/10 grid gap-3 rounded-lg border p-4 text-sm leading-6 md:grid-cols-[150px_120px_1fr]'
+                className='border-foreground/10 bg-background/35 rounded-lg border p-4 text-sm leading-6'
               >
-                <span className='font-semibold'>{item.label}</span>
-                <span
+                <div className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
+                  <p className='font-semibold'>{item.label}</p>
+                  <span
+                    className={
+                      item.state === 'ready'
+                        ? 'rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300'
+                        : 'rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300'
+                    }
+                  >
+                    {item.state === 'ready' ? 'Ready' : 'Review'}
+                  </span>
+                </div>
+                <p
                   className={
                     item.state === 'ready'
-                      ? 'text-emerald-700 dark:text-emerald-300'
-                      : 'text-amber-700 dark:text-amber-300'
+                      ? 'mt-3 font-mono text-sm break-all text-emerald-700 dark:text-emerald-300'
+                      : 'mt-3 font-mono text-sm break-all text-amber-700 dark:text-amber-300'
                   }
                 >
                   {item.value}
-                </span>
-                <span className='text-foreground/65'>{item.detail}</span>
+                </p>
+                <p className='text-foreground/65 mt-2'>{item.detail}</p>
               </div>
             ))}
           </div>
@@ -137,33 +187,69 @@ export default async function AdminOperationsPage() {
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             Provider adapters
           </p>
-          <div className='grid gap-3'>
-            {products.map(product => (
-              <div
-                key={product.slug}
-                className='border-foreground/10 grid gap-3 rounded-lg border p-4 text-sm md:grid-cols-[1fr_110px_120px]'
-              >
-                <div>
-                  <p className='font-semibold'>{product.name}</p>
-                  <p className='text-foreground/60 mt-1'>
-                    {product.providerName} - {product.endpointPath}
-                  </p>
-                </div>
-                <div>
-                  <p className='text-foreground/60 text-xs uppercase'>Price</p>
-                  <p className='mt-1 font-semibold'>{product.priceLabel}</p>
-                </div>
-                <div>
-                  <p className='text-foreground/60 text-xs uppercase'>
-                    Success
-                  </p>
-                  <p className='mt-1 font-semibold'>{product.successRate}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ServerDataTable
+            id='admin-provider-adapters'
+            rows={adapters.rows}
+            columns={providerAdapterColumns()}
+            getRowId={product => product.slug}
+            basePath='/admin/operations'
+            query={adapterState.q}
+            sort={adapterState.sort}
+            dir={adapterState.dir}
+            page={adapters.page}
+            pageSize={adapters.pageSize}
+            totalRows={adapters.totalRows}
+            totalPages={adapters.totalPages}
+            emptyTitle='No provider adapters found'
+            emptyDescription='Published provider adapters appear here after they are available in the marketplace.'
+            searchPlaceholder='Search adapters, providers, or endpoints'
+            enableSelection={false}
+          />
         </Card>
       </section>
     </div>
   )
+}
+
+function providerAdapterColumns(): ServerDataTableColumn<ApiProduct>[] {
+  return [
+    {
+      key: 'name',
+      label: 'Adapter',
+      sortKey: 'name',
+      className: 'min-w-[260px]',
+      render: product => (
+        <div>
+          <p className='font-semibold'>{product.name}</p>
+          <p className='text-muted-foreground mt-1 text-xs break-all'>
+            {product.endpointPath}
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'provider',
+      label: 'Provider',
+      sortKey: 'provider',
+      render: product => product.providerName
+    },
+    {
+      key: 'price',
+      label: 'Price',
+      sortKey: 'price',
+      render: product => product.priceLabel
+    },
+    {
+      key: 'calls',
+      label: 'Calls',
+      sortKey: 'calls',
+      render: product => product.calls.toLocaleString()
+    },
+    {
+      key: 'successRate',
+      label: 'Success',
+      sortKey: 'successRate',
+      render: product => product.successRate
+    }
+  ]
 }

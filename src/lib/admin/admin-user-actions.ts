@@ -55,6 +55,7 @@ export async function updateAdminUserAction(formData: FormData) {
     ...currentOverrides[id],
     deleted: false,
     displayName: String(formData.get('displayName') ?? '').trim(),
+    username: normalizeUsername(String(formData.get('username') ?? '')),
     email: String(formData.get('email') ?? '').trim(),
     role,
     plan,
@@ -120,6 +121,14 @@ function parseOption<T extends string>(
   fallback: T
 ) {
   return options.includes(value as T) ? (value as T) : fallback
+}
+
+function normalizeUsername(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 32)
 }
 
 function getReturnTo(formData: FormData) {
