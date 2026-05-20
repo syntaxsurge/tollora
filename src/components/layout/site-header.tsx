@@ -9,13 +9,16 @@ import {
   ChevronDown,
   LayoutDashboard,
   Menu,
+  ShieldCheck,
   Settings,
   UserRound
 } from 'lucide-react'
 
+import { AdminHeaderLink } from '@/components/layout/admin-header-link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { isAdminWalletAddress } from '@/lib/auth/admin'
 import { primaryNav } from '@/lib/config/navigation'
 import { siteConfig } from '@/lib/config/site'
 import {
@@ -112,6 +115,7 @@ export function SiteHeader() {
               })}
             </div>
           </details>
+          <AdminHeaderLink />
           <ThemeToggle />
           <ProfileMenu />
         </div>
@@ -198,6 +202,11 @@ function ProfileMenuContent({
             <MenuLink href='/settings' icon={Settings}>
               Settings
             </MenuLink>
+            {isAdminWalletAddress(walletAddress) ? (
+              <MenuLink href='/admin' icon={ShieldCheck}>
+                Admin
+              </MenuLink>
+            ) : null}
           </div>
         ) : null}
         <div className='border-border border-t pt-3'>

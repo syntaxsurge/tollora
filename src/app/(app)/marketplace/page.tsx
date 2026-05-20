@@ -7,6 +7,7 @@ import {
   type ServerDataTableColumn
 } from '@/components/data-display/server-data-table'
 import { ServerDataTableNavButton } from '@/components/data-display/server-data-table-nav-button'
+import { WalletOwnerCard } from '@/components/data-display/wallet-owner-card'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import {
@@ -80,8 +81,9 @@ export default async function MarketplacePage({
                 Find paid APIs faster.
               </h1>
               <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-                Search wallet-ready tools for agents, data, media, and commerce.
-                Results are filtered and paginated before the page is rendered.
+                Shop paid APIs from real creators, developers, and provider
+                teams. Every listing shows the creator identity, wallet, price,
+                and payment flow before you run it.
               </p>
             </div>
           </div>
@@ -166,15 +168,14 @@ const productColumns: ServerDataTableColumn<ApiProduct>[] = [
   },
   {
     key: 'provider',
-    label: 'Provider',
+    label: 'Creator',
     sortKey: 'provider',
     render: product => (
-      <div>
-        <p className='font-semibold'>{product.providerName}</p>
-        <p className='text-muted-foreground mt-1 text-xs capitalize'>
-          {product.category}
-        </p>
-      </div>
+      <WalletOwnerCard
+        walletAddress={product.ownerWallet ?? product.providerWallet}
+        displayName={product.providerName}
+        compact
+      />
     )
   },
   {

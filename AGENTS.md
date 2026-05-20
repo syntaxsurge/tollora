@@ -406,7 +406,8 @@ Before creating a new helper or service file:
   removes it from provider management and marketplace discovery.
 - `POST /api/providers/self/products/bulk-delete` — deletes selected
   provider-created API products owned by the connected wallet from the local
-  provider catalog; seeded admin products are ignored by the product store.
+  provider catalog; default admin-owned products are ignored by the product
+  store.
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
@@ -508,10 +509,14 @@ Before creating a new helper or service file:
   product management.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, public navigation, theme controls,
-  and an avatar account menu. The account menu shows wallet-scoped profile
-  identity and dashboard/profile/settings shortcuts only when a wallet is
-  connected, and keeps the active RainbowKit wallet control available without
-  occupying persistent header space.
+  an admin shortcut for allowlisted wallets, and an avatar account menu. The
+  account menu shows wallet-scoped profile identity and
+  dashboard/profile/settings shortcuts only when a wallet is connected, adds an
+  admin shortcut for allowlisted wallets, and keeps the active RainbowKit wallet
+  control available without occupying persistent header space. Connected wallets
+  must complete the profile onboarding overlay with a unique username and public
+  display name before continuing through the app; profile data powers creator
+  identity displays on marketplace, provider, receipt, and agent surfaces.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
@@ -526,11 +531,14 @@ Before creating a new helper or service file:
   receipts persist to `.tollora/settlement-receipts.json`, and provider call
   counts, success rates, gross volume, platform fees, and earnings are derived
   from those order and receipt ledgers instead of static product counters.
-  Admin-seeded public data wrappers for Wikipedia search, Hacker News trend
+  Tollora Labs public data wrappers for Wikipedia search, Hacker News trend
   search, GitHub repository search, npm package search, OpenAlex research
   search, and GDELT news search use no upstream account or API key, stay
-  x402-protected as paid Tollora marketplace products, are owned by the seeded
-  admin wallet, and are agent-ready for no-key demo runs. These products
+  x402-protected as paid Tollora marketplace products, are owned by the
+  allowlisted admin provider wallet, and are agent-ready for no-key demo runs.
+  Marketplace and product pages show the creator identity card with avatar,
+  name, username, and wallet address for these products and provider-created
+  listings. These products
   execute through the dedicated
   `src/features/provider-adapters/public-data/adapter.ts` adapter, which
   normalizes provider-specific request parameters, applies bounded upstream

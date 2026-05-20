@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { Bot, ExternalLink, ShieldCheck } from 'lucide-react'
 
+import { WalletOwnerCard } from '@/components/data-display/wallet-owner-card'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -31,15 +32,17 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
       <div className='space-y-2'>
         <div>
-          <p className='text-foreground/60 text-xs font-semibold'>
-            {product.providerName}
-          </p>
           <h2 className='font-display mt-2 text-2xl'>{product.name}</h2>
         </div>
         <p className='text-foreground/70 line-clamp-2 text-sm leading-6'>
           {product.description}
         </p>
       </div>
+      <WalletOwnerCard
+        walletAddress={product.ownerWallet ?? product.providerWallet}
+        displayName={product.providerName}
+        compact
+      />
       <div className='border-foreground/10 mt-auto flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between'>
         <div>
           <p className='text-foreground/60 text-xs font-semibold'>Price</p>

@@ -105,19 +105,19 @@ const providerProductsStorePath = join(
   'provider-products.json'
 )
 
-const seededAdminProviderWallet =
+const adminProviderWallet =
   '0x7CE33579392AEAF1791c9B0c8302a502B5867688' as const
-const seededPublicDataProviderName = 'Admin Seeded Data'
-const seededPublicDataProviderSlug = 'admin-seeded-data'
+const adminProviderName = 'Tollora Labs'
+const adminProviderSlug = 'tollora-labs'
 
 export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-wikipedia-context',
     name: 'Wikipedia Context Search',
-    ownerWallet: seededAdminProviderWallet,
-    providerName: seededPublicDataProviderName,
-    providerSlug: seededPublicDataProviderSlug,
-    providerWallet: seededAdminProviderWallet,
+    ownerWallet: adminProviderWallet,
+    providerName: adminProviderName,
+    providerSlug: adminProviderSlug,
+    providerWallet: adminProviderWallet,
     category: 'data',
     description:
       'Searches public Wikipedia pages for factual context the agent can use in launch briefs, market summaries, and positioning copy.',
@@ -163,10 +163,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-hn-trend-scan',
     name: 'Hacker News Trend Scan',
-    ownerWallet: seededAdminProviderWallet,
-    providerName: seededPublicDataProviderName,
-    providerSlug: seededPublicDataProviderSlug,
-    providerWallet: seededAdminProviderWallet,
+    ownerWallet: adminProviderWallet,
+    providerName: adminProviderName,
+    providerSlug: adminProviderSlug,
+    providerWallet: adminProviderWallet,
     category: 'data',
     description:
       'Searches public Hacker News story metadata for recent developer interest around a launch topic, technology, or market category.',
@@ -207,10 +207,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-github-repo-search',
     name: 'GitHub Repository Signal',
-    ownerWallet: seededAdminProviderWallet,
-    providerName: seededPublicDataProviderName,
-    providerSlug: seededPublicDataProviderSlug,
-    providerWallet: seededAdminProviderWallet,
+    ownerWallet: adminProviderWallet,
+    providerName: adminProviderName,
+    providerSlug: adminProviderSlug,
+    providerWallet: adminProviderWallet,
     category: 'developer',
     description:
       'Searches public GitHub repositories for developer traction signals, related projects, languages, stars, forks, and repo descriptions.',
@@ -253,10 +253,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-npm-package-signal',
     name: 'NPM Package Signal',
-    ownerWallet: seededAdminProviderWallet,
-    providerName: seededPublicDataProviderName,
-    providerSlug: seededPublicDataProviderSlug,
-    providerWallet: seededAdminProviderWallet,
+    ownerWallet: adminProviderWallet,
+    providerName: adminProviderName,
+    providerSlug: adminProviderSlug,
+    providerWallet: adminProviderWallet,
     category: 'developer',
     description:
       'Searches the public npm registry for package names, descriptions, keywords, maintainers, and popularity signals around a developer product category.',
@@ -301,10 +301,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-openalex-research-scan',
     name: 'OpenAlex Research Scan',
-    ownerWallet: seededAdminProviderWallet,
-    providerName: seededPublicDataProviderName,
-    providerSlug: seededPublicDataProviderSlug,
-    providerWallet: seededAdminProviderWallet,
+    ownerWallet: adminProviderWallet,
+    providerName: adminProviderName,
+    providerSlug: adminProviderSlug,
+    providerWallet: adminProviderWallet,
     category: 'data',
     description:
       'Searches the public OpenAlex works index for papers and research metadata that can support technical explainers, documentation, and evidence-backed narratives.',
@@ -345,10 +345,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-gdelt-news-scan',
     name: 'GDELT News Signal',
-    ownerWallet: seededAdminProviderWallet,
-    providerName: seededPublicDataProviderName,
-    providerSlug: seededPublicDataProviderSlug,
-    providerWallet: seededAdminProviderWallet,
+    ownerWallet: adminProviderWallet,
+    providerName: adminProviderName,
+    providerSlug: adminProviderSlug,
+    providerWallet: adminProviderWallet,
     category: 'data',
     description:
       'Searches the public GDELT document API for recent news coverage, article URLs, source domains, and topical language around a product or market.',

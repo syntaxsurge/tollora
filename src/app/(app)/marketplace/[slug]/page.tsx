@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { Bot, Code2, Wallet } from 'lucide-react'
 
 import { JsonViewer } from '@/components/data-display/json-viewer'
+import { WalletOwnerCard } from '@/components/data-display/wallet-owner-card'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -109,14 +110,16 @@ console.log({ body, payment });`
               {product.isAgentReady ? <Badge>Agent-ready</Badge> : null}
             </div>
             <div>
-              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                {product.providerName}
-              </p>
               <h1 className='font-display mt-2 text-4xl'>{product.name}</h1>
             </div>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
               {product.description}
             </p>
+            <WalletOwnerCard
+              walletAddress={product.ownerWallet ?? product.providerWallet}
+              displayName={product.providerName}
+              className='max-w-xl'
+            />
             <div className='flex flex-col gap-3 pt-2 sm:flex-row'>
               <Link
                 href={`/orders/new?product=${product.slug}`}

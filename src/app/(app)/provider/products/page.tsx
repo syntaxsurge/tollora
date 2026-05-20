@@ -106,7 +106,7 @@ export default async function ProviderProductsPage({
             label: 'Delete selected',
             endpoint: '/api/providers/self/products/bulk-delete',
             confirmMessage:
-              'Delete selected provider-created products? Admin-seeded products remain available unless removed by an admin.'
+              'Delete selected provider-created products? Default admin-owned products remain available unless removed by an admin.'
           }
         ]}
       />

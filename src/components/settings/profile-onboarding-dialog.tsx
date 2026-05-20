@@ -1,0 +1,211 @@
+'use client'
+
+import { FormEvent, useEffect, useState } from 'react'
+
+import { AtSign, UserRound } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import {
+  UserSettings,
+  defaultUserSettings,
+  formatWalletAddress,
+  isUserSettingsComplete,
+  normalizeUsername,
+  readUserSettings,
+  validateUsername,
+  writeUserSettings
+} from '@/lib/settings/user-settings'
+
+export function ProfileOnboardingDialog() {
+  return (
+    <WalletAddressConsumer>
+      {wallet => <ProfileOnboardingFields walletAddress={wallet.address} />}
+    </WalletAddressConsumer>
+  )
+}
+
+function ProfileOnboardingFields({
+  walletAddress
+}: {
+  walletAddress: string | null
+}) {
+  const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
+  const [isReady, setIsReady] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setSettings(readUserSettings(walletAddress))
+    setIsReady(true)
+    setError('')
+  }, [walletAddress])
+
+  if (!walletAddress || !isReady || isUserSettingsComplete(settings)) {
+    return null
+  }
+
+  function updateField<Field extends keyof UserSettings>(
+    field: Field,
+    value: UserSettings[Field]
+  ) {
+    setSettings(current => ({ ...current, [field]: value }))
+    setError('')
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const fullName = settings.fullName.trim()
+    const username = normalizeUsername(settings.username)
+    const usernameError = validateUsername(username, walletAddress)
+
+    if (fullName.length < 2) {
+      setError('Full name must be at least 2 characters.')
+      return
+    }
+
+    if (usernameError) {
+      setError(usernameError)
+      return
+    }
+
+    writeUserSettings(
+      {
+        ...settings,
+        fullName,
+        username,
+        publicProfile: true
+      },
+      walletAddress
+    )
+    setSettings(readUserSettings(walletAddress))
+  }
+
+  return (
+    <div
+      className='bg-background/90 fixed inset-0 z-[90] grid place-items-center p-4 backdrop-blur-md'
+      role='presentation'
+    >
+      <section
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='profile-onboarding-title'
+        aria-describedby='profile-onboarding-description'
+        className='border-border bg-card text-card-foreground w-full max-w-xl overflow-hidden rounded-lg border shadow-2xl'
+      >
+        <div className='border-border bg-muted/30 border-b p-6'>
+          <div className='flex items-start gap-4'>
+            <span className='bg-primary text-primary-foreground grid h-12 w-12 shrink-0 place-items-center rounded-full'>
+              <UserRound className='h-5 w-5' aria-hidden />
+            </span>
+            <div className='min-w-0'>
+              <p className='text-primary text-xs font-semibold tracking-[0.18em] uppercase'>
+                Required profile
+              </p>
+              <h2
+                id='profile-onboarding-title'
+                className='font-display mt-2 text-2xl leading-tight'
+              >
+                Set your creator identity
+              </h2>
+              <p
+                id='profile-onboarding-description'
+                className='text-muted-foreground mt-2 text-sm leading-6'
+              >
+                Tollora shows creator profiles beside marketplace APIs, provider
+                earnings, receipts, and agent activity. Complete this once to
+                continue.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className='space-y-5 p-6'>
+          <div className='border-border bg-background/70 rounded-lg border p-4'>
+            <p className='text-muted-foreground text-xs font-semibold uppercase'>
+              Connected wallet
+            </p>
+            <p className='mt-1 font-mono text-sm font-semibold break-all'>
+              {formatWalletAddress(walletAddress)}
+            </p>
+          </div>
+
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <label className='space-y-2'>
+              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
+                Full name <span className='text-destructive'>*</span>
+              </span>
+              <Input
+                value={settings.fullName}
+                onChange={event => updateField('fullName', event.target.value)}
+                placeholder='Tollora Labs'
+                required
+                minLength={2}
+              />
+            </label>
+            <label className='space-y-2'>
+              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
+                Username <span className='text-destructive'>*</span>
+              </span>
+              <div className='relative'>
+                <AtSign
+                  className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2'
+                  aria-hidden
+                />
+                <Input
+                  value={settings.username}
+                  onChange={event =>
+                    updateField(
+                      'username',
+                      normalizeUsername(event.target.value)
+                    )
+                  }
+                  placeholder='tollora'
+                  className='pl-9'
+                  required
+                  minLength={3}
+                  maxLength={24}
+                />
+              </div>
+            </label>
+            <label className='space-y-2'>
+              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
+                Role
+              </span>
+              <Input
+                value={settings.role}
+                onChange={event => updateField('role', event.target.value)}
+                placeholder='API provider'
+              />
+            </label>
+            <label className='space-y-2'>
+              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
+                Website
+              </span>
+              <Input
+                type='url'
+                value={settings.website}
+                onChange={event => updateField('website', event.target.value)}
+                placeholder='https://example.com'
+              />
+            </label>
+          </div>
+
+          {error ? (
+            <p
+              className='border-destructive/30 bg-destructive/10 text-destructive rounded-lg border p-3 text-sm font-medium'
+              role='alert'
+            >
+              {error}
+            </p>
+          ) : null}
+
+          <Button type='submit' className='w-full justify-center'>
+            Save profile and continue
+          </Button>
+        </form>
+      </section>
+    </div>
+  )
+}

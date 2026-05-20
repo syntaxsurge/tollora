@@ -13,7 +13,9 @@ import {
   DashboardLanding,
   UserSettings,
   defaultUserSettings,
+  normalizeUsername,
   readUserSettings,
+  validateUsername,
   writeUserSettings
 } from '@/lib/settings/user-settings'
 
@@ -58,7 +60,27 @@ function UserSettingsFormFields({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    writeUserSettings(settings, walletAddress)
+    const username = normalizeUsername(settings.username)
+    const usernameError = validateUsername(username, walletAddress)
+
+    if (settings.fullName.trim().length < 2) {
+      setStatus('Full name must be at least 2 characters.')
+      return
+    }
+
+    if (usernameError) {
+      setStatus(usernameError)
+      return
+    }
+
+    writeUserSettings(
+      {
+        ...settings,
+        fullName: settings.fullName.trim(),
+        username
+      },
+      walletAddress
+    )
     setStatus('Settings saved on this device.')
   }
 
@@ -99,7 +121,9 @@ function UserSettingsFormFields({
           <LabeledInput
             label='Username'
             value={settings.username}
-            onChange={value => updateField('username', value)}
+            onChange={value =>
+              updateField('username', normalizeUsername(value))
+            }
           />
           <LabeledInput
             label='Email'

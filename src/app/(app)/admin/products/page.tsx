@@ -6,6 +6,7 @@ import {
   ServerDataTable,
   type ServerDataTableColumn
 } from '@/components/data-display/server-data-table'
+import { WalletOwnerCard } from '@/components/data-display/wallet-owner-card'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -79,8 +80,9 @@ export default async function AdminProductsPage({
         <div className='mt-4 max-w-3xl space-y-3'>
           <h1 className='font-display text-4xl'>API listing control</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Review every seeded and provider-created API, who owns it, where
-            payouts go, usage volume, revenue, status, and agent readiness.
+            Review every admin-owned and provider-created API, who owns it,
+            where payouts go, usage volume, revenue, status, and agent
+            readiness.
           </p>
         </div>
       </section>
@@ -138,7 +140,7 @@ export default async function AdminProductsPage({
         totalPages={table.totalPages}
         searchPlaceholder='Search products, owners, providers, endpoints, statuses, or categories'
         emptyTitle='No API listings found'
-        emptyDescription='Seeded and provider-created API products appear here.'
+        emptyDescription='Admin-owned and provider-created API products appear here.'
         enableSelection={false}
       />
     </div>
@@ -170,11 +172,13 @@ function productColumns(): ServerDataTableColumn<ApiProduct>[] {
       label: 'Owner',
       sortKey: 'owner',
       render: product => (
-        <div>
-          <p className='font-mono text-xs break-all'>
-            {product.ownerWallet ?? 'Unassigned'}
-          </p>
-          <p className='text-muted-foreground mt-2 text-xs'>
+        <div className='space-y-2'>
+          <WalletOwnerCard
+            walletAddress={product.ownerWallet ?? product.providerWallet}
+            displayName={product.providerName}
+            compact
+          />
+          <p className='text-muted-foreground text-xs'>
             Payout {shorten(product.providerWallet)}
           </p>
         </div>
