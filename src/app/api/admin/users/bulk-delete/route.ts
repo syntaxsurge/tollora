@@ -7,7 +7,11 @@ import {
   parseAdminUserOverrides,
   serializeAdminUserOverrides
 } from '@/lib/admin/admin-users'
-import { isAdminWalletAddress, normalizeWalletAddress } from '@/lib/auth/admin'
+import {
+  isAdminWalletAddress,
+  normalizeWalletAddress,
+  parseAdminWalletAddresses
+} from '@/lib/auth/admin'
 import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 
 export async function POST(request: Request) {
@@ -27,10 +31,14 @@ export async function POST(request: Request) {
   const ids = Array.isArray(body?.ids)
     ? body.ids.map(id => normalizeWalletAddress(String(id))).filter(Boolean)
     : []
+  const configuredAdmins = parseAdminWalletAddresses(
+    process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES
+  )
+  const deletableIds = ids.filter(id => !configuredAdmins.includes(id))
 
-  if (ids.length === 0) {
+  if (deletableIds.length === 0) {
     return NextResponse.json(
-      { error: 'Select at least one user.' },
+      { error: 'Select at least one non-admin user.' },
       { status: 400 }
     )
   }
@@ -39,7 +47,7 @@ export async function POST(request: Request) {
     cookieStore.get(ADMIN_USER_OVERRIDES_COOKIE)?.value
   )
 
-  ids.forEach(id => {
+  deletableIds.forEach(id => {
     overrides[id] = {
       ...overrides[id],
       deleted: true
@@ -59,5 +67,5 @@ export async function POST(request: Request) {
   revalidatePath('/admin')
   revalidatePath('/admin/users')
 
-  return NextResponse.json({ deleted: ids.length })
+  return NextResponse.json({ deleted: deletableIds.length })
 }

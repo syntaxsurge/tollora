@@ -26,21 +26,19 @@ import { ADMIN_USER_OVERRIDES_COOKIE } from '@/lib/admin/admin-user-cookies'
 import {
   applyAdminUserOverrides,
   getAdminStats,
-  getAdminUserSeed,
+  listAdminDirectoryUsers,
   parseAdminUserOverrides
 } from '@/lib/admin/admin-users'
-import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 import { getProjectSnapshot } from '@/lib/config/project'
 
 export default async function AdminPage() {
   const snapshot = await getProjectSnapshot()
   const cookieStore = await cookies()
-  const currentWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
   const overrides = parseAdminUserOverrides(
     cookieStore.get(ADMIN_USER_OVERRIDES_COOKIE)?.value
   )
   const users = applyAdminUserOverrides(
-    getAdminUserSeed(currentWallet),
+    await listAdminDirectoryUsers(),
     overrides
   )
   const stats = getAdminStats(users)

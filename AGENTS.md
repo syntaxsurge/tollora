@@ -391,7 +391,8 @@ Before creating a new helper or service file:
 
 - `POST /api/auth` and `DELETE /api/auth` — create or clear the wallet session
   cookies used by protected app routes and return the connected wallet's Convex
-  user profile when available.
+  user profile when available; successful browser wallet connections redirect
+  public-page users to `/dashboard` after the session is synced.
 - `GET /api/health` — returns Tollora readiness checks for Mezo, x402, wallet
   onboarding, external API forwarding, marketplace listings, and receipts.
 - `POST /api/webhooks` — records inbound webhook events to Convex with source,
@@ -819,8 +820,9 @@ Before creating a new helper or service file:
 - Wallet-auth redirects add an auth reason to the home page, which displays a
   dismissible notice through `src/components/feedback/auth-required-toast.tsx`.
 - `src/components/providers/wallet-session-bridge.tsx` syncs wallet connect and
-  disconnect events through `/api/auth`, so server middleware cookies and
-  client profile hydration stay aligned with the active wallet.
+  disconnect events through `/api/auth`, redirects public-page wallet
+  connections to `/dashboard`, and keeps server middleware cookies plus client
+  profile hydration aligned with the active wallet.
 - Creator identity settings are managed in
   `src/lib/settings/user-settings.ts`, persisted through Convex, and surfaced
   through the header account menu, settings, profile, dashboard, and billing
@@ -828,7 +830,9 @@ Before creating a new helper or service file:
   email; subscription tier changes are initiated from pricing and billing
   subscription flows.
 - Server-readable admin user records and table controls live in
-  `src/lib/admin/admin-users.ts`.
+  `src/lib/admin/admin-users.ts`. Admin role membership is computed only from
+  `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES`; user profile records and admin user
+  overrides cannot grant admin access.
 - Pricing subscription checkout, billing renewal/cancellation controls, user
   payment history links, and admin subscription operations use
   `src/lib/contracts/subscription.ts`,

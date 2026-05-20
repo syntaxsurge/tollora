@@ -144,7 +144,7 @@ function EditUserDialog({
       open={open}
       onOpenChange={onOpenChange}
       title='Edit user'
-      description='Update profile, access, and subscription fields for the selected user.'
+      description='Update profile, account state, and subscription fields for the selected user. Admin access is controlled only by the configured wallet allowlist.'
     >
       <form action={updateAdminUserAction} className='grid gap-5'>
         <input type='hidden' name='id' value={user.id} />
@@ -165,10 +165,7 @@ function EditUserDialog({
             <Input name='email' type='email' defaultValue={user.email} />
           </Field>
           <Field label='Role'>
-            <Select name='role' defaultValue={user.role}>
-              <option value='admin'>Admin</option>
-              <option value='member'>Member</option>
-            </Select>
+            <Input value={user.role} readOnly />
           </Field>
           <Field label='Account status'>
             <Select name='status' defaultValue={user.status}>

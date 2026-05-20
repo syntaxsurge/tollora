@@ -1,7 +1,9 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import * as React from 'react'
 
+import { useRouter } from 'nextjs-toploader/app'
 import {
   useActiveAccount,
   useActiveWalletConnectionStatus
@@ -52,9 +54,28 @@ function useWalletSessionCookie(
   isChecking = false,
   address?: string
 ) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const redirectedWalletRef = React.useRef<string | null>(null)
+
   React.useEffect(() => {
     if (isConnected) {
-      void syncWalletSession(true, address)
+      if (!address) {
+        return
+      }
+
+      void syncWalletSession(true, address).then(() => {
+        const walletAddress = address?.toLowerCase()
+
+        if (
+          walletAddress &&
+          redirectedWalletRef.current !== walletAddress &&
+          shouldRedirectAfterWalletConnect(pathname)
+        ) {
+          redirectedWalletRef.current = walletAddress
+          router.push('/dashboard')
+        }
+      })
       return
     }
 
@@ -63,13 +84,29 @@ function useWalletSessionCookie(
     }
 
     const timeout = window.setTimeout(() => {
+      redirectedWalletRef.current = null
       void syncWalletSession(false, address)
     }, 600)
 
     return () => {
       window.clearTimeout(timeout)
     }
-  }, [address, isChecking, isConnected])
+  }, [address, isChecking, isConnected, pathname, router])
+}
+
+function shouldRedirectAfterWalletConnect(pathname: string) {
+  return ![
+    '/dashboard',
+    '/agents',
+    '/marketplace',
+    '/orders',
+    '/receipts',
+    '/provider',
+    '/profile',
+    '/billing',
+    '/settings',
+    '/admin'
+  ].some(path => pathname === path || pathname.startsWith(`${path}/`))
 }
 
 function RainbowKitWalletSessionBridge() {

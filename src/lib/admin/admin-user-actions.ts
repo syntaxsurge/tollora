@@ -9,15 +9,14 @@ import {
   parseAdminUserOverrides,
   serializeAdminUserOverrides
 } from '@/lib/admin/admin-users'
-import type {
-  AdminUserPlan,
-  AdminUserRole,
-  AdminUserStatus
-} from '@/lib/admin/admin-users'
-import { isAdminWalletAddress, normalizeWalletAddress } from '@/lib/auth/admin'
+import type { AdminUserPlan, AdminUserStatus } from '@/lib/admin/admin-users'
+import {
+  isAdminWalletAddress,
+  normalizeWalletAddress,
+  parseAdminWalletAddresses
+} from '@/lib/auth/admin'
 import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 
-const validRoles: AdminUserRole[] = ['admin', 'member']
 const validPlans: AdminUserPlan[] = ['free', 'base', 'plus']
 const validStatuses: AdminUserStatus[] = ['active', 'invited', 'paused']
 
@@ -27,11 +26,6 @@ export async function updateAdminUserAction(formData: FormData) {
 
   const id = normalizeWalletAddress(String(formData.get('id') ?? ''))
   const returnTo = getReturnTo(formData)
-  const role = parseOption(
-    String(formData.get('role') ?? 'member'),
-    validRoles,
-    'member'
-  )
   const plan = parseOption(
     String(formData.get('plan') ?? 'free'),
     validPlans,
@@ -57,7 +51,6 @@ export async function updateAdminUserAction(formData: FormData) {
     displayName: String(formData.get('displayName') ?? '').trim(),
     username: normalizeUsername(String(formData.get('username') ?? '')),
     email: String(formData.get('email') ?? '').trim(),
-    role,
     plan,
     status
   }
@@ -76,6 +69,14 @@ export async function deleteAdminUserAction(formData: FormData) {
   const returnTo = getReturnTo(formData)
 
   if (!id) {
+    redirect(returnTo)
+  }
+
+  if (
+    parseAdminWalletAddresses(
+      process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES
+    ).includes(id)
+  ) {
     redirect(returnTo)
   }
 

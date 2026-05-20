@@ -51,7 +51,7 @@ export type AdminUserQuery = {
 export type AdminUserOverride = Partial<
   Pick<
     AdminUserRecord,
-    'displayName' | 'username' | 'email' | 'role' | 'plan' | 'status'
+    'displayName' | 'username' | 'email' | 'plan' | 'status'
   >
 > & {
   deleted?: boolean
@@ -83,24 +83,21 @@ const sortableColumns: AdminUserSortKey[] = [
 
 const defaultPageSize = 10
 
-export function getAdminUserSeed(currentWallet?: string | null) {
+export function getAdminUserSeed() {
   const configuredAdmins = parseAdminWalletAddresses(
     process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES
   )
-  const current = currentWallet ? [normalizeWalletAddress(currentWallet)] : []
-  const addresses = Array.from(new Set([...configuredAdmins, ...current]))
+  const addresses = Array.from(new Set(configuredAdmins))
   const now = new Date().toISOString()
 
   return addresses.map((address, index): AdminUserRecord => {
-    const isAdmin = configuredAdmins.includes(address)
-
     return {
       id: address,
       walletAddress: address,
-      displayName: isAdmin ? 'Tollora Labs' : 'Connected builder',
-      username: isAdmin ? 'tollora' : `builder-${address.slice(2, 8)}`,
-      email: isAdmin ? 'hello@tollora.com' : '',
-      role: isAdmin ? 'admin' : 'member',
+      displayName: 'Tollora Labs',
+      username: 'tollora',
+      email: 'hello@tollora.com',
+      role: 'admin',
       plan: 'free',
       status: 'active',
       createdAt: now,
@@ -163,11 +160,24 @@ export function applyAdminUserOverrides(
   users: AdminUserRecord[],
   overrides: AdminUserOverrides
 ) {
+  const configuredAdmins = parseAdminWalletAddresses(
+    process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES
+  )
+
   return users
-    .map(user => ({
-      ...user,
-      ...(overrides[user.id] ?? {})
-    }))
+    .map((user): AdminUserRecord => {
+      const walletAddress = normalizeWalletAddress(user.walletAddress)
+      const { deleted: _deleted, ...override } = overrides[user.id] ?? {}
+
+      return {
+        ...user,
+        ...override,
+        walletAddress,
+        role: configuredAdmins.includes(walletAddress)
+          ? ('admin' as const)
+          : ('member' as const)
+      }
+    })
     .filter(user => !overrides[user.id]?.deleted)
 }
 
