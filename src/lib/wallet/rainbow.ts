@@ -11,6 +11,7 @@ export const rainbowConfig = envClient.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
       appUrl: siteConfig.url,
       projectId: envClient.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
       chains: supportedViemChains,
+      multiInjectedProviderDiscovery: false,
       ssr: true
     })
   : null
