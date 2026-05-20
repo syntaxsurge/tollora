@@ -523,9 +523,9 @@ Before creating a new helper or service file:
   dashboard/profile/settings shortcuts only when a wallet is connected, adds an
   admin shortcut for allowlisted wallets, and keeps the active RainbowKit wallet
   control available without occupying persistent header space. Connected wallets
-  must complete the profile onboarding overlay with a unique username and public
-  display name before continuing through the app; the overlay stays open while
-  users type and closes only after the completed profile is saved. The
+  must complete the profile onboarding overlay with a full name, unique
+  username, and email before continuing through the app; the overlay stays open
+  while users type and closes only after the completed profile is saved. The
   onboarding overlay embeds the active RainbowKit wallet control so users can
   disconnect a wrong wallet before creating a profile. Profile data powers
   creator identity displays on marketplace, provider, receipt, and agent
@@ -799,11 +799,12 @@ Before creating a new helper or service file:
   admin routes also require an allowlisted wallet address.
 - Wallet-auth redirects add an auth reason to the home page, which displays a
   dismissible notice through `src/components/feedback/auth-required-toast.tsx`.
-- Browser-local account preferences are managed in
-  `src/lib/settings/user-settings.ts` using wallet-scoped local storage keys,
-  and surfaced through the header account menu, settings, profile, dashboard,
-  and billing components. Profile settings exclude subscription tier controls;
-  plan changes are initiated from pricing and billing subscription flows.
+- Creator identity settings are managed in
+  `src/lib/settings/user-settings.ts`, persisted through Convex, and surfaced
+  through the header account menu, settings, profile, dashboard, and billing
+  components. The editable profile form contains only full name, username, and
+  email; subscription tier changes are initiated from pricing and billing
+  subscription flows.
 - Server-readable admin user records and table controls live in
   `src/lib/admin/admin-users.ts`.
 - Pricing subscription checkout, billing renewal/cancellation controls, user

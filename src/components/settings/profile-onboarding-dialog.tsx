@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 
-import { AtSign, UserRound } from 'lucide-react'
+import { AtSign, Mail, UserRound } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ import {
   normalizeUsername,
   readUserSettings,
   saveUserSettings,
+  validateEmail,
   validateUsername
 } from '@/lib/settings/user-settings'
 
@@ -87,7 +88,9 @@ function ProfileOnboardingFields({
 
     const fullName = settings.fullName.trim()
     const username = normalizeUsername(settings.username)
+    const email = settings.email.trim()
     const usernameError = validateUsername(username, walletAddress)
+    const emailError = validateEmail(email)
 
     if (fullName.length < 2) {
       setError('Full name must be at least 2 characters.')
@@ -99,11 +102,16 @@ function ProfileOnboardingFields({
       return
     }
 
+    if (emailError) {
+      setError(emailError)
+      return
+    }
+
     const nextSettings = {
       ...settings,
       fullName,
       username,
-      publicProfile: true
+      email
     }
 
     try {
@@ -170,7 +178,7 @@ function ProfileOnboardingFields({
             </p>
           </div>
 
-          <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='grid gap-4'>
             <label className='space-y-2'>
               <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
                 Full name <span className='text-destructive'>*</span>
@@ -205,6 +213,25 @@ function ProfileOnboardingFields({
                   required
                   minLength={3}
                   maxLength={24}
+                />
+              </div>
+            </label>
+            <label className='space-y-2'>
+              <span className='text-muted-foreground text-xs font-semibold tracking-[0.16em] uppercase'>
+                Email <span className='text-destructive'>*</span>
+              </span>
+              <div className='relative'>
+                <Mail
+                  className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2'
+                  aria-hidden
+                />
+                <Input
+                  type='email'
+                  value={settings.email}
+                  onChange={event => updateField('email', event.target.value)}
+                  placeholder='team@tollora.com'
+                  className='pl-9'
+                  required
                 />
               </div>
             </label>

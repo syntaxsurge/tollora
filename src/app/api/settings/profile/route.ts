@@ -60,14 +60,7 @@ export async function PUT(request: Request) {
       fullName: body.settings.fullName,
       username: body.settings.username,
       email: body.settings.email,
-      plan: body.settings.plan,
-      timezone: body.settings.timezone,
-      dashboardLanding: body.settings.dashboardLanding,
-      dashboardDensity: body.settings.dashboardDensity,
-      emailDigest: body.settings.emailDigest,
-      productUpdates: body.settings.productUpdates,
-      securityAlerts: body.settings.securityAlerts,
-      publicProfile: body.settings.publicProfile
+      plan: body.settings.plan
     })
 
     return NextResponse.json({
@@ -101,14 +94,7 @@ function isUserSettingsInput(value: unknown): value is UserSettings {
     typeof candidate.fullName === 'string' &&
     typeof candidate.username === 'string' &&
     typeof candidate.email === 'string' &&
-    typeof candidate.plan === 'string' &&
-    typeof candidate.timezone === 'string' &&
-    typeof candidate.dashboardLanding === 'string' &&
-    typeof candidate.dashboardDensity === 'string' &&
-    typeof candidate.emailDigest === 'boolean' &&
-    typeof candidate.productUpdates === 'boolean' &&
-    typeof candidate.securityAlerts === 'boolean' &&
-    typeof candidate.publicProfile === 'boolean'
+    typeof candidate.plan === 'string'
   )
 }
 
@@ -117,14 +103,7 @@ function userToSettings(user: UserSettings & Record<string, unknown>) {
     fullName: user.fullName,
     username: user.username,
     email: user.email,
-    plan: user.plan,
-    timezone: user.timezone,
-    dashboardLanding: user.dashboardLanding,
-    dashboardDensity: user.dashboardDensity,
-    emailDigest: user.emailDigest,
-    productUpdates: user.productUpdates,
-    securityAlerts: user.securityAlerts,
-    publicProfile: user.publicProfile
+    plan: user.plan
   } satisfies UserSettings
 }
 

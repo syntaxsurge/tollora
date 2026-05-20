@@ -13,17 +13,6 @@ export default defineSchema({
     normalizedUsername: v.string(),
     email: v.string(),
     plan: v.union(v.literal('free'), v.literal('base'), v.literal('plus')),
-    timezone: v.string(),
-    dashboardLanding: v.union(
-      v.literal('overview'),
-      v.literal('activity'),
-      v.literal('billing')
-    ),
-    dashboardDensity: v.union(v.literal('comfortable'), v.literal('compact')),
-    emailDigest: v.boolean(),
-    productUpdates: v.boolean(),
-    securityAlerts: v.boolean(),
-    publicProfile: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number()
   })

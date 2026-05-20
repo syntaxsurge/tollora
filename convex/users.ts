@@ -7,12 +7,6 @@ const userPlan = v.union(
   v.literal('base'),
   v.literal('plus')
 )
-const dashboardLanding = v.union(
-  v.literal('overview'),
-  v.literal('activity'),
-  v.literal('billing')
-)
-const dashboardDensity = v.union(v.literal('comfortable'), v.literal('compact'))
 
 const seededAdminWallet = '0x7ce33579392aeaf1791c9b0c8302a502b5867688'
 const seededAdminUsername = 'tollora'
@@ -42,15 +36,8 @@ export const getByWallet = query({
         fullName: 'Tollora Labs',
         username: seededAdminUsername,
         normalizedUsername: seededAdminUsername,
-        email: '',
+        email: 'hello@tollora.com',
         plan: 'plus',
-        timezone: 'Asia/Manila',
-        dashboardLanding: 'overview',
-        dashboardDensity: 'comfortable',
-        emailDigest: true,
-        productUpdates: true,
-        securityAlerts: true,
-        publicProfile: true,
         createdAt: now,
         updatedAt: now
       }
@@ -66,14 +53,7 @@ export const upsertProfile = mutation({
     fullName: v.string(),
     username: v.string(),
     email: v.string(),
-    plan: userPlan,
-    timezone: v.string(),
-    dashboardLanding,
-    dashboardDensity,
-    emailDigest: v.boolean(),
-    productUpdates: v.boolean(),
-    securityAlerts: v.boolean(),
-    publicProfile: v.boolean()
+    plan: userPlan
   },
   handler: async (
     ctx: any,
@@ -83,13 +63,6 @@ export const upsertProfile = mutation({
       username: string
       email: string
       plan: 'free' | 'base' | 'plus'
-      timezone: string
-      dashboardLanding: 'overview' | 'activity' | 'billing'
-      dashboardDensity: 'comfortable' | 'compact'
-      emailDigest: boolean
-      productUpdates: boolean
-      securityAlerts: boolean
-      publicProfile: boolean
     }
   ) => {
     const walletAddress = normalizeWallet(args.walletAddress)
@@ -105,6 +78,7 @@ export const upsertProfile = mutation({
     }
 
     validateUsername(normalizedUsername)
+    validateEmail(args.email)
 
     if (
       normalizedUsername === seededAdminUsername &&
@@ -141,13 +115,6 @@ export const upsertProfile = mutation({
       normalizedUsername,
       email: args.email.trim(),
       plan: args.plan,
-      timezone: args.timezone,
-      dashboardLanding: args.dashboardLanding,
-      dashboardDensity: args.dashboardDensity,
-      emailDigest: args.emailDigest,
-      productUpdates: args.productUpdates,
-      securityAlerts: args.securityAlerts,
-      publicProfile: args.publicProfile,
       updatedAt: now
     }
 
@@ -175,6 +142,12 @@ function normalizeUsername(username: string) {
     .toLowerCase()
     .replace(/^@+/, '')
     .replace(/[^a-z0-9_-]/g, '')
+}
+
+function validateEmail(email: string) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    throw new Error('Enter a valid email address.')
+  }
 }
 
 function validateUsername(username: string) {

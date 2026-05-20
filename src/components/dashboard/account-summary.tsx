@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { UserRound, WalletCards } from 'lucide-react'
+import { Mail, UserRound, WalletCards } from 'lucide-react'
 
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
@@ -56,18 +56,21 @@ function AccountSummaryContent({ address }: { address: string | null }) {
           </p>
         </div>
         <div className='bg-muted rounded-lg p-4'>
+          <Mail className='text-accent h-5 w-5' aria-hidden />
+          <p className='text-foreground/60 mt-4 text-xs tracking-[0.16em] uppercase'>
+            Email
+          </p>
+          <p className='mt-2 text-sm font-semibold capitalize'>
+            {settings.email || 'Not provided'}
+          </p>
+        </div>
+        <div className='bg-muted rounded-lg p-4'>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
             Plan
           </p>
           <p className='mt-2 text-sm font-semibold capitalize'>
             {settings.plan}
           </p>
-        </div>
-        <div className='bg-muted rounded-lg p-4'>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Timezone
-          </p>
-          <p className='mt-2 text-sm font-semibold'>{settings.timezone}</p>
         </div>
       </div>
     </Card>

@@ -1,7 +1,3 @@
-export type DashboardDensity = 'comfortable' | 'compact'
-
-export type DashboardLanding = 'overview' | 'activity' | 'billing'
-
 export type UserPlan = 'free' | 'base' | 'plus'
 
 export type UserSettings = {
@@ -9,13 +5,6 @@ export type UserSettings = {
   username: string
   email: string
   plan: UserPlan
-  timezone: string
-  dashboardLanding: DashboardLanding
-  dashboardDensity: DashboardDensity
-  emailDigest: boolean
-  productUpdates: boolean
-  securityAlerts: boolean
-  publicProfile: boolean
 }
 
 export type PublicUserProfile = {
@@ -47,14 +36,7 @@ export const defaultUserSettings: UserSettings = {
   fullName: '',
   username: '',
   email: '',
-  plan: 'free',
-  timezone: 'Asia/Manila',
-  dashboardLanding: 'overview',
-  dashboardDensity: 'comfortable',
-  emailDigest: true,
-  productUpdates: false,
-  securityAlerts: true,
-  publicProfile: true
+  plan: 'free'
 }
 
 export function readUserSettings(walletAddress?: string | null): UserSettings {
@@ -94,7 +76,8 @@ export function normalizeUsername(value: string) {
 export function isUserSettingsComplete(settings: UserSettings) {
   return (
     settings.fullName.trim().length >= 2 &&
-    normalizeUsername(settings.username).length >= 3
+    normalizeUsername(settings.username).length >= 3 &&
+    isValidEmail(settings.email)
   )
 }
 
@@ -118,6 +101,20 @@ export function validateUsername(
 
   if (isUsernameReservedForAnotherWallet(normalizedUsername, walletAddress)) {
     return 'That username is already taken.'
+  }
+
+  return ''
+}
+
+export function validateEmail(email: string) {
+  const normalizedEmail = email.trim()
+
+  if (!normalizedEmail) {
+    return 'Email is required.'
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    return 'Enter a valid email address.'
   }
 
   return ''
@@ -271,42 +268,17 @@ function normalizeUserSettings(
   return {
     ...defaultUserSettings,
     ...currentSettings,
-    dashboardLanding: isDashboardLanding(settings.dashboardLanding)
-      ? settings.dashboardLanding
-      : defaultUserSettings.dashboardLanding,
-    dashboardDensity: isDashboardDensity(settings.dashboardDensity)
-      ? settings.dashboardDensity
-      : defaultUserSettings.dashboardDensity,
-    plan: isUserPlan(settings.plan) ? settings.plan : defaultUserSettings.plan,
-    emailDigest:
-      typeof settings.emailDigest === 'boolean'
-        ? settings.emailDigest
-        : defaultUserSettings.emailDigest,
-    productUpdates:
-      typeof settings.productUpdates === 'boolean'
-        ? settings.productUpdates
-        : defaultUserSettings.productUpdates,
-    securityAlerts:
-      typeof settings.securityAlerts === 'boolean'
-        ? settings.securityAlerts
-        : defaultUserSettings.securityAlerts,
-    publicProfile:
-      typeof settings.publicProfile === 'boolean'
-        ? settings.publicProfile
-        : defaultUserSettings.publicProfile
+    email: typeof settings.email === 'string' ? settings.email.trim() : '',
+    plan: isUserPlan(settings.plan) ? settings.plan : defaultUserSettings.plan
   }
-}
-
-function isDashboardLanding(value: unknown): value is DashboardLanding {
-  return value === 'overview' || value === 'activity' || value === 'billing'
-}
-
-function isDashboardDensity(value: unknown): value is DashboardDensity {
-  return value === 'comfortable' || value === 'compact'
 }
 
 function isUserPlan(value: unknown): value is UserPlan {
   return value === 'free' || value === 'base' || value === 'plus'
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
 
 function cacheKey(walletAddress?: string | null) {

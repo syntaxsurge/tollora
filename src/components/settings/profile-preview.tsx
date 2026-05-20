@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
@@ -50,7 +49,6 @@ function ProfilePreviewContent({
           {userInitials(settings) || 'NB'}
         </div>
         <div>
-          <Badge>{settings.publicProfile ? 'Public' : 'Private'}</Badge>
           <h2 className='font-display mt-4 text-3xl'>{displayName}</h2>
           <p className='text-foreground/65 mt-1 text-sm'>{username}</p>
         </div>
@@ -69,18 +67,18 @@ function ProfilePreviewContent({
       <Card className='space-y-5'>
         <div>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Workspace preferences
+            Creator identity
           </p>
-          <h2 className='font-display mt-2 text-2xl'>Account snapshot</h2>
+          <h2 className='font-display mt-2 text-2xl'>Marketplace profile</h2>
+          <p className='text-foreground/65 mt-2 text-sm leading-6'>
+            This is the public creator identity buyers see beside your API
+            listings, receipts, and provider activity.
+          </p>
         </div>
-        <div className='grid gap-3 sm:grid-cols-2'>
-          <Metric label='Timezone' value={settings.timezone} />
-          <Metric label='Dashboard view' value={settings.dashboardLanding} />
-          <Metric label='Density' value={settings.dashboardDensity} />
-          <Metric
-            label='Security alerts'
-            value={settings.securityAlerts ? 'Enabled' : 'Disabled'}
-          />
+        <div className='grid gap-3'>
+          <Metric label='Display name' value={displayName} />
+          <Metric label='Username' value={username} />
+          <Metric label='Email' value={settings.email || 'Not provided'} />
         </div>
       </Card>
     </div>
