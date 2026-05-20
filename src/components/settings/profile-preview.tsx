@@ -1,18 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
 
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
-import {
-  UserSettings,
-  defaultUserSettings,
-  readUserSettings,
-  userDisplayName,
-  userInitials
-} from '@/lib/settings/user-settings'
+import { useUserSettings } from '@/hooks/use-user-settings'
+import { userDisplayName, userInitials } from '@/lib/settings/user-settings'
 
 export function ProfilePreview() {
   return (
@@ -27,15 +21,9 @@ function ProfilePreviewContent({
 }: {
   walletAddress: string | null
 }) {
-  const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
-  const [isReady, setIsReady] = useState(false)
+  const { settings, isLoading } = useUserSettings(walletAddress)
 
-  useEffect(() => {
-    setSettings(readUserSettings(walletAddress))
-    setIsReady(true)
-  }, [walletAddress])
-
-  if (!isReady) {
+  if (isLoading) {
     return <div className='skeleton h-80 rounded-lg' />
   }
 

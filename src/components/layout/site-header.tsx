@@ -9,7 +9,6 @@ import {
   ChevronDown,
   LayoutDashboard,
   Menu,
-  ShieldCheck,
   Settings,
   UserRound
 } from 'lucide-react'
@@ -18,15 +17,10 @@ import { AdminHeaderLink } from '@/components/layout/admin-header-link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
-import { isAdminWalletAddress } from '@/lib/auth/admin'
+import { useUserSettings } from '@/hooks/use-user-settings'
 import { primaryNav } from '@/lib/config/navigation'
 import { siteConfig } from '@/lib/config/site'
-import {
-  defaultUserSettings,
-  readUserSettings,
-  userDisplayName,
-  userInitials
-} from '@/lib/settings/user-settings'
+import { userDisplayName, userInitials } from '@/lib/settings/user-settings'
 import { cn } from '@/lib/utils/cn'
 
 export function SiteHeader() {
@@ -137,24 +131,7 @@ function ProfileMenuContent({
 }: {
   walletAddress: string | null
 }) {
-  const [settings, setSettings] = React.useState(defaultUserSettings)
-
-  React.useEffect(() => {
-    setSettings(readUserSettings(walletAddress))
-
-    function syncSettings() {
-      setSettings(readUserSettings(walletAddress))
-    }
-
-    window.addEventListener('storage', syncSettings)
-    window.addEventListener('tollora:user-settings-updated', syncSettings)
-
-    return () => {
-      window.removeEventListener('storage', syncSettings)
-      window.removeEventListener('tollora:user-settings-updated', syncSettings)
-    }
-  }, [walletAddress])
-
+  const { settings } = useUserSettings(walletAddress)
   const isAuthenticated = Boolean(walletAddress)
   const displayName = isAuthenticated
     ? userDisplayName(settings)
@@ -202,11 +179,6 @@ function ProfileMenuContent({
             <MenuLink href='/settings' icon={Settings}>
               Settings
             </MenuLink>
-            {isAdminWalletAddress(walletAddress) ? (
-              <MenuLink href='/admin' icon={ShieldCheck}>
-                Admin
-              </MenuLink>
-            ) : null}
           </div>
         ) : null}
         <div className='border-border border-t pt-3'>

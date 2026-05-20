@@ -8,31 +8,43 @@ import {
 } from 'thirdweb/react'
 import { useAccount } from 'wagmi'
 
-import {
-  WALLET_ADDRESS_COOKIE,
-  WALLET_SESSION_COOKIE,
-  WALLET_SESSION_COOKIE_VALUE,
-  WALLET_SESSION_MAX_AGE_SECONDS
-} from '@/lib/auth/wallet-session'
 import { walletProvider } from '@/lib/config/wallet'
+import {
+  clearUserSettings,
+  UserSettings,
+  writeUserSettings
+} from '@/lib/settings/user-settings'
 
-function setWalletSessionCookie(isConnected: boolean, address?: string) {
-  if (typeof document === 'undefined') {
-    return
-  }
+type AuthSessionResponse = {
+  settings?: UserSettings | null
+}
 
-  if (isConnected) {
-    document.cookie = `${WALLET_SESSION_COOKIE}=${WALLET_SESSION_COOKIE_VALUE}; Path=/; Max-Age=${WALLET_SESSION_MAX_AGE_SECONDS}; SameSite=Lax`
+async function syncWalletSession(isConnected: boolean, address?: string) {
+  if (isConnected && address) {
+    const response = await fetch('/api/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        walletAddress: address
+      })
+    })
+    const body = (await response
+      .json()
+      .catch(() => null)) as AuthSessionResponse | null
 
-    if (address) {
-      document.cookie = `${WALLET_ADDRESS_COOKIE}=${address.toLowerCase()}; Path=/; Max-Age=${WALLET_SESSION_MAX_AGE_SECONDS}; SameSite=Lax`
+    if (response.ok && body?.settings) {
+      writeUserSettings(body.settings, address)
     }
 
     return
   }
 
-  document.cookie = `${WALLET_SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
-  document.cookie = `${WALLET_ADDRESS_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
+  await fetch('/api/auth', {
+    method: 'DELETE'
+  }).catch(() => undefined)
+  clearUserSettings(address)
 }
 
 function useWalletSessionCookie(
@@ -42,7 +54,7 @@ function useWalletSessionCookie(
 ) {
   React.useEffect(() => {
     if (isConnected) {
-      setWalletSessionCookie(true, address)
+      void syncWalletSession(true, address)
       return
     }
 
@@ -51,7 +63,7 @@ function useWalletSessionCookie(
     }
 
     const timeout = window.setTimeout(() => {
-      setWalletSessionCookie(false)
+      void syncWalletSession(false, address)
     }, 600)
 
     return () => {

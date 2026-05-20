@@ -28,20 +28,29 @@ function AdminHeaderLinkContent({
 }: {
   walletAddress: string | null
 }) {
-  const [isAdmin, setIsAdmin] = React.useState(false)
-  const [isChecking, setIsChecking] = React.useState(false)
+  const [access, setAccess] = React.useState({
+    walletAddress: null as string | null,
+    isAdmin: false,
+    isChecking: false
+  })
 
   React.useEffect(() => {
     let isMounted = true
 
-    setIsAdmin(false)
-
     if (!walletAddress) {
-      setIsChecking(false)
+      setAccess({
+        walletAddress: null,
+        isAdmin: false,
+        isChecking: false
+      })
       return
     }
 
-    setIsChecking(true)
+    setAccess({
+      walletAddress,
+      isAdmin: false,
+      isChecking: true
+    })
 
     fetch(
       `/api/admin/access?walletAddress=${encodeURIComponent(walletAddress)}`,
@@ -58,16 +67,19 @@ function AdminHeaderLinkContent({
           isAdmin?: boolean
         } | null
 
-        setIsAdmin(Boolean(response.ok && body?.isAdmin))
+        setAccess({
+          walletAddress,
+          isAdmin: Boolean(response.ok && body?.isAdmin),
+          isChecking: false
+        })
       })
       .catch(() => {
         if (isMounted) {
-          setIsAdmin(false)
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsChecking(false)
+          setAccess({
+            walletAddress,
+            isAdmin: false,
+            isChecking: false
+          })
         }
       })
 
@@ -76,7 +88,12 @@ function AdminHeaderLinkContent({
     }
   }, [walletAddress])
 
-  if (isChecking || !isAdmin) {
+  if (
+    !walletAddress ||
+    access.walletAddress !== walletAddress ||
+    access.isChecking ||
+    !access.isAdmin
+  ) {
     return null
   }
 

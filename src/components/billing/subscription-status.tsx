@@ -14,6 +14,7 @@ import {
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { useUserSettings } from '@/hooks/use-user-settings'
 import {
   getExplorerAddressUrl,
   getExplorerTransactionUrl,
@@ -28,7 +29,6 @@ import {
 import {
   UserSettings,
   defaultUserSettings,
-  readUserSettings,
   writeUserSettings
 } from '@/lib/settings/user-settings'
 
@@ -59,6 +59,7 @@ export function SubscriptionStatus() {
 }
 
 function SubscriptionStatusContent({ address }: { address: string | null }) {
+  const { settings: persistedSettings } = useUserSettings(address)
   const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
   const [subscription, setSubscription] = useState<SubscriptionState | null>(
     null
@@ -75,8 +76,8 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
     subscriptionPlans[0]
 
   useEffect(() => {
-    setSettings(readUserSettings(address))
-  }, [address])
+    setSettings(persistedSettings)
+  }, [persistedSettings])
 
   useEffect(() => {
     if (

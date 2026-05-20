@@ -41,7 +41,15 @@ export async function POST(request: Request) {
   const response = NextResponse.json({
     status: 'connected',
     walletAddress,
-    profile
+    profile,
+    settings: profile
+      ? {
+          fullName: profile.fullName,
+          username: profile.username,
+          email: profile.email,
+          plan: profile.plan
+        }
+      : null
   })
 
   response.cookies.set(WALLET_SESSION_COOKIE, WALLET_SESSION_COOKIE_VALUE, {

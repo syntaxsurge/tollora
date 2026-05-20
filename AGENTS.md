@@ -531,20 +531,21 @@ Before creating a new helper or service file:
   product management.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, public navigation, theme controls,
-  an admin shortcut for allowlisted wallets, and an avatar account menu. The
-  account menu shows wallet-scoped profile identity and
-  dashboard/profile/settings shortcuts only when a wallet is connected, adds an
-  admin shortcut for allowlisted wallets, and keeps the active RainbowKit wallet
-  control available without occupying persistent header space. Connected wallets
-  must complete the profile onboarding overlay with a full name, unique
-  username, and email before continuing through the app; the overlay stays open
-  while users type and closes only after the completed profile is saved. The
-  onboarding overlay embeds the active RainbowKit wallet control so users can
-  disconnect a wrong wallet before creating a profile. Profile data powers
-  creator identity displays on marketplace, provider, receipt, and agent
-  surfaces. Creator profile settings persist through
-  `/api/settings/profile` into the Convex `users` table; browser localStorage is
-  not used for profile persistence.
+  a server-verified admin shortcut for allowlisted active wallets, and an
+  avatar account menu. The account menu shows wallet-scoped profile identity and
+  dashboard/profile/settings shortcuts only when a wallet is connected, and
+  keeps the active RainbowKit wallet control available without occupying
+  persistent header space. Connected wallets must complete the profile
+  onboarding overlay with a full name, unique username, and email before
+  continuing through the app; the overlay stays open while users type and
+  closes only after the completed profile is saved. The onboarding overlay
+  embeds the active RainbowKit wallet control so users can disconnect a wrong
+  wallet before creating a profile. Profile data powers creator identity
+  displays on marketplace, provider, receipt, and agent surfaces. Creator
+  profile settings persist through `/api/settings/profile` into the Convex
+  `users` table and hydrate client displays through
+  `src/hooks/use-user-settings.ts`; browser localStorage is not used for profile
+  persistence.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
@@ -817,6 +818,9 @@ Before creating a new helper or service file:
   admin routes also require an allowlisted wallet address.
 - Wallet-auth redirects add an auth reason to the home page, which displays a
   dismissible notice through `src/components/feedback/auth-required-toast.tsx`.
+- `src/components/providers/wallet-session-bridge.tsx` syncs wallet connect and
+  disconnect events through `/api/auth`, so server middleware cookies and
+  client profile hydration stay aligned with the active wallet.
 - Creator identity settings are managed in
   `src/lib/settings/user-settings.ts`, persisted through Convex, and surfaced
   through the header account menu, settings, profile, dashboard, and billing

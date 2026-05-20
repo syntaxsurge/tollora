@@ -41,21 +41,27 @@ function UserSettingsFormFields({
     const cachedSettings = readUserSettings(walletAddress)
 
     setSettings(cachedSettings)
-    setIsReady(true)
+    setStatus('')
 
     if (!walletAddress) {
+      setIsReady(true)
       return
     }
+
+    setIsReady(false)
 
     fetchUserSettings(walletAddress)
       .then(savedSettings => {
         if (isMounted) {
           setSettings(savedSettings)
+          setIsReady(true)
         }
       })
       .catch(() => {
         if (isMounted) {
+          setSettings(cachedSettings)
           setStatus('Could not load saved profile settings.')
+          setIsReady(true)
         }
       })
 

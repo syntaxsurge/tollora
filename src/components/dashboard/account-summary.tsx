@@ -1,17 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
 import { Mail, UserRound, WalletCards } from 'lucide-react'
 
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
-import {
-  UserSettings,
-  defaultUserSettings,
-  readUserSettings,
-  userDisplayName
-} from '@/lib/settings/user-settings'
+import { useUserSettings } from '@/hooks/use-user-settings'
+import { userDisplayName } from '@/lib/settings/user-settings'
 
 export function AccountSummary() {
   return (
@@ -22,11 +16,7 @@ export function AccountSummary() {
 }
 
 function AccountSummaryContent({ address }: { address: string | null }) {
-  const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
-
-  useEffect(() => {
-    setSettings(readUserSettings(address))
-  }, [address])
+  const { settings } = useUserSettings(address)
 
   return (
     <Card className='space-y-5'>

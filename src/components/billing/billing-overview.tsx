@@ -1,19 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { CreditCard, Settings, WalletCards } from 'lucide-react'
 
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { useUserSettings } from '@/hooks/use-user-settings'
 import { subscriptionPlans } from '@/lib/contracts/subscription'
-import {
-  UserSettings,
-  defaultUserSettings,
-  readUserSettings
-} from '@/lib/settings/user-settings'
 
 export function BillingOverview({
   subscriptionConfigured
@@ -39,11 +35,7 @@ function BillingOverviewContent({
   address: string | null
   subscriptionConfigured: boolean
 }) {
-  const [settings, setSettings] = useState<UserSettings>(defaultUserSettings)
-
-  useEffect(() => {
-    setSettings(readUserSettings(address))
-  }, [address])
+  const { settings } = useUserSettings(address)
 
   const plan =
     subscriptionPlans.find(item => item.key === settings.plan) ??
