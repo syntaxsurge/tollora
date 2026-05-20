@@ -105,16 +105,19 @@ const providerProductsStorePath = join(
   'provider-products.json'
 )
 
-const tolloraPublicProviderWallet =
+const seededAdminProviderWallet =
   '0x7CE33579392AEAF1791c9B0c8302a502B5867688' as const
+const seededPublicDataProviderName = 'Admin Seeded Data'
+const seededPublicDataProviderSlug = 'admin-seeded-data'
 
 export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-wikipedia-context',
     name: 'Wikipedia Context Search',
-    providerName: 'Tollora Public Data',
-    providerSlug: 'tollora-public-data',
-    providerWallet: tolloraPublicProviderWallet,
+    ownerWallet: seededAdminProviderWallet,
+    providerName: seededPublicDataProviderName,
+    providerSlug: seededPublicDataProviderSlug,
+    providerWallet: seededAdminProviderWallet,
     category: 'data',
     description:
       'Searches public Wikipedia pages for factual context the agent can use in launch briefs, market summaries, and positioning copy.',
@@ -160,9 +163,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-hn-trend-scan',
     name: 'Hacker News Trend Scan',
-    providerName: 'Tollora Public Data',
-    providerSlug: 'tollora-public-data',
-    providerWallet: tolloraPublicProviderWallet,
+    ownerWallet: seededAdminProviderWallet,
+    providerName: seededPublicDataProviderName,
+    providerSlug: seededPublicDataProviderSlug,
+    providerWallet: seededAdminProviderWallet,
     category: 'data',
     description:
       'Searches public Hacker News story metadata for recent developer interest around a launch topic, technology, or market category.',
@@ -203,9 +207,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-github-repo-search',
     name: 'GitHub Repository Signal',
-    providerName: 'Tollora Public Data',
-    providerSlug: 'tollora-public-data',
-    providerWallet: tolloraPublicProviderWallet,
+    ownerWallet: seededAdminProviderWallet,
+    providerName: seededPublicDataProviderName,
+    providerSlug: seededPublicDataProviderSlug,
+    providerWallet: seededAdminProviderWallet,
     category: 'developer',
     description:
       'Searches public GitHub repositories for developer traction signals, related projects, languages, stars, forks, and repo descriptions.',
@@ -248,9 +253,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-npm-package-signal',
     name: 'NPM Package Signal',
-    providerName: 'Tollora Public Data',
-    providerSlug: 'tollora-public-data',
-    providerWallet: tolloraPublicProviderWallet,
+    ownerWallet: seededAdminProviderWallet,
+    providerName: seededPublicDataProviderName,
+    providerSlug: seededPublicDataProviderSlug,
+    providerWallet: seededAdminProviderWallet,
     category: 'developer',
     description:
       'Searches the public npm registry for package names, descriptions, keywords, maintainers, and popularity signals around a developer product category.',
@@ -295,9 +301,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-openalex-research-scan',
     name: 'OpenAlex Research Scan',
-    providerName: 'Tollora Public Data',
-    providerSlug: 'tollora-public-data',
-    providerWallet: tolloraPublicProviderWallet,
+    ownerWallet: seededAdminProviderWallet,
+    providerName: seededPublicDataProviderName,
+    providerSlug: seededPublicDataProviderSlug,
+    providerWallet: seededAdminProviderWallet,
     category: 'data',
     description:
       'Searches the public OpenAlex works index for papers and research metadata that can support technical explainers, documentation, and evidence-backed narratives.',
@@ -338,9 +345,10 @@ export const marketplaceProducts: ApiProduct[] = [
   {
     slug: 'public-gdelt-news-scan',
     name: 'GDELT News Signal',
-    providerName: 'Tollora Public Data',
-    providerSlug: 'tollora-public-data',
-    providerWallet: tolloraPublicProviderWallet,
+    ownerWallet: seededAdminProviderWallet,
+    providerName: seededPublicDataProviderName,
+    providerSlug: seededPublicDataProviderSlug,
+    providerWallet: seededAdminProviderWallet,
     category: 'data',
     description:
       'Searches the public GDELT document API for recent news coverage, article URLs, source domains, and topical language around a product or market.',
@@ -390,6 +398,24 @@ globalForMarketplaceProducts.__tolloraProviderProducts = providerCreatedProducts
 
 export function getPublishedProducts() {
   return getAllProducts().filter(product => product.status === 'published')
+}
+
+export function getProviderOwnedProducts(ownerWallet?: string | null) {
+  if (!ownerWallet) {
+    return []
+  }
+
+  const normalizedOwner = ownerWallet.toLowerCase()
+
+  return getAllProducts().filter(
+    product => product.ownerWallet?.toLowerCase() === normalizedOwner
+  )
+}
+
+export function getProviderPublishedProducts(ownerWallet?: string | null) {
+  return getProviderOwnedProducts(ownerWallet).filter(
+    product => product.status === 'published'
+  )
 }
 
 export function getAllProducts() {
@@ -445,11 +471,12 @@ export function recordProviderProduct(product: ApiProduct) {
 
 export function updateProviderProductStatus(
   slug: string,
-  status: ApiProductStatus
+  status: ApiProductStatus,
+  ownerWallet?: string | null
 ) {
-  const product = getProductBySlug(slug)
+  const product = providerCreatedProducts.find(item => item.slug === slug)
 
-  if (!product) {
+  if (!product || !isProductOwnedBy(product, ownerWallet)) {
     return null
   }
 
@@ -460,12 +487,19 @@ export function updateProviderProductStatus(
   })
 }
 
-export function deleteProviderProduct(slug: string) {
+export function deleteProviderProduct(
+  slug: string,
+  ownerWallet?: string | null
+) {
   const existingIndex = providerCreatedProducts.findIndex(
     product => product.slug === slug
   )
 
   if (existingIndex < 0) {
+    return null
+  }
+
+  if (!isProductOwnedBy(providerCreatedProducts[existingIndex], ownerWallet)) {
     return null
   }
 
@@ -492,12 +526,8 @@ export function getMarketplaceMetrics() {
   }
 }
 
-export function getProviderDashboardMetrics(providerWallet?: string) {
-  const products = getAllProducts().filter(product =>
-    providerWallet
-      ? product.providerWallet.toLowerCase() === providerWallet.toLowerCase()
-      : true
-  )
+export function getProviderDashboardMetrics(ownerWallet?: string | null) {
+  const products = getProviderOwnedProducts(ownerWallet)
   const productSlugs = new Set(products.map(product => product.slug))
   const orders = marketplaceOrders.filter(order =>
     productSlugs.has(order.productSlug)
@@ -536,12 +566,8 @@ export function getProviderDashboardMetrics(providerWallet?: string) {
   }
 }
 
-export function getProviderOrders(providerWallet?: string) {
-  const products = getAllProducts().filter(product =>
-    providerWallet
-      ? product.providerWallet.toLowerCase() === providerWallet.toLowerCase()
-      : true
-  )
+export function getProviderOrders(ownerWallet?: string | null) {
+  const products = getProviderOwnedProducts(ownerWallet)
   const productSlugs = new Set(products.map(product => product.slug))
 
   return marketplaceOrders.filter(order => productSlugs.has(order.productSlug))
@@ -627,6 +653,14 @@ function parseMusd(value: string | undefined) {
   const amount = Number((value ?? '').replace(/[^0-9.]/g, ''))
 
   return Number.isFinite(amount) ? amount : 0
+}
+
+function isProductOwnedBy(product: ApiProduct, ownerWallet?: string | null) {
+  if (!ownerWallet) {
+    return false
+  }
+
+  return product.ownerWallet?.toLowerCase() === ownerWallet.toLowerCase()
 }
 
 function persistProviderProducts(products: ApiProduct[]) {

@@ -10,6 +10,8 @@ Use this checklist before submitting or presenting the app.
 - `CONVEX_DEPLOYMENT`
 - `NEXT_PUBLIC_WALLET_PROVIDER=rainbowkit`
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
+- `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES` as one or more comma-separated admin
+  wallets. The seeded demo data APIs are owned by the first admin demo wallet.
 - `NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID=31611`
 - `NEXT_PUBLIC_MEZO_TESTNET_RPC_URL=https://rpc.test.mezo.org`
 - `NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL=https://explorer.test.mezo.org`
@@ -72,7 +74,11 @@ pnpm build
 - `/marketplace` shows published API products.
 - `/agents` and `/agents/new` show the autonomous agent lifecycle.
 - `/proofs/[proofId]` renders without wallet auth.
-- `/provider` shows MUSD revenue, recent request activity, and fee split.
+- `/provider` shows only the connected wallet's owned listings, MUSD revenue,
+  recent request activity, agent-created calls, and fee split.
+- `/admin/products`, `/admin/orders`, `/admin/agents`, and `/admin/receipts`
+  show global server-side tables for ownership, usage, autonomous runs, and
+  settlement reconciliation.
 - `/billing` shows MUSD receipts, managed credit balance, API key creation, and
   top-up/debit history.
 - `/admin/operations` shows payment, adapter, wallet, and receipt readiness.

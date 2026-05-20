@@ -384,8 +384,8 @@ Before creating a new helper or service file:
   `/profile`, `/billing`, `/settings` (wallet-protected app pages)
 - `/proofs/[proofId]` (public autonomous agent proof page)
 - `/admin`, `/admin/users`, `/admin/products`, `/admin/orders`,
-  `/admin/subscriptions`, `/admin/operations` (wallet-protected admin pages for
-  allowlisted wallets)
+  `/admin/agents`, `/admin/receipts`, `/admin/subscriptions`,
+  `/admin/operations` (wallet-protected admin pages for allowlisted wallets)
 
 ## API endpoints
 
@@ -398,15 +398,15 @@ Before creating a new helper or service file:
   polling mappings, runtime model, price, agent readiness, and visibility, then
   records a provider-created marketplace listing and returns the accepted
   product response.
-- `PATCH /api/providers/self/products/[slug]/status` — updates a provider
-  product lifecycle state between draft, published, and paused for management
-  workflows.
+- `PATCH /api/providers/self/products/[slug]/status` — updates an
+  owner-matched provider product lifecycle state between draft, published, and
+  paused for management workflows.
 - `DELETE /api/providers/self/products/[slug]` — deletes a provider-created API
-  product from the local provider catalog and removes it from provider
-  management and marketplace discovery.
+  product owned by the connected wallet from the local provider catalog and
+  removes it from provider management and marketplace discovery.
 - `POST /api/providers/self/products/bulk-delete` — deletes selected
-  provider-created API products from the local provider catalog; platform-owned
-  products are ignored by the product store.
+  provider-created API products owned by the connected wallet from the local
+  provider catalog; seeded admin products are ignored by the product store.
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record for the selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
@@ -526,18 +526,22 @@ Before creating a new helper or service file:
   receipts persist to `.tollora/settlement-receipts.json`, and provider call
   counts, success rates, gross volume, platform fees, and earnings are derived
   from those order and receipt ledgers instead of static product counters.
-  Platform-owned public data wrappers for Wikipedia search, Hacker News trend
+  Admin-seeded public data wrappers for Wikipedia search, Hacker News trend
   search, GitHub repository search, npm package search, OpenAlex research
   search, and GDELT news search use no upstream account or API key, stay
-  x402-protected as paid Tollora marketplace products, and are agent-ready for
-  no-key demo runs. These products execute through the dedicated
+  x402-protected as paid Tollora marketplace products, are owned by the seeded
+  admin wallet, and are agent-ready for no-key demo runs. These products
+  execute through the dedicated
   `src/features/provider-adapters/public-data/adapter.ts` adapter, which
   normalizes provider-specific request parameters, applies bounded upstream
   timeouts, and uses no-key public fallback sources for providers that rate
   limit, reject narrow queries, or return temporary gateway errors.
   Provider-created listings are persisted to the workspace-local
   `.tollora/provider-products.json` catalog so draft, paused, and published
-  products remain manageable across local server restarts.
+  products remain manageable across local server restarts. Provider dashboards
+  and provider product management filter by product `ownerWallet`, while payout
+  settlement continues to use `providerWallet`; this keeps listing management
+  separate from the wallet that receives provider earnings.
 - Autonomous agent templates, OpenAI planning and synthesis, deterministic
   fallback planning, run storage, funded budget ledgers, paid action execution,
   proof hashing, status labels, and UI clients live in `src/features/agents`.
@@ -628,13 +632,13 @@ Before creating a new helper or service file:
   Successful preparation clears failure debug state, shows a short success
   status, stores the order in browser session storage, and redirects to the Run
   & Pay order page.
-- `/provider` shows provider revenue, API call volume, success rate, top
-  product, recent request activity, product listing health, production
-  narrative, and the 95% provider / 5% platform fee split.
+- `/provider` shows the connected wallet's owned provider revenue, API call
+  volume, success rate, top product, recent request activity, product listing
+  health, production narrative, and the 95% provider / 5% platform fee split.
 - `/provider/products` lists provider API products in the shared server-fed
-  table with status context, price, call volume, gateway path, listing links,
-  bulk deletion for provider-created rows, and next-step management actions for
-  drafts, paused listings, and live products.
+  table for the connected owner wallet with status context, price, call volume,
+  gateway path, listing links, bulk deletion for owner-created rows, and
+  next-step management actions for drafts, paused listings, and live products.
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
@@ -657,8 +661,8 @@ Before creating a new helper or service file:
   draft, a launch checklist, payable schema-driven test runs, gateway endpoint
   copy support, product deletion, provider contract details, and
   request/response schema details.
-- `/provider/usage` shows provider API calls, MUSD revenue, buyer wallets,
-  request IDs, and status labels.
+- `/provider/usage` shows the connected wallet's provider API calls, MUSD
+  revenue, buyer wallets, request IDs, agent-run context, and status labels.
 - `/orders` uses the shared server-fed table for buyer request search, sorting,
   pagination, status, amount, and order-opening actions. `/orders/[orderId]`
   shows buyer request lifecycle state using shared order status labels and
@@ -712,8 +716,11 @@ Before creating a new helper or service file:
 - `/billing` displays workspace billing context, managed credit API-key
   creation, MUSD top-up records, API-key debit history, payment readiness,
   autonomous agent spend, proof counts, and recent MUSD receipt records.
-- `/admin/products` and `/admin/orders` provide allowlisted operational review
-  for marketplace listings and buyer API request records.
+- `/admin/products`, `/admin/orders`, `/admin/agents`, and `/admin/receipts`
+  provide allowlisted operational review for marketplace ownership, paid API
+  request records, autonomous agent budgets and statuses, and MUSD settlement
+  receipts. Each page uses the shared server-fed table for scalable search,
+  sorting, and pagination.
 - `/developers` and `/developers/docs` describe provider onboarding, OpenAPI
   import, x402 paid calls, fixed-price provider contracts, credit-metered
   quote-first provider contracts, external prepaid async job metadata, public

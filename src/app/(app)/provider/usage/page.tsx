@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 import { Activity, CircleDollarSign, Clock3, ReceiptText } from 'lucide-react'
@@ -12,10 +13,11 @@ import { Card } from '@/components/ui/card'
 import {
   getProviderDashboardMetrics,
   getProviderOrders,
-  getPublishedProducts
+  getProviderPublishedProducts
 } from '@/features/marketplace/products'
 import { orderStatusLabels } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
+import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 import {
   queryServerRows,
   resolveServerTableState
@@ -35,9 +37,11 @@ export default async function ProviderUsagePage({
   searchParams
 }: ProviderUsagePageProps) {
   const params = await searchParams
-  const products = getPublishedProducts()
-  const metrics = getProviderDashboardMetrics()
-  const orders = getProviderOrders()
+  const cookieStore = await cookies()
+  const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
+  const products = getProviderPublishedProducts(ownerWallet)
+  const metrics = getProviderDashboardMetrics(ownerWallet)
+  const orders = getProviderOrders(ownerWallet)
   const state = resolveServerTableState(params, {
     defaultSort: 'updated',
     defaultPageSize: 10

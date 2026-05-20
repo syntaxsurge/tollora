@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 import {
@@ -18,16 +19,19 @@ import {
   getProviderDashboardMetrics,
   getProviderOrders,
   getMarketplaceMetrics,
-  getPublishedProducts
+  getProviderPublishedProducts
 } from '@/features/marketplace/products'
 import { orderStatusLabels } from '@/features/marketplace/status'
+import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 
-export default function ProviderPage() {
-  const products = getPublishedProducts()
+export default async function ProviderPage() {
+  const cookieStore = await cookies()
+  const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
+  const products = getProviderPublishedProducts(ownerWallet)
   const metrics = getMarketplaceMetrics()
-  const providerMetrics = getProviderDashboardMetrics()
+  const providerMetrics = getProviderDashboardMetrics(ownerWallet)
   const agentMetrics = getAgentMetrics()
-  const orders = getProviderOrders()
+  const orders = getProviderOrders(ownerWallet)
   const topProduct = products
     .slice()
     .sort((a, b) => Number(b.revenueMusd) - Number(a.revenueMusd))[0]

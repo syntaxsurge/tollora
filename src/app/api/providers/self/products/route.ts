@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 import {
@@ -9,6 +10,7 @@ import {
   formatMusdAmount,
   providerProductInputSchema
 } from '@/features/marketplace/schemas'
+import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -25,6 +27,19 @@ export async function POST(request: Request) {
   }
 
   const payload = parsed.data
+  const cookieStore = await cookies()
+  const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
+
+  if (
+    !ownerWallet ||
+    payload.ownerWallet.toLowerCase() !== ownerWallet.toLowerCase()
+  ) {
+    return NextResponse.json(
+      { error: 'Connected wallet must own the provider listing.' },
+      { status: 403 }
+    )
+  }
+
   const existing = getProductBySlug(payload.slug)
 
   if (existing) {

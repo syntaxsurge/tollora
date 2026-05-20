@@ -5,9 +5,11 @@ import { usePathname } from 'next/navigation'
 
 import {
   ClipboardList,
+  Bot,
   Home,
   PackageSearch,
   RadioTower,
+  ReceiptText,
   ShieldCheck,
   UserCog,
   WalletCards
@@ -21,6 +23,8 @@ const adminNavIcons = {
   Users: UserCog,
   Products: PackageSearch,
   Orders: ClipboardList,
+  Agents: Bot,
+  Receipts: ReceiptText,
   Subscriptions: WalletCards,
   Operations: RadioTower
 }

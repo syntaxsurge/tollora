@@ -1,81 +1,239 @@
 import Link from 'next/link'
 
+import { Boxes, CircleDollarSign, PlugZap, Users } from 'lucide-react'
+
+import {
+  ServerDataTable,
+  type ServerDataTableColumn
+} from '@/components/data-display/server-data-table'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { getPublishedProducts } from '@/features/marketplace/products'
+import {
+  type ApiProduct,
+  getAllProducts
+} from '@/features/marketplace/products'
 import { productStatusLabels } from '@/features/marketplace/status'
+import {
+  queryServerRows,
+  resolveServerTableState
+} from '@/lib/table/server-table'
 
-export default function AdminProductsPage() {
-  const products = getPublishedProducts()
+type AdminProductsPageProps = {
+  searchParams?: Promise<{
+    q?: string
+    sort?: string
+    dir?: string
+    page?: string
+    pageSize?: string
+  }>
+}
+
+export default async function AdminProductsPage({
+  searchParams
+}: AdminProductsPageProps) {
+  const params = await searchParams
+  const products = getAllProducts()
+  const state = resolveServerTableState(params, {
+    defaultSort: 'calls',
+    defaultPageSize: 10
+  })
+  const table = queryServerRows(products, state, {
+    searchText: product =>
+      [
+        product.name,
+        product.providerName,
+        product.ownerWallet ?? '',
+        product.providerWallet,
+        product.status,
+        product.category,
+        product.priceLabel,
+        product.endpointPath
+      ].join(' '),
+    sortValues: {
+      name: product => product.name,
+      provider: product => product.providerName,
+      owner: product => product.ownerWallet ?? '',
+      status: product => product.status,
+      price: product => product.priceUsd,
+      calls: product => product.calls,
+      revenue: product => Number(product.revenueMusd)
+    }
+  })
+  const publishedCount = products.filter(
+    product => product.status === 'published'
+  ).length
+  const ownerCount = new Set(
+    products.map(product => product.ownerWallet).filter(Boolean)
+  ).size
+  const totalRevenue = products.reduce(
+    (sum, product) => sum + Number(product.revenueMusd),
+    0
+  )
+  const totalCalls = products.reduce((sum, product) => sum + product.calls, 0)
 
   return (
     <div className='space-y-8'>
       <section className='bg-panel-sheen border-foreground/10 rounded-lg border p-6'>
         <Badge>Product moderation</Badge>
         <div className='mt-4 max-w-3xl space-y-3'>
-          <h1 className='font-display text-4xl'>API listing review</h1>
+          <h1 className='font-display text-4xl'>API listing control</h1>
           <p className='text-foreground/70 text-sm leading-6'>
-            Review published products, provider identity, MUSD price, x402
-            status, agent readiness, and listing health before promoting
-            provider APIs.
+            Review every seeded and provider-created API, who owns it, where
+            payouts go, usage volume, revenue, status, and agent readiness.
           </p>
         </div>
       </section>
 
-      <Card className='overflow-hidden p-0'>
-        <div className='overflow-x-auto'>
-          <table className='w-full min-w-[860px] text-left text-sm'>
-            <thead className='bg-muted text-foreground/60'>
-              <tr>
-                {[
-                  'Product',
-                  'Provider',
-                  'Category',
-                  'Price',
-                  'Agent',
-                  'Status',
-                  'Actions'
-                ].map(header => (
-                  <th key={header} className='px-5 py-3 font-medium'>
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(product => (
-                <tr
-                  key={product.slug}
-                  className='border-foreground/10 border-t'
-                >
-                  <td className='px-5 py-4 font-semibold'>{product.name}</td>
-                  <td className='px-5 py-4'>{product.providerName}</td>
-                  <td className='px-5 py-4'>{product.category}</td>
-                  <td className='px-5 py-4'>{product.priceLabel}</td>
-                  <td className='px-5 py-4'>
-                    {product.isAgentReady ? 'Ready' : 'Manual'}
-                  </td>
-                  <td className='px-5 py-4'>
-                    {productStatusLabels[product.status]}
-                  </td>
-                  <td className='px-5 py-4'>
-                    <Link
-                      href={`/provider/products/${product.slug}`}
-                      className={buttonClasses({
-                        variant: 'outline',
-                        size: 'sm'
-                      })}
-                    >
-                      Review
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <section className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+        {[
+          {
+            label: 'Total products',
+            value: products.length.toLocaleString(),
+            detail: `${publishedCount} published`,
+            icon: Boxes
+          },
+          {
+            label: 'Product owners',
+            value: ownerCount.toLocaleString(),
+            detail: 'Wallet-owned listings',
+            icon: Users
+          },
+          {
+            label: 'Gateway calls',
+            value: totalCalls.toLocaleString(),
+            detail: 'Buyer and agent requests',
+            icon: PlugZap
+          },
+          {
+            label: 'Provider revenue',
+            value: `${totalRevenue.toFixed(2)} MUSD`,
+            detail: 'Released provider share',
+            icon: CircleDollarSign
+          }
+        ].map(({ label, value, detail, icon: Icon }) => (
+          <Card key={label}>
+            <Icon className='text-primary h-5 w-5' aria-hidden />
+            <p className='text-foreground/60 mt-4 text-xs tracking-[0.16em] uppercase'>
+              {label}
+            </p>
+            <p className='mt-2 text-2xl font-semibold'>{value}</p>
+            <p className='text-foreground/60 mt-1 text-sm'>{detail}</p>
+          </Card>
+        ))}
+      </section>
+
+      <ServerDataTable
+        id='admin-products'
+        rows={table.rows}
+        columns={productColumns()}
+        getRowId={product => product.slug}
+        basePath='/admin/products'
+        query={state.q}
+        sort={state.sort}
+        dir={state.dir}
+        page={table.page}
+        pageSize={table.pageSize}
+        totalRows={table.totalRows}
+        totalPages={table.totalPages}
+        searchPlaceholder='Search products, owners, providers, endpoints, statuses, or categories'
+        emptyTitle='No API listings found'
+        emptyDescription='Seeded and provider-created API products appear here.'
+        enableSelection={false}
+      />
     </div>
   )
+}
+
+function productColumns(): ServerDataTableColumn<ApiProduct>[] {
+  return [
+    {
+      key: 'product',
+      label: 'Product',
+      sortKey: 'name',
+      render: product => (
+        <div>
+          <Link
+            href={`/provider/products/${product.slug}`}
+            className='font-semibold hover:underline'
+          >
+            {product.name}
+          </Link>
+          <p className='text-muted-foreground mt-2 font-mono text-xs break-all'>
+            {product.endpointPath}
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'owner',
+      label: 'Owner',
+      sortKey: 'owner',
+      render: product => (
+        <div>
+          <p className='font-mono text-xs break-all'>
+            {product.ownerWallet ?? 'Unassigned'}
+          </p>
+          <p className='text-muted-foreground mt-2 text-xs'>
+            Payout {shorten(product.providerWallet)}
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'provider',
+      label: 'Provider',
+      sortKey: 'provider',
+      render: product => (
+        <div>
+          <p className='font-semibold'>{product.providerName}</p>
+          <p className='text-muted-foreground mt-2 text-xs'>
+            {product.category} - {product.priceLabel}
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'usage',
+      label: 'Usage',
+      sortKey: 'calls',
+      render: product => (
+        <div>
+          <p className='font-semibold'>{product.calls} calls</p>
+          <p className='text-muted-foreground mt-2 text-xs'>
+            {product.revenueMusd} MUSD earned
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortKey: 'status',
+      render: product => (
+        <div>
+          <p className='font-semibold'>{productStatusLabels[product.status]}</p>
+          <p className='text-muted-foreground mt-2 text-xs'>
+            {product.isAgentReady ? 'Agent-ready' : 'Manual only'}
+          </p>
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: product => (
+        <Link
+          href={`/marketplace/${product.slug}`}
+          className={buttonClasses({ variant: 'outline', size: 'sm' })}
+        >
+          View listing
+        </Link>
+      )
+    }
+  ]
+}
+
+function shorten(value: string) {
+  return `${value.slice(0, 6)}...${value.slice(-4)}`
 }

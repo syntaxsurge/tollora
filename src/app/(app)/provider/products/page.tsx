@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 import { ExternalLink, Plus, Settings } from 'lucide-react'
@@ -11,10 +12,10 @@ import { buttonClasses } from '@/components/ui/button'
 import {
   type ApiProduct,
   type ApiProductStatus,
-  getAllProducts,
-  providerCreatedProducts
+  getProviderOwnedProducts
 } from '@/features/marketplace/products'
 import { productStatusLabels } from '@/features/marketplace/status'
+import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 import {
   queryServerRows,
   resolveServerTableState
@@ -35,7 +36,9 @@ export default async function ProviderProductsPage({
   searchParams
 }: ProviderProductsPageProps) {
   const params = await searchParams
-  const products = getAllProducts()
+  const cookieStore = await cookies()
+  const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
+  const products = getProviderOwnedProducts(ownerWallet)
   const state = resolveServerTableState(params, {
     defaultSort: 'updated',
     defaultPageSize: 10
@@ -59,9 +62,6 @@ export default async function ProviderProductsPage({
       updated: product => product.slug
     }
   })
-  const providerCreatedSlugs = new Set(
-    providerCreatedProducts.map(product => product.slug)
-  )
 
   return (
     <div className='space-y-8'>
@@ -88,7 +88,7 @@ export default async function ProviderProductsPage({
       <ServerDataTable
         id='provider-products'
         rows={table.rows}
-        columns={productColumns(providerCreatedSlugs)}
+        columns={productColumns()}
         getRowId={product => product.slug}
         basePath='/provider/products'
         query={state.q}
@@ -106,7 +106,7 @@ export default async function ProviderProductsPage({
             label: 'Delete selected',
             endpoint: '/api/providers/self/products/bulk-delete',
             confirmMessage:
-              'Delete selected provider-created products? Platform-owned public data products are ignored.'
+              'Delete selected provider-created products? Admin-seeded products remain available unless removed by an admin.'
           }
         ]}
       />
@@ -114,9 +114,7 @@ export default async function ProviderProductsPage({
   )
 }
 
-function productColumns(
-  providerCreatedSlugs: Set<string>
-): ServerDataTableColumn<ApiProduct>[] {
+function productColumns(): ServerDataTableColumn<ApiProduct>[] {
   return [
     {
       key: 'product',
@@ -132,9 +130,6 @@ function productColumns(
               {product.name}
             </Link>
             <StatusPill status={product.status} />
-            {!providerCreatedSlugs.has(product.slug) ? (
-              <Badge>Platform</Badge>
-            ) : null}
           </div>
           <p className='text-muted-foreground mt-2 font-mono text-xs break-all'>
             {product.endpointPath}

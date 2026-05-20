@@ -71,6 +71,16 @@ export const adminNav = [
     description: 'Inspect paid API request operations'
   },
   {
+    label: 'Agents',
+    href: '/admin/agents',
+    description: 'Inspect autonomous run budgets and proofs'
+  },
+  {
+    label: 'Receipts',
+    href: '/admin/receipts',
+    description: 'Audit MUSD receipts and payout splits'
+  },
+  {
     label: 'Subscriptions',
     href: '/admin/subscriptions',
     description: 'Manage on-chain subscribers and revenue'

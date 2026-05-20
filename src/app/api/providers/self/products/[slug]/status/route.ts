@@ -1,9 +1,11 @@
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 import { z } from 'zod'
 
 import { updateProviderProductStatus } from '@/features/marketplace/products'
 import { apiProductStatuses } from '@/features/marketplace/schemas'
+import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 
 const statusUpdateSchema = z.object({
   status: z.enum(apiProductStatuses)
@@ -33,7 +35,13 @@ export async function PATCH(
     )
   }
 
-  const product = updateProviderProductStatus(slug, parsed.data.status)
+  const cookieStore = await cookies()
+  const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
+  const product = updateProviderProductStatus(
+    slug,
+    parsed.data.status,
+    ownerWallet
+  )
 
   if (!product) {
     return NextResponse.json(

@@ -1,11 +1,27 @@
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
-import { BarChart3, CreditCard, ShieldCheck, Users } from 'lucide-react'
+import {
+  BarChart3,
+  Bot,
+  Boxes,
+  CreditCard,
+  type LucideIcon,
+  ReceiptText,
+  ShieldCheck,
+  Users
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { getAgentMetrics } from '@/features/agents/store'
+import { marketplaceOrders } from '@/features/marketplace/orders'
+import {
+  getAllProducts,
+  getMarketplaceMetrics
+} from '@/features/marketplace/products'
+import { settlementReceipts } from '@/features/marketplace/receipt-store'
 import { ADMIN_USER_OVERRIDES_COOKIE } from '@/lib/admin/admin-user-cookies'
 import {
   applyAdminUserOverrides,
@@ -28,6 +44,9 @@ export default async function AdminPage() {
     overrides
   )
   const stats = getAdminStats(users)
+  const products = getAllProducts()
+  const marketplaceMetrics = getMarketplaceMetrics()
+  const agentMetrics = getAgentMetrics()
 
   return (
     <div className='space-y-8'>
@@ -37,8 +56,9 @@ export default async function AdminPage() {
           <div className='max-w-3xl space-y-3'>
             <h1 className='font-display text-4xl'>Project control room</h1>
             <p className='text-foreground/70 text-sm leading-6'>
-              Monitor subscriptions, wallet access, and user operations without
-              mixing every admin workflow into a single page.
+              Monitor users, API ownership, paid orders, autonomous agent
+              budgets, receipts, subscriptions, and readiness from dedicated
+              server-rendered admin surfaces.
             </p>
           </div>
           <Link
@@ -61,14 +81,34 @@ export default async function AdminPage() {
           value={`${stats.adminUsers}`}
         />
         <AdminMetric
+          icon={Boxes}
+          label='Products'
+          value={`${products.length}`}
+        />
+        <AdminMetric
+          icon={ReceiptText}
+          label='Orders'
+          value={`${marketplaceOrders.length}`}
+        />
+        <AdminMetric
+          icon={Bot}
+          label='Agent runs'
+          value={`${agentMetrics.totalRuns}`}
+        />
+        <AdminMetric
           icon={CreditCard}
           label='Paid plans'
           value={`${stats.paidUsers}`}
         />
         <AdminMetric
           icon={BarChart3}
-          label='Subscription'
-          value={snapshot.subscriptionManagerAddress ? 'Ready' : 'Pending'}
+          label='MUSD volume'
+          value={`${marketplaceMetrics.totalRevenueMusd}`}
+        />
+        <AdminMetric
+          icon={BarChart3}
+          label='Receipts'
+          value={`${settlementReceipts.length}`}
         />
       </section>
 
@@ -97,6 +137,44 @@ export default async function AdminPage() {
               <span className='text-foreground/60 mt-1 block text-sm'>
                 Contract balance, subscribed users, plan prices, and treasury
                 withdrawals.
+              </span>
+            </Link>
+            <Link
+              href='/admin/products'
+              className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
+            >
+              <span className='block font-semibold'>Products</span>
+              <span className='text-foreground/60 mt-1 block text-sm'>
+                Review owners, providers, payout wallets, revenue, calls, and
+                agent readiness.
+              </span>
+            </Link>
+            <Link
+              href='/admin/orders'
+              className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
+            >
+              <span className='block font-semibold'>Orders</span>
+              <span className='text-foreground/60 mt-1 block text-sm'>
+                Inspect buyer, agent, and API-key requests across the gateway.
+              </span>
+            </Link>
+            <Link
+              href='/admin/agents'
+              className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
+            >
+              <span className='block font-semibold'>Agents</span>
+              <span className='text-foreground/60 mt-1 block text-sm'>
+                Audit autonomous budgets, tool selection, receipts, and proof
+                status.
+              </span>
+            </Link>
+            <Link
+              href='/admin/receipts'
+              className='border-foreground/10 hover:border-foreground/25 rounded-lg border p-4 transition'
+            >
+              <span className='block font-semibold'>Receipts</span>
+              <span className='text-foreground/60 mt-1 block text-sm'>
+                Reconcile MUSD settlements, provider share, and platform fees.
               </span>
             </Link>
             <Link
@@ -136,7 +214,7 @@ function AdminMetric({
   label,
   value
 }: {
-  icon: typeof Users
+  icon: LucideIcon
   label: string
   value: string
 }) {
