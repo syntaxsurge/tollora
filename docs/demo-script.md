@@ -21,13 +21,13 @@ One-liner: A Mezo native marketplace where API owners list paid tools, buyers pa
   1. **Current page:** /marketplace - confirm the Tollora marketplace table is visible.
   2. **Current page:** /marketplace - open URL directly: https://cliplore.ai/auth/sign-in?next=/dashboard/developers/api-keys.
   3. **Current page:** /auth/sign-in - confirm the "Sign in" heading is visible.
-  4. **(Only if needed) Enter values:**
+  4. **Enter values:**
      - Email = [CLIPLORE_EMAIL=owner@example.com]
      - Password = [CLIPLORE_PASSWORD=your_password]
   5. **Current page:** /auth/sign-in - click "Sign in" - wait for the ClipLore developer dashboard to load.
   6. **Current page:** /dashboard/developers/api-keys - confirm the "API keys" heading is visible.
-  7. **(Only if needed) Enter values:**
-     - Name = Production backend
+  7. **Enter values:**
+     - Name = Tollora marketplace
      - Environment = Live
   8. **Current page:** /dashboard/developers/api-keys - click "Create key" - wait for the "New API key" panel.
   9. **Current page:** /dashboard/developers/api-keys - click "Copy key" - wait for the button text to change to "Copied".
@@ -36,7 +36,7 @@ One-liner: A Mezo native marketplace where API owners list paid tools, buyers pa
   12. **Current page:** /developers/openapi - click "Copy OpenAPI URL" - wait for the button text to change to "Copied".
   13. **Verify on-screen:** ClipLore shows the copied API key confirmation and the copied OpenAPI URL confirmation.
 - **Voiceover:**
-  > "First, I go to ClipLore as the API owner. I sign in, open the developer API key page, name the key Production backend, choose Live, and click Create key. ClipLore shows the key only once, so I click Copy key. Then I open the ClipLore OpenAPI reference and click Copy OpenAPI URL. These two values are all I need to turn an existing API subscription into a paid Tollora marketplace listing."
+  > "First, I go to ClipLore as the API owner. I sign in, open the developer API key page, name the key Tollora marketplace, choose Live, and click Create key. ClipLore shows the key only once, so I click Copy key. Then I open the ClipLore OpenAPI reference and click Copy OpenAPI URL. These two values are all I need to turn an existing API subscription into a paid Tollora marketplace listing."
 
 ## 3. Publish The ClipLore API On Tollora
 - **URL:** /provider/products/new
@@ -45,13 +45,13 @@ One-liner: A Mezo native marketplace where API owners list paid tools, buyers pa
   1. **Current page:** https://cliplore.ai/developers/openapi - confirm "OpenAPI URL" is visible.
   2. **Current page:** https://cliplore.ai/developers/openapi - open URL directly: [DEMO_URL]/provider/products/new.
   3. **Current page:** /provider/products/new - confirm "Import OpenAPI" is visible.
-  4. **(Only if needed) Enter values:**
+  4. **Enter values:**
      - OpenAPI URL = https://cliplore.ai/api/v1/openapi.json
      - Override Server URL = https://cliplore.ai
   5. **Current page:** /provider/products/new - click "Import spec" - wait for "Imported operations" to appear.
   6. **Current page:** /provider/products/new - click the "Imported operation" dropdown and select "POST /video/jobs".
   7. **Current page:** /provider/products/new - click "Fill listing" - wait for the listing fields to populate.
-  8. **(Only if needed) Enter values:**
+  8. **Enter values:**
      - Auth type = bearer
      - Header name = Authorization
      - Auth secret or API key = [CLIPLORE_API_KEY=clip_live_your_key]
@@ -88,7 +88,7 @@ One-liner: A Mezo native marketplace where API owners list paid tools, buyers pa
   2. **Current page:** /marketplace/[slug] - click "Run with wallet", then lands on /orders/new?product=[PRODUCT_SLUG].
   3. **Current page:** /orders/new?product=[PRODUCT_SLUG] - confirm "Build a payable API call" is visible.
   4. **Current page:** /orders/new?product=[PRODUCT_SLUG] - click "Use sample payload".
-  5. **(Only if needed) Enter values:**
+  5. **Enter values:**
      - Prompt = Create a short launch video explaining Tollora paid APIs and autonomous agent payments.
      - Format = portrait
      - Duration Seconds = 30
@@ -142,7 +142,7 @@ One-liner: A Mezo native marketplace where API owners list paid tools, buyers pa
   3. **Current page:** /agents - click "Templates".
   4. **Current page:** /agents - click "Use template" on "Video Launch Campaign", then lands on /agents/new?template=video-launch-campaign.
   5. **Current page:** /agents/new - click "AI decides".
-  6. **(Only if needed) Enter values:**
+  6. **Enter values:**
      - Objective = Create a launch campaign for Tollora showing paid API checkout, provider earnings, ClipLore video output, and autonomous agent proof.
      - Source context = Tollora is a Mezo native marketplace for APIs, x402 payments, MUSD settlement, provider revenue, browser checkout, developer integration, and OpenAI powered agent runs.
      - Budget = 0.90
