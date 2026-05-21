@@ -383,9 +383,9 @@ Before creating a new helper or service file:
   `/provider/products/new`, `/provider/products/[productId]`, `/provider/usage`,
   `/profile`, `/billing`, `/settings` (wallet-protected app pages)
 - `/proofs/[proofId]` (public autonomous agent proof page)
-- `/admin`, `/admin/users`, `/admin/products`, `/admin/orders`,
-  `/admin/agents`, `/admin/receipts`, `/admin/subscriptions`,
-  `/admin/operations` (wallet-protected admin pages for allowlisted wallets)
+- `/admin`, `/admin/users`, `/admin/products`, `/admin/orders`, `/admin/agents`,
+  `/admin/receipts`, `/admin/subscriptions`, `/admin/operations`
+  (wallet-protected admin pages for allowlisted wallets)
 
 ## API endpoints
 
@@ -398,10 +398,10 @@ Before creating a new helper or service file:
 - `POST /api/webhooks` — records inbound webhook events to Convex with source,
   event type, sanitized headers, raw payload text, and parsed JSON payload when
   available.
-- `GET /api/settings/profile` and `PUT /api/settings/profile` — read and
-  persist wallet-scoped creator profile settings in the Convex `users` table,
-  enforce unique usernames across saved profiles, and return profile validation
-  errors for onboarding and settings pages.
+- `GET /api/settings/profile` and `PUT /api/settings/profile` — read and persist
+  wallet-scoped creator profile settings in the Convex `users` table, enforce
+  unique usernames across saved profiles, and return profile validation errors
+  for onboarding and settings pages.
 - `GET /api/admin/access` — verifies that the active browser wallet matches the
   wallet session cookie and an allowlisted admin address before the header
   renders the admin shortcut.
@@ -410,8 +410,8 @@ Before creating a new helper or service file:
 - `POST /api/admin/products/bulk-delete` — allows admin wallets to delete
   selected provider-created products through the shared server-fed table; static
   Tollora public data products are not removed by this endpoint.
-- `POST /api/admin/orders/bulk-delete` — allows admin wallets to delete
-  selected marketplace order records from the persisted admin ledger.
+- `POST /api/admin/orders/bulk-delete` — allows admin wallets to delete selected
+  marketplace order records from the persisted admin ledger.
 - `POST /api/providers/self/products` — validates provider API product input,
   schema JSON, upstream endpoint URL, upstream auth, async polling mappings,
   runtime model, price, agent readiness, and visibility; resolves the listing
@@ -419,14 +419,14 @@ Before creating a new helper or service file:
   connected wallet's completed Convex user profile; then records a
   provider-created marketplace listing and returns the accepted product
   response.
-- `PATCH /api/providers/self/products/[slug]/status` — updates an
-  owner-matched provider product lifecycle state between draft, published, and
-  paused for management workflows.
+- `PATCH /api/providers/self/products/[slug]/status` — updates an owner-matched
+  provider product lifecycle state between draft, published, and paused for
+  management workflows.
 - `DELETE /api/providers/self/products/[slug]` — deletes a provider-created API
-  product owned by the connected wallet from the local provider catalog and
+  product owned by the connected wallet from the Convex provider catalog and
   removes it from provider management and marketplace discovery.
 - `POST /api/providers/self/products/bulk-delete` — deletes selected
-  provider-created API products owned by the connected wallet from the local
+  provider-created API products owned by the connected wallet from the Convex
   provider catalog; default admin-owned products are ignored by the product
   store.
 - `POST /api/orders` — validates a buyer API request payload and returns a
@@ -458,13 +458,13 @@ Before creating a new helper or service file:
 - `POST /api/agents/runs/bulk-delete` — deletes selected agent runs from the
   current server-side run store and attempts the same stop/refund behavior as
   single-run deletion for each selected row.
-- `POST /api/agents/runs/[runId]/funding/prepare` — prepares a production
-  agent run vault funding payload with run ID, MUSD token, vault address,
-  budget amount, authorized agent signer, and expiry.
+- `POST /api/agents/runs/[runId]/funding/prepare` — prepares a production agent
+  run vault funding payload with run ID, MUSD token, vault address, budget
+  amount, authorized agent signer, and expiry.
 - `POST /api/agents/runs/[runId]/funding/confirm` — records the wallet funding
   and approval transactions for a production agent run budget.
-- `GET /api/agents/runs/[runId]/ledger` — returns the agent budget ledger
-  events for funding, spend, refunds, and proof context.
+- `GET /api/agents/runs/[runId]/ledger` — returns the agent budget ledger events
+  for funding, spend, refunds, and proof context.
 - `POST /api/agents/runs/[runId]/refund` — records or submits unused budget
   refund state after a production run reaches a terminal state.
 - `POST /api/agents/runs/[runId]/execute` — runs the autonomous workflow,
@@ -497,16 +497,15 @@ Before creating a new helper or service file:
 
 - Next.js 15 App Router under `src/app` with `(marketing)` and `(app)` route
   groups.
-- Convex backend in `convex/` with marketplace tables for users, providers,
-  API products, product versions, orders, receipts, API requests, webhook events,
+- Convex backend in `convex/` with marketplace tables for users, providers, API
+  products, product versions, orders, receipts, API requests, webhook events,
   usage events, payouts, autonomous agent runs, agent actions, agent proofs,
-  saved examples, and reviews; client helper in
-  `src/lib/db/convex/client.ts`.
+  saved examples, and reviews; client helper in `src/lib/db/convex/client.ts`.
 - Hardhat blockchain workspace in `blockchain/` with
   `contracts/SubscriptionManager.sol` plus `contracts/AgentRunAttestor.sol` for
   Mezo proof hashes and `contracts/ApiPaymentEscrow.sol` for prepaid
-  credit-metered API payments plus `contracts/AgentRunVault.sol` for
-  user-funded autonomous agent budgets. The agent attestor deploy script prints
+  credit-metered API payments plus `contracts/AgentRunVault.sol` for user-funded
+  autonomous agent budgets. The agent attestor deploy script prints
   `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS` for the root app environment; the API
   escrow deploy script prints `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS`; the
   agent vault deploy script prints `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS`.
@@ -530,27 +529,25 @@ Before creating a new helper or service file:
   searched, sorted, and paginated without resetting neighboring tables.
   Selection is enabled only for tables that need row-level or bulk operations,
   and the shared selection controller supports current-page master selection
-  plus controlled selection state for custom workflows.
-  Server-side query helpers live in `src/lib/table/server-table.ts` and are
-  used by agent templates/runs, marketplace products, orders, and provider
-  product management.
+  plus controlled selection state for custom workflows. Server-side query
+  helpers live in `src/lib/table/server-table.ts` and are used by agent
+  templates/runs, marketplace products, orders, and provider product management.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, public navigation, theme controls,
-  a server-verified admin shortcut for allowlisted active wallets, and an
-  avatar account menu. The account menu shows wallet-scoped profile identity and
+  a server-verified admin shortcut for allowlisted active wallets, and an avatar
+  account menu. The account menu shows wallet-scoped profile identity and
   dashboard/profile/settings shortcuts only when a wallet is connected, and
   keeps the active RainbowKit wallet control available without occupying
   persistent header space. Connected wallets must complete the profile
   onboarding overlay with a full name, unique username, and email before
-  continuing through the app; the overlay stays open while users type and
-  closes only after the completed profile is saved. The onboarding overlay
-  embeds the active RainbowKit wallet control so users can disconnect a wrong
-  wallet before creating a profile. Profile data powers creator identity
-  displays on marketplace, provider, receipt, and agent surfaces. Creator
-  profile settings persist through `/api/settings/profile` into the Convex
-  `users` table and hydrate client displays through
-  `src/hooks/use-user-settings.ts`; browser localStorage is not used for profile
-  persistence.
+  continuing through the app; the overlay stays open while users type and closes
+  only after the completed profile is saved. The onboarding overlay embeds the
+  active RainbowKit wallet control so users can disconnect a wrong wallet before
+  creating a profile. Profile data powers creator identity displays on
+  marketplace, provider, receipt, and agent surfaces. Creator profile settings
+  persist through `/api/settings/profile` into the Convex `users` table and
+  hydrate client displays through `src/hooks/use-user-settings.ts`; browser
+  localStorage is not used for profile persistence.
 - The app favicon is generated from the Tollora logo and lives only at
   `src/app/favicon.ico`; public image branding lives at
   `public/images/tollora-logo.png`.
@@ -563,34 +560,33 @@ Before creating a new helper or service file:
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
   Subscription plan metadata and tier fee splits live in
   `src/lib/contracts/subscription.ts`: Free providers keep 95%, Base providers
-  keep 97%, and Plus providers keep 99% of successful paid calls.
-  Marketplace orders persist to `.tollora/marketplace-orders.json`, settlement
-  receipts persist to `.tollora/settlement-receipts.json`, managed credit
-  accounts persist to `.tollora/managed-credit-accounts.json`, and provider
-  call counts, success rates, gross volume, platform fees, and earnings are
-  derived from those order and receipt ledgers instead of static product
-  counters.
-  Receipt builders resolve the provider profile plan through
+  keep 97%, and Plus providers keep 99% of successful paid calls. Marketplace
+  orders persist to `.tollora/marketplace-orders.json`, settlement receipts
+  persist to `.tollora/settlement-receipts.json`, managed credit accounts
+  persist to `.tollora/managed-credit-accounts.json`, and provider call counts,
+  success rates, gross volume, platform fees, and earnings are derived from
+  those order and receipt ledgers instead of static product counters. Receipt
+  builders resolve the provider profile plan through
   `src/features/marketplace/provider-fees.ts`, default to Free when no saved
   plan exists, and store the provider plan, platform fee bps, provider share
-  bps, platform fee amount, and provider amount on successful receipts.
-  Tollora Labs public data wrappers for Wikipedia search, Hacker News trend
-  search, GitHub repository search, npm package search, OpenAlex research
-  search, and GDELT news search use no upstream account or API key, stay
-  x402-protected as paid Tollora marketplace products, are owned by the
-  allowlisted admin provider wallet, and are agent-ready for no-key public-data
-  runs.
-  Marketplace and product pages show the creator identity card with avatar,
-  name, username, and wallet address for these products and provider-created
-  listings. These products
-  execute through the dedicated
+  bps, platform fee amount, and provider amount on successful receipts. Tollora
+  Labs public data wrappers for Wikipedia search, Hacker News trend search,
+  GitHub repository search, npm package search, OpenAlex research search, and
+  GDELT news search use no upstream account or API key, stay x402-protected as
+  paid Tollora marketplace products, are owned by the allowlisted admin provider
+  wallet, and are agent-ready for no-key public-data runs. Marketplace and
+  product pages show the creator identity card with avatar, name, username, and
+  wallet address for these products and provider-created listings. These
+  products execute through the dedicated
   `src/features/provider-adapters/public-data/adapter.ts` adapter, which
   normalizes provider-specific request parameters, applies bounded upstream
   timeouts, and uses no-key public fallback sources for providers that rate
   limit, reject narrow queries, or return temporary gateway errors.
-  Provider-created listings are persisted to the workspace-local
-  `.tollora/provider-products.json` catalog so draft, paused, and published
-  products remain manageable across local server restarts. Provider product
+  Provider-created listings persist to Convex `apiProducts` rows linked to a
+  Convex `providers` record for the connected user, with the full marketplace
+  product configuration stored as a product snapshot for marketplace,
+  provider-dashboard, gateway, and x402 runtime reads. Draft, paused, and
+  published products are shared across machines through Convex. Provider product
   records derive creator identity and payout wallet from the connected Convex
   user profile instead of accepting owner wallet, receiving wallet, or provider
   display name in the listing form. Provider dashboards and product management
@@ -602,27 +598,25 @@ Before creating a new helper or service file:
   Agent runs and proof records persist to `.tollora/agent-runs.json` and
   `.tollora/agent-proofs.json` so recent runs, statuses, funding ledgers,
   paid-action diagnostics, receipts, and proofs remain visible across local
-  server restarts.
-  Template definitions live in `src/features/agents/templates.ts` and include
-  reusable objectives, context, budgets, action limits, tool strategy, and
-  deliverables for launch, research, documentation, readiness, and creative
-  workflows, including video-first launch campaigns that combine public data
-  scans with async media-generation tools when budget allows. Agent runs
-  require the owner to fund the
-  `AgentRunVault` with MUSD before the configured agent signer can execute x402
-  paid actions. Before an agent spends, the runner verifies the production
-  agent signer's MUSD balance, submits the required Permit2 approval when the
-  allowance is insufficient, waits until the allowance is readable, and then
-  executes the hosted x402 call from the same origin that triggered the run.
-  Paid action failures preserve the response body, settlement guidance, and
-  provider details in action diagnostics. Agent-paid x402 calls include the
-  agent run ID in gateway order and receipt records so provider dashboards and
-  usage pages count autonomous tool calls in the same revenue ledger as browser
-  and developer API calls. When
-  `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
-  with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
-  payloads, skip unrelated tools, set a budget strategy, and synthesize the
-  final launch pack from completed paid responses and receipts. When no paid
+  server restarts. Template definitions live in
+  `src/features/agents/templates.ts` and include reusable objectives, context,
+  budgets, action limits, tool strategy, and deliverables for launch, research,
+  documentation, readiness, and creative workflows, including video-first launch
+  campaigns that combine public data scans with async media-generation tools
+  when budget allows. Agent runs require the owner to fund the `AgentRunVault`
+  with MUSD before the configured agent signer can execute x402 paid actions.
+  Before an agent spends, the runner verifies the production agent signer's MUSD
+  balance, submits the required Permit2 approval when the allowance is
+  insufficient, waits until the allowance is readable, and then executes the
+  hosted x402 call from the same origin that triggered the run. Paid action
+  failures preserve the response body, settlement guidance, and provider details
+  in action diagnostics. Agent-paid x402 calls include the agent run ID in
+  gateway order and receipt records so provider dashboards and usage pages count
+  autonomous tool calls in the same revenue ledger as browser and developer API
+  calls. When `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI
+  Responses API with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate
+  request payloads, skip unrelated tools, set a budget strategy, and synthesize
+  the final launch pack from completed paid responses and receipts. When no paid
   action completes in production, the run remains failed and presents
   diagnostics instead of treating generated copy as verified output. When the
   key is absent, the deterministic fallback ranks the allowed marketplace tools
@@ -631,24 +625,24 @@ Before creating a new helper or service file:
   ledger, and synthesis metadata in run deliverables, action cards, and proof
   payloads.
 - `/agents` is a tabbed command center that opens on recent runs and also
-  exposes a templates tab. Both tabs use separate server-fed tables with
-  search, sorting, and pagination; recent runs support current-page row
-  selection and bulk deletion, while templates omit selection controls.
-  `/agents/new` configures objective, source context, owner wallet from the
-  connected wallet session, budget cap, max paid actions, and allowed paid
-  tools in a single vertical four-step flow: goal, tools, funded budget, and
-  review. Blank runs start with empty objective/context fields; template links
-  prefill those fields from the selected template; marketplace tool links open
-  manual mode with that tool selected. Tool access defaults to “AI decides from
-  all agent-ready tools,” which resolves the catalog server-side instead of
-  sending every tool slug to the browser. Manual mode uses a server-paginated,
-  searchable, sortable tool table with the shared current-page master checkbox.
-  Manual mode selects one available tool by default when opened and blocks run
-  creation unless at least one tool remains selected;
-  `/agents/[runId]` funds production runs through the agent budget vault,
-  executes the ranked plan, shows planner mode/model, selected and skipped
-  tools, planner rationale, budget ledger, receipt links, Markdown-rendered
-  deliverables, unused refund controls, and writes Mezo proof attestations.
+  exposes a templates tab. Both tabs use separate server-fed tables with search,
+  sorting, and pagination; recent runs support current-page row selection and
+  bulk deletion, while templates omit selection controls. `/agents/new`
+  configures objective, source context, owner wallet from the connected wallet
+  session, budget cap, max paid actions, and allowed paid tools in a single
+  vertical four-step flow: goal, tools, funded budget, and review. Blank runs
+  start with empty objective/context fields; template links prefill those fields
+  from the selected template; marketplace tool links open manual mode with that
+  tool selected. Tool access defaults to “AI decides from all agent-ready
+  tools,” which resolves the catalog server-side instead of sending every tool
+  slug to the browser. Manual mode uses a server-paginated, searchable, sortable
+  tool table with the shared current-page master checkbox. Manual mode selects
+  one available tool by default when opened and blocks run creation unless at
+  least one tool remains selected; `/agents/[runId]` funds production runs
+  through the agent budget vault, executes the ranked plan, shows planner
+  mode/model, selected and skipped tools, planner rationale, budget ledger,
+  receipt links, Markdown-rendered deliverables, unused refund controls, and
+  writes Mezo proof attestations.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, budget funding and refund metadata, total
   MUSD spend, attestation transaction, and Mezo explorer link.
@@ -678,16 +672,15 @@ Before creating a new helper or service file:
   provider, connected buyer wallet, and a schema-driven request builder that
   generates validated fields from the product request schema, respects explicit
   required/optional markers from imported OpenAPI schemas, renders arrays as
-  repeatable item controls, surfaces imported schema descriptions as field
-  help, coerces arrays, objects, numbers, booleans, and URLs before quote
-  requests, and keeps an advanced JSON preview before a payable API request is
-  created. Failed
-  preparation attempts show a compact readable error plus an expandable complete
-  request/response payload so provider quote, validation, and pricing errors are
-  visible and copyable during integration testing without cluttering the page.
-  Successful preparation clears failure debug state, shows a short success
-  status, stores the order in browser session storage, and redirects to the Run
-  & Pay order page.
+  repeatable item controls, surfaces imported schema descriptions as field help,
+  coerces arrays, objects, numbers, booleans, and URLs before quote requests,
+  and keeps an advanced JSON preview before a payable API request is created.
+  Failed preparation attempts show a compact readable error plus an expandable
+  complete request/response payload so provider quote, validation, and pricing
+  errors are visible and copyable during integration testing without cluttering
+  the page. Successful preparation clears failure debug state, shows a short
+  success status, stores the order in browser session storage, and redirects to
+  the Run & Pay order page.
 - `/provider` shows the connected wallet's owned provider revenue, API call
   volume, success rate, top product, recent request activity, product listing
   health, production narrative, and tiered provider revenue split.
@@ -723,26 +716,25 @@ Before creating a new helper or service file:
 - `/orders` uses the shared server-fed table for buyer request search, sorting,
   pagination, status, amount, and order-opening actions. `/orders/[orderId]`
   shows buyer request lifecycle state using shared order status labels and
-  descriptions from
-  `src/features/marketplace/status.ts`; order detail pages sign x402 MUSD
-  payments with the connected browser wallet, check and submit the required Mezo
-  MUSD Permit2 allowance transaction when needed, verify MUSD balance before
-  asking for payment signatures, wait for the approval receipt and readable
-  allowance, retry once when x402 still reports an allowance precondition, retry
-  the product call, display step-by-step wallet progress as a compact icon
-  timeline with explorer links for submitted transactions, surface settlement
-  failure guidance from the x402 facilitator, show payment failures as dedicated
-  alert cards with copyable error text, keep long explanations inside
-  collapsible details, separate direct API responses from async provider jobs,
-  automatically poll provider status when an order has an external job ID or a
-  retryable provider outage, keep escrow reserved for retryable provider
-  failures such as temporary 5xx, Cloudflare, timeout, rate-limit, or
-  provider-marked retryable responses until the 24-hour retry window expires,
-  complete async orders when a provider returns a completed status or cloneable
-  handoff URL, keep manual polling available, keep 402 inspection as a
-  diagnostic action, persist receipt metadata in browser session storage, show
-  quote/reservation/final usage amounts for credit-metered calls, claim metered
-  deltas through x402 before revealing locked results, show escrow
+  descriptions from `src/features/marketplace/status.ts`; order detail pages
+  sign x402 MUSD payments with the connected browser wallet, check and submit
+  the required Mezo MUSD Permit2 allowance transaction when needed, verify MUSD
+  balance before asking for payment signatures, wait for the approval receipt
+  and readable allowance, retry once when x402 still reports an allowance
+  precondition, retry the product call, display step-by-step wallet progress as
+  a compact icon timeline with explorer links for submitted transactions,
+  surface settlement failure guidance from the x402 facilitator, show payment
+  failures as dedicated alert cards with copyable error text, keep long
+  explanations inside collapsible details, separate direct API responses from
+  async provider jobs, automatically poll provider status when an order has an
+  external job ID or a retryable provider outage, keep escrow reserved for
+  retryable provider failures such as temporary 5xx, Cloudflare, timeout,
+  rate-limit, or provider-marked retryable responses until the 24-hour retry
+  window expires, complete async orders when a provider returns a completed
+  status or cloneable handoff URL, keep manual polling available, keep 402
+  inspection as a diagnostic action, persist receipt metadata in browser session
+  storage, show quote/reservation/final usage amounts for credit-metered calls,
+  claim metered deltas through x402 before revealing locked results, show escrow
   reserve/release/refund transaction links when a credit-metered async payment
   uses escrow, and link to the settlement receipt and Mezo explorer transaction.
   Draft products stay hidden from public marketplace usage but can be tested
@@ -842,12 +834,11 @@ Before creating a new helper or service file:
   disconnect events through `/api/auth`, redirects public-page wallet
   connections to `/dashboard`, and keeps server middleware cookies plus client
   profile hydration aligned with the active wallet.
-- Creator identity settings are managed in
-  `src/lib/settings/user-settings.ts`, persisted through Convex, and surfaced
-  through the header account menu, settings, profile, dashboard, and billing
-  components. The editable profile form contains only full name, username, and
-  email; subscription tier changes are initiated from pricing and billing
-  subscription flows.
+- Creator identity settings are managed in `src/lib/settings/user-settings.ts`,
+  persisted through Convex, and surfaced through the header account menu,
+  settings, profile, dashboard, and billing components. The editable profile
+  form contains only full name, username, and email; subscription tier changes
+  are initiated from pricing and billing subscription flows.
 - Server-readable admin user records and table controls live in
   `src/lib/admin/admin-users.ts`. Admin role membership is computed only from
   `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES`; user profile records and admin user

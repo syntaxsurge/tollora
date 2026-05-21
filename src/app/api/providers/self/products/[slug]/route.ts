@@ -14,7 +14,7 @@ export async function DELETE(_request: Request, { params }: ProductRouteProps) {
   const { slug } = await params
   const cookieStore = await cookies()
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
-  const product = deleteProviderProduct(slug, ownerWallet)
+  const product = await deleteProviderProduct(slug, ownerWallet)
 
   if (!product) {
     return NextResponse.json(

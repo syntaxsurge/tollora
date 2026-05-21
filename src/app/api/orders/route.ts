@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const product = getProductBySlug(parsed.data.productSlug)
+  const product = await getProductBySlug(parsed.data.productSlug)
 
   if (!product) {
     return NextResponse.json(

@@ -37,7 +37,7 @@ export async function PATCH(
 
   const cookieStore = await cookies()
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
-  const product = updateProviderProductStatus(
+  const product = await updateProviderProductStatus(
     slug,
     parsed.data.status,
     ownerWallet

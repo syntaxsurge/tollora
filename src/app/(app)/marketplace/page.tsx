@@ -36,8 +36,8 @@ export default async function MarketplacePage({
   searchParams
 }: MarketplacePageProps) {
   const params = await searchParams
-  const products = getPublishedProducts()
-  const metrics = getMarketplaceMetrics()
+  const products = await getPublishedProducts()
+  const metrics = await getMarketplaceMetrics()
   const categories = Array.from(
     new Set(products.map(product => product.category))
   )

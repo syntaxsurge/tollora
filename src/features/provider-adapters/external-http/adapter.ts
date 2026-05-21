@@ -12,7 +12,7 @@ import { omitIndexedCharacterMaps } from '@/lib/utils/json-payload'
 export const externalHttpAdapter: ProviderAdapter = {
   id: 'external-http',
   async call(input) {
-    const product = getProductBySlug(input.productSlug)
+    const product = await getProductBySlug(input.productSlug)
 
     if (!product?.providerEndpointUrl) {
       return {
@@ -40,7 +40,9 @@ export const externalHttpAdapter: ProviderAdapter = {
     })
   },
   async getStatus(externalJobId, productSlug) {
-    const product = productSlug ? getProductBySlug(productSlug) : undefined
+    const product = productSlug
+      ? await getProductBySlug(productSlug)
+      : undefined
 
     if (!product?.polling?.statusEndpointUrl) {
       return {
@@ -73,9 +75,13 @@ function buildProviderRequestPayload({
   product,
   input
 }: {
-  product: NonNullable<ReturnType<typeof getProductBySlug>>
+  product: Awaited<ReturnType<typeof getProductBySlug>>
   input: ProviderAdapterInput
 }) {
+  if (!product) {
+    return input.requestPayload
+  }
+
   const requestPayload = sanitizeProductRequestPayload({
     product,
     payload: input.requestPayload

@@ -36,7 +36,7 @@ export async function POST(
   { params }: CreditProductCallRouteProps
 ) {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
   const apiKey = getBearerToken(request.headers.get('authorization'))
 
   if (!product || product.status !== 'published') {
@@ -79,7 +79,7 @@ export async function POST(
     product,
     requestPayload: payload
   })
-  const debitResult = debitManagedCredits({
+  const debitResult = await debitManagedCredits({
     apiKey,
     productSlug: slug,
     receiptId,
@@ -98,7 +98,7 @@ export async function POST(
     )
   }
 
-  const providerAdapter = getProviderAdapter(slug)
+  const providerAdapter = await getProviderAdapter(slug)
 
   if (!providerAdapter) {
     return NextResponse.json(

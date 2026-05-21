@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const deleted = deleteAdminProviderProducts(slugs)
+  const deleted = await deleteAdminProviderProducts(slugs)
 
   revalidatePath('/admin')
   revalidatePath('/admin/products')

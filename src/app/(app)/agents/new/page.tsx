@@ -40,7 +40,7 @@ export default async function NewAgentRunPage({
   const params = await searchParams
   const template = getAgentTemplate(params?.template)
   const initialTool = params?.tool
-  const agentReadyProducts = getPublishedProducts()
+  const agentReadyProducts = (await getPublishedProducts())
     .filter(product => product.isAgentReady)
     .map(product => ({
       slug: product.slug,

@@ -39,8 +39,8 @@ export default async function AdminOperationsPage({
     defaultPageSize: 10
   })
   const snapshot = await getProjectSnapshot()
-  const readiness = getOperationalReadiness()
-  const products = getPublishedProducts()
+  const readiness = await getOperationalReadiness()
+  const products = await getPublishedProducts()
   const adapters = queryServerRows(products, adapterState, {
     searchText: product =>
       [

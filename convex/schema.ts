@@ -111,6 +111,7 @@ export default defineSchema({
     requestSchemaJson: v.string(),
     responseSchemaJson: v.string(),
     demoPayloadJson: v.optional(v.string()),
+    productJson: v.optional(v.string()),
     isX402Protected: v.boolean(),
     isAgentReady: v.boolean(),
     status: v.union(

@@ -34,7 +34,7 @@ export default async function ProviderProductPage({
   params
 }: ProviderProductPageProps) {
   const { productId } = await params
-  const product = getProductBySlug(productId)
+  const product = await getProductBySlug(productId)
 
   if (!product) {
     notFound()

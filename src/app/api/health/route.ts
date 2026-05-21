@@ -4,8 +4,8 @@ import { getOperationalReadiness } from '@/lib/operations/readiness'
 
 export const dynamic = 'force-dynamic'
 
-export function GET() {
-  const readiness = getOperationalReadiness()
+export async function GET() {
+  const readiness = await getOperationalReadiness()
 
   return NextResponse.json({
     status: readiness.attentionCount === 0 ? 'ready' : 'attention',

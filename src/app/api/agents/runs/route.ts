@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const allowedTools =
     parsed.data.toolSelectionMode === 'manual'
       ? (parsed.data.allowedTools ?? [])
-      : getPublishedProducts()
+      : (await getPublishedProducts())
           .filter(product => product.isAgentReady)
           .map(product => product.slug)
   const run = createAgentRun({

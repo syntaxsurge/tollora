@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-
 import { marketplaceOrders } from '@/features/marketplace/orders'
 import { settlementReceipts } from '@/features/marketplace/receipt-store'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
+import { getConvexClient } from '@/lib/db/convex/client'
+
+import { api } from '../../../convex/_generated/api'
 
 export type ApiProductCategory =
   | 'ai'
@@ -95,15 +95,6 @@ export type ApiProduct = {
   successRate: string
   revenueMusd: string
 }
-
-const globalForMarketplaceProducts = globalThis as typeof globalThis & {
-  __tolloraProviderProducts?: ApiProduct[]
-}
-const providerProductsStorePath = join(
-  process.cwd(),
-  '.tollora',
-  'provider-products.json'
-)
 
 const adminProviderWallet =
   '0x7CE33579392AEAF1791c9B0c8302a502B5867688' as const
@@ -390,42 +381,43 @@ export const marketplaceProducts: ApiProduct[] = [
   }
 ]
 
-export const providerCreatedProducts =
-  globalForMarketplaceProducts.__tolloraProviderProducts ??
-  readProviderProducts()
+export async function getPublishedProducts() {
+  const products = await getAllProducts()
 
-globalForMarketplaceProducts.__tolloraProviderProducts = providerCreatedProducts
-
-export function getPublishedProducts() {
-  return getAllProducts().filter(product => product.status === 'published')
+  return products.filter(product => product.status === 'published')
 }
 
-export function getProviderOwnedProducts(ownerWallet?: string | null) {
+export async function getProviderOwnedProducts(ownerWallet?: string | null) {
   if (!ownerWallet) {
     return []
   }
 
   const normalizedOwner = ownerWallet.toLowerCase()
+  const products = await getAllProducts()
 
-  return getAllProducts().filter(
+  return products.filter(
     product => product.ownerWallet?.toLowerCase() === normalizedOwner
   )
 }
 
-export function getProviderPublishedProducts(ownerWallet?: string | null) {
-  return getProviderOwnedProducts(ownerWallet).filter(
-    product => product.status === 'published'
-  )
+export async function getProviderPublishedProducts(
+  ownerWallet?: string | null
+) {
+  const products = await getProviderOwnedProducts(ownerWallet)
+
+  return products.filter(product => product.status === 'published')
 }
 
-export function getAllProducts() {
-  return [...providerCreatedProducts, ...marketplaceProducts]
+export async function getAllProducts() {
+  const providerProducts = await readProviderProducts()
+
+  return [...providerProducts, ...marketplaceProducts]
     .map(withDisplayPriceLabel)
     .map(withUsageMetrics)
 }
 
-export function getFeaturedProduct() {
-  const publishedProducts = getPublishedProducts()
+export async function getFeaturedProduct() {
+  const publishedProducts = await getPublishedProducts()
   const cliploreProduct = publishedProducts.find(product => {
     const provider = product.providerName.toLowerCase()
     const slug = product.slug.toLowerCase()
@@ -448,88 +440,96 @@ export function getFeaturedProduct() {
   )
 }
 
-export function getProductBySlug(slug: string) {
-  return getAllProducts().find(product => product.slug === slug)
+export async function getProductBySlug(slug: string) {
+  const products = await getAllProducts()
+
+  return products.find(product => product.slug === slug)
 }
 
-export function recordProviderProduct(product: ApiProduct) {
-  const existingIndex = providerCreatedProducts.findIndex(
-    item => item.slug === product.slug
+export async function recordProviderProduct({
+  product,
+  userId
+}: {
+  product: ApiProduct
+  userId: string
+}) {
+  const created = await getConvexClient().mutation(
+    api.apiProducts.createProviderCatalogProduct,
+    {
+      userId: userId as any,
+      providerSlug: product.providerSlug,
+      slug: product.slug,
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      priceUsd: product.priceUsd,
+      priceLabel: product.priceLabel,
+      endpointUrl: product.providerEndpointUrl ?? product.endpointPath,
+      method: product.method,
+      estimatedLatency: product.estimatedLatency,
+      executionMode: product.executionMode,
+      settlementModel: product.settlementModel,
+      resultDelivery: product.resultDelivery,
+      authType: product.providerAuth?.type ?? 'none',
+      authHeaderName: product.providerAuth?.headerName,
+      authQueryParam: product.providerAuth?.queryParam,
+      timeoutSeconds: product.timeoutSeconds,
+      idempotencyHeader: product.idempotencyHeader,
+      requestSchemaJson: JSON.stringify(product.requestSchema),
+      responseSchemaJson: JSON.stringify(product.responseSchema),
+      demoPayloadJson: JSON.stringify(product.referencePayload),
+      productJson: JSON.stringify(product),
+      isX402Protected: product.isX402Protected,
+      isAgentReady: product.isAgentReady,
+      status: product.status
+    }
   )
 
-  if (existingIndex >= 0) {
-    providerCreatedProducts[existingIndex] = product
-    persistProviderProducts(providerCreatedProducts)
-    return product
-  }
-
-  providerCreatedProducts.unshift(product)
-  persistProviderProducts(providerCreatedProducts)
-
-  return product
+  return normalizeConvexProduct(created) ?? product
 }
 
-export function updateProviderProductStatus(
+export async function updateProviderProductStatus(
   slug: string,
   status: ApiProductStatus,
   ownerWallet?: string | null
 ) {
-  const product = providerCreatedProducts.find(item => item.slug === slug)
-
-  if (!product || !isProductOwnedBy(product, ownerWallet)) {
+  if (!ownerWallet) {
     return null
   }
 
-  return recordProviderProduct({
-    ...product,
-    status,
-    featured: status === 'published' ? (product.featured ?? true) : false
-  })
+  const product = await getConvexClient().mutation(
+    api.apiProducts.updateProviderCatalogStatus,
+    { slug, status, ownerWallet }
+  )
+
+  return normalizeConvexProduct(product)
 }
 
-export function deleteProviderProduct(
+export async function deleteProviderProduct(
   slug: string,
   ownerWallet?: string | null
 ) {
-  const existingIndex = providerCreatedProducts.findIndex(
-    product => product.slug === slug
+  if (!ownerWallet) {
+    return null
+  }
+
+  const product = await getConvexClient().mutation(
+    api.apiProducts.deleteProviderCatalogProduct,
+    { slug, ownerWallet }
   )
 
-  if (existingIndex < 0) {
-    return null
-  }
-
-  if (!isProductOwnedBy(providerCreatedProducts[existingIndex], ownerWallet)) {
-    return null
-  }
-
-  const [deletedProduct] = providerCreatedProducts.splice(existingIndex, 1)
-  persistProviderProducts(providerCreatedProducts)
-
-  return deletedProduct
+  return normalizeConvexProduct(product)
 }
 
-export function deleteAdminProviderProducts(slugs: string[]) {
-  const slugSet = new Set(slugs)
-  const initialCount = providerCreatedProducts.length
-
-  for (let index = providerCreatedProducts.length - 1; index >= 0; index -= 1) {
-    if (slugSet.has(providerCreatedProducts[index].slug)) {
-      providerCreatedProducts.splice(index, 1)
-    }
-  }
-
-  const deletedCount = initialCount - providerCreatedProducts.length
-
-  if (deletedCount > 0) {
-    persistProviderProducts(providerCreatedProducts)
-  }
-
-  return deletedCount
+export async function deleteAdminProviderProducts(slugs: string[]) {
+  return await getConvexClient().mutation(
+    api.apiProducts.deleteProviderCatalogProducts,
+    { slugs }
+  )
 }
 
-export function getMarketplaceMetrics() {
-  const products = getPublishedProducts()
+export async function getMarketplaceMetrics() {
+  const products = await getPublishedProducts()
   const totalCalls = products.reduce((sum, product) => sum + product.calls, 0)
   const totalRevenue = products.reduce(
     (sum, product) => sum + Number(product.revenueMusd),
@@ -547,8 +547,8 @@ export function getMarketplaceMetrics() {
   }
 }
 
-export function getProviderDashboardMetrics(ownerWallet?: string | null) {
-  const products = getProviderOwnedProducts(ownerWallet)
+export async function getProviderDashboardMetrics(ownerWallet?: string | null) {
+  const products = await getProviderOwnedProducts(ownerWallet)
   const productSlugs = new Set(products.map(product => product.slug))
   const orders = marketplaceOrders.filter(order =>
     productSlugs.has(order.productSlug)
@@ -587,28 +587,25 @@ export function getProviderDashboardMetrics(ownerWallet?: string | null) {
   }
 }
 
-export function getProviderOrders(ownerWallet?: string | null) {
-  const products = getProviderOwnedProducts(ownerWallet)
+export async function getProviderOrders(ownerWallet?: string | null) {
+  const products = await getProviderOwnedProducts(ownerWallet)
   const productSlugs = new Set(products.map(product => product.slug))
 
   return marketplaceOrders.filter(order => productSlugs.has(order.productSlug))
 }
 
-function readProviderProducts() {
-  if (!existsSync(providerProductsStorePath)) {
-    return []
-  }
-
+async function readProviderProducts() {
   try {
-    const parsed = JSON.parse(
-      readFileSync(providerProductsStorePath, 'utf8')
-    ) as unknown
+    const rows = await getConvexClient().query(
+      api.apiProducts.listProviderCatalog,
+      {}
+    )
 
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter(isApiProduct).map(withDisplayPriceLabel)
+    return Array.isArray(rows)
+      ? rows
+          .map(normalizeConvexProduct)
+          .filter((product): product is ApiProduct => Boolean(product))
+      : []
   } catch {
     return []
   }
@@ -676,39 +673,22 @@ function parseMusd(value: string | undefined) {
   return Number.isFinite(amount) ? amount : 0
 }
 
-function isProductOwnedBy(product: ApiProduct, ownerWallet?: string | null) {
-  if (!ownerWallet) {
-    return false
-  }
-
-  return product.ownerWallet?.toLowerCase() === ownerWallet.toLowerCase()
-}
-
-function persistProviderProducts(products: ApiProduct[]) {
-  try {
-    mkdirSync(dirname(providerProductsStorePath), { recursive: true })
-    writeFileSync(
-      providerProductsStorePath,
-      `${JSON.stringify(products, null, 2)}\n`
-    )
-  } catch {
-    // Runtime persistence is best-effort; the in-memory catalog remains
-    // available for the current process if the filesystem is read-only.
-  }
-}
-
-function isApiProduct(value: unknown): value is ApiProduct {
+function normalizeConvexProduct(value: unknown): ApiProduct | null {
   if (!value || typeof value !== 'object') {
-    return false
+    return null
   }
 
   const product = value as Partial<ApiProduct>
 
-  return (
+  if (
     typeof product.slug === 'string' &&
     typeof product.name === 'string' &&
     typeof product.providerName === 'string' &&
     typeof product.endpointPath === 'string' &&
     ['draft', 'published', 'paused'].includes(String(product.status))
-  )
+  ) {
+    return product as ApiProduct
+  }
+
+  return null
 }

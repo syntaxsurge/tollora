@@ -116,8 +116,8 @@ export default async function MarketingPage({
   searchParams: Promise<MarketingPageSearchParams>
 }) {
   const params = await searchParams
-  const featuredProduct = getFeaturedProduct()
-  const metrics = getMarketplaceMetrics()
+  const featuredProduct = await getFeaturedProduct()
+  const metrics = await getMarketplaceMetrics()
 
   return (
     <div className='bg-app-grid relative overflow-hidden'>

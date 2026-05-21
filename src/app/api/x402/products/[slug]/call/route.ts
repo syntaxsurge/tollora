@@ -65,7 +65,10 @@ type ProductCallRouteProps = {
   }>
 }
 
-type ProductForCall = NonNullable<ReturnType<typeof getProductBySlug>>
+type ProductForCall = NonNullable<Awaited<ReturnType<typeof getProductBySlug>>>
+type ProviderAdapterForCall = NonNullable<
+  Awaited<ReturnType<typeof getProviderAdapter>>
+>
 
 export async function GET(
   request: NextRequest,
@@ -90,7 +93,7 @@ async function handlePaidProductCall(
   slug: string,
   rawPayload: unknown
 ) {
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
   const requestedOrderId = request.headers.get('x-tollora-order-id')
   const agentRunId = request.headers.get('x-tollora-agent-run-id') ?? undefined
   const existingOrder = requestedOrderId
@@ -152,7 +155,7 @@ async function handlePaidProductCall(
     .update(requestId)
     .digest('hex')
     .slice(0, 12)}`
-  const providerAdapter = getProviderAdapter(product.slug)
+  const providerAdapter = await getProviderAdapter(product.slug)
   let resolvedPrice: ResolvedProductPrice
 
   try {
@@ -381,8 +384,8 @@ async function handlePrepaidAsyncProviderCall({
   server: Awaited<ReturnType<typeof getTolloraX402Server>>
   processResult: VerifiedPaymentResult
   context: TolloraRequestContext
-  product: NonNullable<ReturnType<typeof getProductBySlug>>
-  providerAdapter: NonNullable<ReturnType<typeof getProviderAdapter>>
+  product: ProductForCall
+  providerAdapter: ProviderAdapterForCall
   payload: unknown
   orderId: string
   requestId: string
@@ -768,7 +771,7 @@ async function handlePrepaidAsyncProviderCall({
 
 function toNextResponse(
   processResult: Extract<HTTPProcessResult, { type: 'payment-error' }>,
-  product: NonNullable<ReturnType<typeof getProductBySlug>>
+  product: ProductForCall
 ) {
   const { response } = processResult
 
@@ -898,7 +901,7 @@ function buildPaidResponse({
   adapterResult,
   resolvedPrice
 }: {
-  product: NonNullable<ReturnType<typeof getProductBySlug>>
+  product: ProductForCall
   orderId: string
   requestId: string
   adapterResult: ProviderAdapterResult
@@ -932,7 +935,7 @@ function buildReservationResponse({
   requestId,
   resolvedPrice
 }: {
-  product: NonNullable<ReturnType<typeof getProductBySlug>>
+  product: ProductForCall
   orderId: string
   requestId: string
   resolvedPrice: ResolvedProductPrice

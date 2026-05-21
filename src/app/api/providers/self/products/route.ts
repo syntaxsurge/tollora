@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const existing = getProductBySlug(payload.slug)
+  const existing = await getProductBySlug(payload.slug)
 
   if (existing) {
     return NextResponse.json(
@@ -143,13 +143,16 @@ export async function POST(request: Request) {
     successRate: 'No calls yet',
     revenueMusd: '0.00'
   }
-  recordProviderProduct(product)
+  const createdProduct = await recordProviderProduct({
+    product,
+    userId: profile._id
+  })
 
   return NextResponse.json({
-    productId: `product_${payload.slug}`,
-    slug: payload.slug,
-    status: payload.status,
-    priceLabel: product.priceLabel
+    productId: `product_${createdProduct.slug}`,
+    slug: createdProduct.slug,
+    status: createdProduct.status,
+    priceLabel: createdProduct.priceLabel
   })
 }
 
@@ -186,6 +189,7 @@ function slugify(value: string) {
 }
 
 function isCompleteProviderProfile(value: unknown): value is {
+  _id: string
   walletAddress: string
   fullName: string
   username: string
@@ -195,12 +199,14 @@ function isCompleteProviderProfile(value: unknown): value is {
   }
 
   const profile = value as {
+    _id?: unknown
     walletAddress?: unknown
     fullName?: unknown
     username?: unknown
   }
 
   return (
+    typeof profile._id === 'string' &&
     typeof profile.walletAddress === 'string' &&
     /^0x[a-fA-F0-9]{40}$/.test(profile.walletAddress) &&
     typeof profile.fullName === 'string' &&

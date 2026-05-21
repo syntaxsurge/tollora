@@ -169,7 +169,7 @@ function formatMusdAmount(amount: bigint) {
 
 async function main() {
   const { slug, payload, url } = parseArgs()
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const endpointUrl =

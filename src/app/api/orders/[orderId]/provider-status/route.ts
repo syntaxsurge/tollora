@@ -38,7 +38,7 @@ export async function GET(
   const isRetryingProviderCall =
     order.resultReleaseStatus === 'provider_retrying'
 
-  const adapter = getProviderAdapter(order.productSlug)
+  const adapter = await getProviderAdapter(order.productSlug)
 
   if (!order.externalJobId && !isRetryingProviderCall) {
     return NextResponse.json(
@@ -54,7 +54,7 @@ export async function GET(
     )
   }
 
-  const product = getProductBySlug(order.productSlug)
+  const product = await getProductBySlug(order.productSlug)
   const paidAmountUsd = parseMusdLabel(order.paidAmountMusd ?? order.amountMusd)
   const requestPayload = parseJsonOrEmpty(order.requestPayloadJson)
   const providerResult =

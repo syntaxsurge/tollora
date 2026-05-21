@@ -34,7 +34,7 @@ export default async function AdminProductsPage({
   searchParams
 }: AdminProductsPageProps) {
   const params = await searchParams
-  const products = getAllProducts()
+  const products = await getAllProducts()
   const state = resolveServerTableState(params, {
     defaultSort: 'calls',
     defaultPageSize: 10

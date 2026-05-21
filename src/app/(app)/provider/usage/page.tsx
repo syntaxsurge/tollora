@@ -39,9 +39,9 @@ export default async function ProviderUsagePage({
   const params = await searchParams
   const cookieStore = await cookies()
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
-  const products = getProviderPublishedProducts(ownerWallet)
-  const metrics = getProviderDashboardMetrics(ownerWallet)
-  const orders = getProviderOrders(ownerWallet)
+  const products = await getProviderPublishedProducts(ownerWallet)
+  const metrics = await getProviderDashboardMetrics(ownerWallet)
+  const orders = await getProviderOrders(ownerWallet)
   const state = resolveServerTableState(params, {
     defaultSort: 'updated',
     defaultPageSize: 10

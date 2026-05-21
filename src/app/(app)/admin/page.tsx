@@ -42,8 +42,8 @@ export default async function AdminPage() {
     overrides
   )
   const stats = getAdminStats(users)
-  const products = getAllProducts()
-  const marketplaceMetrics = getMarketplaceMetrics()
+  const products = await getAllProducts()
+  const marketplaceMetrics = await getMarketplaceMetrics()
   const agentMetrics = getAgentMetrics()
 
   return (

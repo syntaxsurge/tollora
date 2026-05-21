@@ -13,8 +13,8 @@ export type ReadinessItem = {
   detail: string
 }
 
-export function getOperationalReadiness() {
-  const products = getPublishedProducts()
+export async function getOperationalReadiness() {
+  const products = await getPublishedProducts()
   const facilitatorUrl =
     envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
 

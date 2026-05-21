@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     )
   }
 
-  const product = getProductBySlug(order.productSlug)
+  const product = await getProductBySlug(order.productSlug)
 
   if (!product) {
     return NextResponse.json(

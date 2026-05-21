@@ -27,14 +27,14 @@ import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 export default async function ProviderPage() {
   const cookieStore = await cookies()
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
-  const products = getProviderPublishedProducts(ownerWallet)
+  const products = await getProviderPublishedProducts(ownerWallet)
   const feeSplit = await resolveProviderFeeSplit({
     ownerWallet,
     providerWallet: ownerWallet ?? ''
   })
-  const providerMetrics = getProviderDashboardMetrics(ownerWallet)
+  const providerMetrics = await getProviderDashboardMetrics(ownerWallet)
   const agentMetrics = getAgentMetrics()
-  const orders = getProviderOrders(ownerWallet)
+  const orders = await getProviderOrders(ownerWallet)
   const topProduct = products
     .slice()
     .sort((a, b) => Number(b.revenueMusd) - Number(a.revenueMusd))[0]

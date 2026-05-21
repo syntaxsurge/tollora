@@ -31,9 +31,9 @@ function getOrderIdFromClaimPath(path: string) {
   return match?.[1]
 }
 
-function requireProductFromContext(context: HTTPRequestContext) {
+async function requireProductFromContext(context: HTTPRequestContext) {
   const slug = getProductSlugFromPath(context.path)
-  const product = slug ? getProductBySlug(slug) : undefined
+  const product = slug ? await getProductBySlug(slug) : undefined
 
   if (!product || !canPriceProductFromContext(product, context)) {
     throw new Error('Published API product was not found.')
@@ -43,7 +43,7 @@ function requireProductFromContext(context: HTTPRequestContext) {
 }
 
 function canPriceProductFromContext(
-  product: NonNullable<ReturnType<typeof getProductBySlug>>,
+  product: NonNullable<Awaited<ReturnType<typeof getProductBySlug>>>,
   context: HTTPRequestContext
 ) {
   if (product.status === 'published') {
@@ -76,9 +76,10 @@ const paidCallRoute: RouteConfig = {
   accepts: {
     scheme: 'exact',
     network: x402Network as Network,
-    payTo: context => getApiPaymentPayTo(requireProductFromContext(context)),
+    payTo: async context =>
+      getApiPaymentPayTo(await requireProductFromContext(context)),
     price: async context => {
-      const product = requireProductFromContext(context)
+      const product = await requireProductFromContext(context)
       const resolvedPrice = await resolveProductPrice({
         product,
         requestPayload: getRequestPayload(context)
@@ -91,19 +92,22 @@ const paidCallRoute: RouteConfig = {
   description:
     'MUSD-settled Tollora API call on Mezo Testnet through the x402 protocol.',
   mimeType: 'application/json',
-  unpaidResponseBody: context => {
-    const product = requireProductFromContext(context)
+  unpaidResponseBody: async context => {
+    const product = await requireProductFromContext(context)
     const requestPayload = getRequestPayload(context)
 
-    return Promise.resolve(
-      resolveProductPrice({ product, requestPayload }).catch(error => ({
-        amountUsd: product.priceUsd,
-        amountLabel: product.priceLabel,
-        model: product.pricing.model,
-        source: 'fixed' as const,
-        quoteError: error instanceof Error ? error.message : 'Quote failed.'
-      }))
-    ).then(resolvedPrice => ({
+    const resolvedPrice = await resolveProductPrice({
+      product,
+      requestPayload
+    }).catch(error => ({
+      amountUsd: product.priceUsd,
+      amountLabel: product.priceLabel,
+      model: product.pricing.model,
+      source: 'fixed' as const,
+      quoteError: error instanceof Error ? error.message : 'Quote failed.'
+    }))
+
+    return {
       contentType: 'application/json',
       body: {
         error: 'MUSD payment required.',
@@ -122,7 +126,7 @@ const paidCallRoute: RouteConfig = {
             envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
         }
       }
-    }))
+    }
   },
   settlementFailedResponseBody: (_context, settleResult) => ({
     contentType: 'application/json',
@@ -138,9 +142,9 @@ const claimRoute: RouteConfig = {
   accepts: {
     scheme: 'exact',
     network: x402Network as Network,
-    payTo: context => {
+    payTo: async context => {
       const order = requireClaimOrderFromContext(context)
-      const product = getProductBySlug(order.productSlug)
+      const product = await getProductBySlug(order.productSlug)
 
       if (!product) {
         throw new Error('Claim product was not found.')

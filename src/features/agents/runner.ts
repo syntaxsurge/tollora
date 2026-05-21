@@ -101,7 +101,7 @@ async function executeAgentAction(
   currentSpendUsd: number,
   appUrl?: string
 ) {
-  const product = getProductBySlug(action.productSlug)
+  const product = await getProductBySlug(action.productSlug)
 
   if (!product) {
     return {

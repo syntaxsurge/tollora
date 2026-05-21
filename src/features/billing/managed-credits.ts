@@ -107,7 +107,7 @@ export function recordManagedCreditTopUp({
   return { account, topUp }
 }
 
-export function debitManagedCredits({
+export async function debitManagedCredits({
   apiKey,
   productSlug,
   receiptId,
@@ -119,7 +119,7 @@ export function debitManagedCredits({
   amountMusd?: number
 }) {
   const account = getManagedCreditAccountByApiKey(apiKey)
-  const product = getProductBySlug(productSlug)
+  const product = await getProductBySlug(productSlug)
 
   if (!account || !product) {
     return null

@@ -13,10 +13,10 @@ import {
   getPublishedProducts
 } from '@/features/marketplace/products'
 
-export default function DashboardPage() {
-  const products = getPublishedProducts()
-  const featuredProduct = getFeaturedProduct()
-  const metrics = getMarketplaceMetrics()
+export default async function DashboardPage() {
+  const products = await getPublishedProducts()
+  const featuredProduct = await getFeaturedProduct()
+  const metrics = await getMarketplaceMetrics()
   const agentMetrics = getAgentMetrics()
   const recentAgentRun = listAgentRuns()[0]
 

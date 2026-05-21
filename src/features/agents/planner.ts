@@ -117,12 +117,17 @@ export async function buildAgentPlan(run: AgentRun): Promise<AgentPlanResult> {
     }
   }
 
-  return buildDeterministicAgentPlan(run)
+  return await buildDeterministicAgentPlan(run)
 }
 
-export function buildDeterministicAgentPlan(run: AgentRun): AgentPlanResult {
+export async function buildDeterministicAgentPlan(
+  run: AgentRun
+): Promise<AgentPlanResult> {
   const now = new Date().toISOString()
-  const plannedTools = rankAllowedTools(run).slice(0, run.maxPaidActions)
+  const plannedTools = (await rankAllowedTools(run)).slice(
+    0,
+    run.maxPaidActions
+  )
   const actions = plannedTools.map(({ product, score, rationale }, index) => ({
     id: `act_${run.id.slice(4)}_${index + 1}`,
     runId: run.id,
@@ -134,7 +139,7 @@ export function buildDeterministicAgentPlan(run: AgentRun): AgentPlanResult {
     objective: `Fallback planner chose ${product.name}: ${rationale}`,
     planningRationale: rationale,
     plannerScore: score,
-    requestPayload: buildPayloadForTool(product.slug, run),
+    requestPayload: buildPayloadForProduct(product, product.slug, run),
     startedAt: now
   })) satisfies AgentAction[]
 
@@ -204,12 +209,13 @@ export function buildPlannerSummary(
 async function buildOpenAiAgentPlan(
   run: AgentRun
 ): Promise<AgentPlanResult | null> {
-  const products = run.allowedTools
-    .map(slug => getProductBySlug(slug))
+  const products = run.allowedTools.map(slug => getProductBySlug(slug))
+  const resolvedProducts = await Promise.all(products)
+  const availableProducts = resolvedProducts
     .filter((product): product is ApiProduct => Boolean(product))
     .filter(product => product.status === 'published' && product.isAgentReady)
 
-  if (products.length === 0) {
+  if (availableProducts.length === 0) {
     return null
   }
 
@@ -233,7 +239,9 @@ async function buildOpenAiAgentPlan(
           content: [
             {
               type: 'input_text',
-              text: JSON.stringify(buildOpenAiPlannerContext(run, products))
+              text: JSON.stringify(
+                buildOpenAiPlannerContext(run, availableProducts)
+              )
             }
           ]
         }
@@ -243,7 +251,7 @@ async function buildOpenAiAgentPlan(
           type: 'json_schema',
           name: 'tollora_agent_plan',
           strict: true,
-          schema: buildOpenAiPlanSchema(products, run.maxPaidActions)
+          schema: buildOpenAiPlanSchema(availableProducts, run.maxPaidActions)
         }
       }
     })
@@ -268,7 +276,7 @@ async function buildOpenAiAgentPlan(
 
   const actions = buildActionsFromOpenAiPlan({
     run,
-    products,
+    products: availableProducts,
     plan,
     model
   })
@@ -284,7 +292,11 @@ async function buildOpenAiAgentPlan(
       model,
       responseId: typeof body?.id === 'string' ? body.id : undefined,
       planningPrompt,
-      skippedTools: normalizeSkippedTools(plan.skippedTools, products, actions),
+      skippedTools: normalizeSkippedTools(
+        plan.skippedTools,
+        availableProducts,
+        actions
+      ),
       expectedDeliverables: plan.expectedDeliverables,
       budgetStrategy: plan.budgetStrategy,
       synthesisInstructions: plan.finalSynthesisInstructions
@@ -332,7 +344,7 @@ function buildActionsFromOpenAiPlan({
         plannerScore: Math.max(1, 100 - index),
         requestPayload:
           parsePayloadJson(tool.requestPayloadJson) ??
-          buildPayloadForTool(product.slug, run),
+          buildPayloadForProduct(product, product.slug, run),
         startedAt: now
       })
 
@@ -371,7 +383,7 @@ function buildOpenAiPlannerContext(run: AgentRun, products: ApiProduct[]) {
       executionMode: product.executionMode,
       resultDelivery: product.resultDelivery,
       requestSchema: product.requestSchema,
-      referencePayload: buildPayloadForTool(product.slug, run)
+      referencePayload: buildPayloadForProduct(product, product.slug, run)
     }))
   }
 }
@@ -470,14 +482,10 @@ function buildDeterministicSkippedTools(
   return run.allowedTools
     .filter(slug => !selected.has(slug))
     .map(slug => {
-      const product = getProductBySlug(slug)
-
       return {
         slug,
-        productName: product?.name,
-        reason: product
-          ? 'The fallback planner ranked other allowed tools higher for this objective.'
-          : 'The tool is no longer available in the marketplace registry.'
+        reason:
+          'The fallback planner ranked other allowed tools higher for this objective.'
       }
     })
 }
@@ -553,17 +561,14 @@ function findFirstOutputText(value: unknown): string | null {
   return null
 }
 
-function rankAllowedTools(run: AgentRun): PlannedTool[] {
+async function rankAllowedTools(run: AgentRun): Promise<PlannedTool[]> {
   const objective = normalizeText(`${run.objective} ${run.sourceText ?? ''}`)
+  const products = (
+    await Promise.all(run.allowedTools.map(tool => getProductBySlug(tool)))
+  ).filter((product): product is ApiProduct => Boolean(product))
 
-  return run.allowedTools
-    .map(tool => {
-      const product = getProductBySlug(tool)
-
-      if (!product) {
-        return null
-      }
-
+  return products
+    .map(product => {
       const productText = normalizeText(
         `${product.name} ${product.description} ${product.category} ${product.providerName}`
       )
@@ -584,7 +589,6 @@ function rankAllowedTools(run: AgentRun): PlannedTool[] {
         rationale: buildRationale({ objective, product, score })
       }
     })
-    .filter((tool): tool is PlannedTool => Boolean(tool))
     .filter(tool => tool.score > 0)
     .sort(
       (a, b) => b.score - a.score || a.product.priceUsd - b.product.priceUsd
@@ -661,8 +665,17 @@ function buildRationale({
   return `${reasons.join(', ') || 'it matches the objective'}; planner score ${score}.`
 }
 
-export function buildPayloadForTool(tool: string, run: AgentRun) {
-  const product = getProductBySlug(tool)
+export async function buildPayloadForTool(tool: string, run: AgentRun) {
+  const product = await getProductBySlug(tool)
+
+  return buildPayloadForProduct(product, tool, run)
+}
+
+function buildPayloadForProduct(
+  product: ApiProduct | null | undefined,
+  tool: string,
+  run: AgentRun
+) {
   const source = run.sourceText?.trim() || run.objective
   const query = deriveSearchQuery(`${run.objective} ${source}`)
 

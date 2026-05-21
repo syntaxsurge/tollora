@@ -19,7 +19,7 @@ export default async function NewOrderPage({
   searchParams
 }: NewOrderPageProps) {
   const { product: productSlug } = await searchParams
-  const product = productSlug ? getProductBySlug(productSlug) : null
+  const product = productSlug ? await getProductBySlug(productSlug) : null
 
   if (!product) {
     notFound()
