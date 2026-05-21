@@ -28,6 +28,8 @@ export type EscrowWriteResult = {
   explorerUrl: string | null
 }
 
+export type EscrowPaymentState = 'none' | 'reserved' | 'released' | 'refunded'
+
 export const apiPaymentEscrowAbi = [
   {
     type: 'function',
@@ -56,6 +58,27 @@ export const apiPaymentEscrowAbi = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'paymentId', type: 'bytes32' }],
     outputs: []
+  },
+  {
+    type: 'function',
+    name: 'paymentOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'paymentId', type: 'bytes32' }],
+    outputs: [
+      {
+        type: 'tuple',
+        components: [
+          { name: 'token', type: 'address' },
+          { name: 'payer', type: 'address' },
+          { name: 'provider', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'settlementTxHash', type: 'bytes32' },
+          { name: 'state', type: 'uint8' },
+          { name: 'reservedAt', type: 'uint256' },
+          { name: 'finalizedAt', type: 'uint256' }
+        ]
+      }
+    ]
   }
 ] as const
 
@@ -124,6 +147,43 @@ export async function refundEscrowPayment(paymentId: Hex) {
     functionName: 'refundPayment',
     args: [paymentId]
   })
+}
+
+export async function getEscrowPaymentState(
+  paymentId: Hex
+): Promise<EscrowPaymentState> {
+  const address = getEscrowAddress()
+
+  if (!address) {
+    return 'none'
+  }
+
+  const payment = await publicClient.readContract({
+    address,
+    abi: apiPaymentEscrowAbi,
+    functionName: 'paymentOf',
+    args: [paymentId]
+  })
+  const state =
+    typeof payment === 'object' && payment && 'state' in payment
+      ? Number(payment.state)
+      : Array.isArray(payment)
+        ? Number(payment[5])
+        : 0
+
+  if (state === 1) {
+    return 'reserved'
+  }
+
+  if (state === 2) {
+    return 'released'
+  }
+
+  if (state === 3) {
+    return 'refunded'
+  }
+
+  return 'none'
 }
 
 function getEscrowAddress() {

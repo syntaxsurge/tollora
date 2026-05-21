@@ -71,6 +71,13 @@ if (!profile) {
 }
 
 const authType = candidate.authType as ApiProductAuthType
+
+if (authType !== 'none' && !providerAuthSecret?.trim()) {
+  throw new Error(
+    'ClipLore requires provider auth. Set CLIPLORE_PROVIDER_AUTH_SECRET in .env.local or seed after listing once with an API key.'
+  )
+}
+
 const product: ApiProduct = {
   slug: candidate.slug,
   name: candidate.name,
@@ -180,18 +187,12 @@ console.log(
       endpointUrl: product.providerEndpointUrl,
       quoteEndpointUrl: product.pricing.quoteEndpointUrl,
       status: seeded?.status,
-      preservedProviderAuthSecret: Boolean(providerAuthSecret)
+      hasProviderAuthSecret: Boolean(providerAuthSecret)
     },
     null,
     2
   )
 )
-
-if (!providerAuthSecret && authType !== 'none') {
-  console.warn(
-    'ClipLore requires provider auth. Set CLIPLORE_PROVIDER_AUTH_SECRET or seed after listing once with an API key.'
-  )
-}
 
 function parseProductJson(value: unknown) {
   if (typeof value !== 'string') {

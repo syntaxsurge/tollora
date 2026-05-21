@@ -155,8 +155,7 @@ receipts and on chain proof.
   4. **Current page:** /orders/new?product=[PRODUCT_SLUG] - click "Use sample
      payload".
   5. **Enter values:**
-     - Prompt = Create a short launch video explaining Tollora paid APIs and
-       autonomous agent payments.
+     - Prompt = Create a short launch video explaining Tollora paid APIs and autonomous agent payments.
      - Format = portrait
      - Duration Seconds = 30
      - Workflow Mode = automatic

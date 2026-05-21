@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { recordMarketplaceOrder } from '@/features/marketplace/orders'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { getProviderConfigurationIssue } from '@/features/marketplace/provider-config'
 import { sanitizeProductRequestPayload } from '@/features/marketplace/request-payload'
 import { createOrderSchema } from '@/features/marketplace/schemas'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
@@ -44,6 +45,18 @@ export async function POST(request: Request) {
           'Only the provider owner wallet can create payable test orders for a draft listing.'
       },
       { status: 403 }
+    )
+  }
+
+  const providerConfigurationIssue = getProviderConfigurationIssue(product)
+
+  if (providerConfigurationIssue) {
+    return NextResponse.json(
+      {
+        error: 'Provider configuration is incomplete.',
+        message: providerConfigurationIssue
+      },
+      { status: 409 }
     )
   }
 

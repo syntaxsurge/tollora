@@ -18,6 +18,7 @@ import {
   resolveProductPrice
 } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { getProviderConfigurationIssue } from '@/features/marketplace/provider-config'
 import { resolveProviderFeeSplit } from '@/features/marketplace/provider-fees'
 import { recordMarketplaceReceipt } from '@/features/marketplace/receipt-store'
 import {
@@ -32,6 +33,7 @@ import { x402Network } from '@/lib/config/chains'
 import {
   getApiPaymentPayTo,
   getEscrowPaymentId,
+  getEscrowPaymentState,
   refundEscrowPayment,
   releaseEscrowPayment,
   reserveEscrowPayment,
@@ -110,6 +112,20 @@ async function handlePaidProductCall(
             : 'The product is not published or available for this request.'
       },
       { status: 404 }
+    )
+  }
+
+  const providerConfigurationIssue = getProviderConfigurationIssue(product)
+
+  if (providerConfigurationIssue) {
+    return NextResponse.json(
+      {
+        error: 'Provider configuration is incomplete.',
+        message: providerConfigurationIssue,
+        guidance:
+          'The provider must update this listing before buyers can pay for it.'
+      },
+      { status: 409 }
     )
   }
 
@@ -560,9 +576,7 @@ async function handlePrepaidAsyncProviderCall({
     }
 
     const refund = escrowContext
-      ? await refundEscrowPayment(escrowContext.paymentId).catch(error => ({
-          error: describeUnknownError(error)
-        }))
+      ? await refundReservedEscrowPayment(escrowContext.paymentId)
       : null
     const refundedEscrow = isEscrowWriteResult(refund) ? refund : null
     const refundError = isEscrowWriteError(refund) ? refund.error : ''
@@ -1103,6 +1117,23 @@ function isEscrowWriteError(value: unknown): value is { error: string } {
       'error' in value &&
       typeof value.error === 'string'
   )
+}
+
+async function refundReservedEscrowPayment(paymentId: Hex) {
+  const state = await getEscrowPaymentState(paymentId).catch(() => 'none')
+
+  if (state !== 'reserved') {
+    return {
+      error:
+        state === 'none'
+          ? 'Escrow payment is not reserved on-chain, so no refund transaction was submitted.'
+          : `Escrow payment is already ${state}, so no refund transaction was submitted.`
+    }
+  }
+
+  return await refundEscrowPayment(paymentId).catch(error => ({
+    error: describeUnknownError(error)
+  }))
 }
 
 function buildSettlementGuidance(

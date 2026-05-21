@@ -13,6 +13,7 @@ import {
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import {
+  getEscrowPaymentState,
   refundEscrowPayment,
   releaseEscrowPayment
 } from '@/lib/contracts/api-payment-escrow'
@@ -25,8 +26,23 @@ type OrderProviderStatusRouteProps = {
 }
 
 export async function GET(
+  request: Request,
+  props: OrderProviderStatusRouteProps
+) {
+  return handleProviderStatus(request, props, { forceProviderCall: false })
+}
+
+export async function POST(
+  request: Request,
+  props: OrderProviderStatusRouteProps
+) {
+  return handleProviderStatus(request, props, { forceProviderCall: true })
+}
+
+async function handleProviderStatus(
   _request: Request,
-  { params }: OrderProviderStatusRouteProps
+  { params }: OrderProviderStatusRouteProps,
+  { forceProviderCall }: { forceProviderCall: boolean }
 ) {
   const { orderId } = await params
   const order = await getMarketplaceOrderById(orderId)
@@ -37,12 +53,22 @@ export async function GET(
 
   const isRetryingProviderCall =
     order.resultReleaseStatus === 'provider_retrying'
+  const isManualProviderRetry =
+    forceProviderCall && canRetryPaidProviderCall(order)
 
   const adapter = await getProviderAdapter(order.productSlug)
 
-  if (!order.externalJobId && !isRetryingProviderCall) {
+  if (
+    !order.externalJobId &&
+    !isRetryingProviderCall &&
+    !isManualProviderRetry
+  ) {
     return NextResponse.json(
-      { error: 'This order does not have an async provider job.' },
+      {
+        error: forceProviderCall
+          ? 'This paid order is not eligible for a provider retry.'
+          : 'This order does not have an async provider job.'
+      },
       { status: 400 }
     )
   }
@@ -58,9 +84,9 @@ export async function GET(
   const paidAmountUsd = parseMusdLabel(order.paidAmountMusd ?? order.amountMusd)
   const requestPayload = parseJsonOrEmpty(order.requestPayloadJson)
   const providerResult =
-    order.externalJobId && adapter.getStatus
+    order.externalJobId && adapter.getStatus && !isManualProviderRetry
       ? await adapter.getStatus(order.externalJobId, order.productSlug)
-      : isRetryingProviderCall && order.receiptId
+      : (isRetryingProviderCall || isManualProviderRetry) && order.receiptId
         ? await adapter.call({
             productSlug: order.productSlug,
             orderId: order.id,
@@ -138,9 +164,7 @@ export async function GET(
     ? order.escrowPaymentId
     : null
   const escrowRefund = shouldRefundEscrow
-    ? await refundEscrowPayment(escrowPaymentId!).catch(error => ({
-        error: describeUnknownError(error)
-      }))
+    ? await refundReservedEscrowPayment(escrowPaymentId!)
     : null
   const escrowRelease = shouldReleaseEscrow
     ? await releaseEscrowPayment(escrowPaymentId!).catch(error => ({
@@ -307,6 +331,20 @@ function parseJsonOrEmpty(value: string | undefined) {
   }
 }
 
+function canRetryPaidProviderCall(order: {
+  status: string
+  receiptId?: string
+  requestPayloadJson?: string
+  resultReleaseStatus?: string
+}) {
+  return (
+    order.status === 'failed' &&
+    Boolean(order.receiptId) &&
+    Boolean(order.requestPayloadJson) &&
+    order.resultReleaseStatus !== 'refunded'
+  )
+}
+
 function isHexBytes32(
   value: string | null | undefined
 ): value is `0x${string}` {
@@ -326,4 +364,21 @@ function isEscrowWriteResult(
       'txHash' in value &&
       typeof value.txHash === 'string'
   )
+}
+
+async function refundReservedEscrowPayment(paymentId: `0x${string}`) {
+  const state = await getEscrowPaymentState(paymentId).catch(() => 'none')
+
+  if (state !== 'reserved') {
+    return {
+      error:
+        state === 'none'
+          ? 'Escrow payment is not reserved on-chain, so no refund transaction was submitted.'
+          : `Escrow payment is already ${state}, so no refund transaction was submitted.`
+    }
+  }
+
+  return await refundEscrowPayment(paymentId).catch(error => ({
+    error: describeUnknownError(error)
+  }))
 }

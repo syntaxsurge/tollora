@@ -435,7 +435,9 @@ Before creating a new helper or service file:
 - `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
   long-running job status, compares final credit-metered usage with the prepaid
   quote, locks results that require a metered delta, and returns the latest
-  provider payload.
+  provider payload. `POST /api/orders/[orderId]/provider-status` retries the
+  provider call for paid failed orders that still have a retryable/refundable
+  settled request, without creating a second buyer payment.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
 - `POST /api/credits/accounts` — creates or returns a managed credit account and
   Tollora API key for a wallet.
@@ -655,7 +657,9 @@ Before creating a new helper or service file:
   `billingMode: "external_prepaid"` plus generic external prepaid metadata with
   order, receipt, buyer, requested billing mode, and settlement references so
   provider APIs can report estimated, charged, and refunded usage without
-  importing Tollora settlement logic.
+  importing Tollora settlement logic. Provider listings with server-side auth
+  requirements must have their upstream secret configured before Tollora creates
+  payable orders or x402 payment requirements.
 - `/marketplace` lists published provider-created MUSD-paid API products in the
   shared server-fed table with category filters, price badges, provider names,
   execution/result delivery context, agent-ready badges, and entry points for
@@ -750,12 +754,13 @@ Before creating a new helper or service file:
   deterministic credit field before x402 settlement, convert credits to MUSD
   with a configured rate and multiplier, settle the quoted amount before
   expensive provider work starts, route asynchronous metered payments to
-  ApiPaymentEscrow when configured, refund escrowed payments when provider work
-  fails before a usable result, release escrowed payments only after successful
-  completion or result claim, compare final usage against the quote, lock
-  results that need a delta payment, include failed quote response status and
-  response body in pricing errors, and record quote, paid, actual, escrow, and
-  release metadata on orders and receipts.
+  ApiPaymentEscrow when configured, check on-chain escrow state before refund or
+  release attempts, refund escrowed payments when provider work fails before a
+  usable result, release escrowed payments only after successful completion or
+  result claim, compare final usage against the quote, lock results that need a
+  delta payment, include failed quote response status and response body in
+  pricing errors, and record quote, paid, actual, escrow, and release metadata
+  on orders and receipts.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

@@ -266,6 +266,7 @@ function OrderStatusContent({
   const [isInspecting, setIsInspecting] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isPolling, setIsPolling] = useState(false)
+  const [isRetryingProvider, setIsRetryingProvider] = useState(false)
   const [isClaiming, setIsClaiming] = useState(false)
   const pollInFlightRef = useRef(false)
 
@@ -713,6 +714,62 @@ function OrderStatusContent({
     }
   }
 
+  async function retryProviderCall() {
+    if (!order || !canRetryProviderCall(order)) {
+      return
+    }
+
+    setIsRetryingProvider(true)
+    setPaymentError('')
+    setStatus('Retrying the provider with the existing paid order.')
+
+    try {
+      const response = await fetch(`/api/orders/${order.id}/provider-status`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json'
+        }
+      })
+      const body = (await readResponseBody(response)) as {
+        error?: string
+        order?: MarketplaceOrder
+        provider?: { errorMessage?: string }
+      }
+
+      if (!response.ok || !body.order) {
+        throw new Error(
+          body.error ??
+            body.provider?.errorMessage ??
+            'Unable to retry the provider request.'
+        )
+      }
+
+      storeMarketplaceOrderSnapshot(body.order)
+      setOrder(body.order)
+      setStatus(
+        body.order.status === 'failed'
+          ? 'Provider retry completed, but the provider still returned an error.'
+          : 'Provider retry completed and the order was updated.'
+      )
+      setPaymentError(
+        body.order.status === 'failed'
+          ? (body.provider?.errorMessage ??
+              'Provider retry failed. Review the provider response below.')
+          : ''
+      )
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to retry the provider request.'
+
+      setPaymentError(message)
+      setStatus('')
+    } finally {
+      setIsRetryingProvider(false)
+    }
+  }
+
   async function claimMeteredResult() {
     if (!order || order.status !== 'delta_payment_required') {
       return
@@ -847,16 +904,58 @@ function OrderStatusContent({
                   : 'Payment and provider call'}
               </h2>
             </div>
-            <div className='flex flex-wrap gap-2'>
-              <Badge className='w-fit'>x402</Badge>
-              <Badge className='w-fit'>MUSD</Badge>
-              <Badge className='w-fit'>Mezo</Badge>
+            <div className='flex flex-col gap-3 sm:items-end'>
+              <div className='flex flex-wrap gap-2 sm:justify-end'>
+                <Badge className='w-fit'>x402</Badge>
+                <Badge className='w-fit'>MUSD</Badge>
+                <Badge className='w-fit'>Mezo</Badge>
+              </div>
+              <div className='flex flex-wrap gap-2 sm:justify-end'>
+                <Button
+                  onClick={runWithWallet}
+                  disabled={order.status !== 'payment_required' || isPaying}
+                >
+                  {isPaying ? (
+                    <>
+                      <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                      Running
+                    </>
+                  ) : order.status === 'payment_required' ? (
+                    <>
+                      <WalletCards className='h-4 w-4' aria-hidden />
+                      Run
+                    </>
+                  ) : (
+                    <>
+                      <BadgeCheck className='h-4 w-4' aria-hidden />
+                      Paid
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant='outline'
+                  onClick={inspectPaymentRequirement}
+                  disabled={order.status !== 'payment_required' || isInspecting}
+                >
+                  {isInspecting ? (
+                    <>
+                      <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                      Checking
+                    </>
+                  ) : (
+                    <>
+                      <FileJson className='h-4 w-4' aria-hidden />
+                      Quote
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
 
           <PaymentStepList steps={walletSteps} />
 
-          <div className='border-foreground/10 bg-background/40 grid gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
+          <div className='border-foreground/10 bg-background/40 rounded-lg border p-4'>
             <div className='min-w-0 space-y-2'>
               <p className='text-foreground/60 text-xs uppercase'>
                 Connected signer
@@ -866,46 +965,6 @@ function OrderStatusContent({
                   `Connect a ${walletLabel} to pay from the site`}
               </p>
               <StatusMessage status={status} explorerUrl={order.explorerUrl} />
-            </div>
-            <div className='flex shrink-0 flex-col gap-2 sm:flex-row lg:justify-end'>
-              <Button
-                onClick={runWithWallet}
-                disabled={order.status !== 'payment_required' || isPaying}
-              >
-                {isPaying ? (
-                  <>
-                    <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
-                    Running
-                  </>
-                ) : order.status === 'payment_required' ? (
-                  <>
-                    <WalletCards className='h-4 w-4' aria-hidden />
-                    Run
-                  </>
-                ) : (
-                  <>
-                    <BadgeCheck className='h-4 w-4' aria-hidden />
-                    Paid
-                  </>
-                )}
-              </Button>
-              <Button
-                variant='outline'
-                onClick={inspectPaymentRequirement}
-                disabled={order.status !== 'payment_required' || isInspecting}
-              >
-                {isInspecting ? (
-                  <>
-                    <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
-                    Checking
-                  </>
-                ) : (
-                  <>
-                    <FileJson className='h-4 w-4' aria-hidden />
-                    Quote
-                  </>
-                )}
-              </Button>
             </div>
           </div>
         </Card>
@@ -922,6 +981,8 @@ function OrderStatusContent({
         order={order}
         isPolling={isPolling}
         onPoll={pollProviderStatus}
+        isRetryingProvider={isRetryingProvider}
+        onRetryProvider={retryProviderCall}
         isClaiming={isClaiming}
         onClaim={claimMeteredResult}
       />
@@ -1139,12 +1200,16 @@ function ProviderResponsePanel({
   order,
   isPolling,
   onPoll,
+  isRetryingProvider,
+  onRetryProvider,
   isClaiming,
   onClaim
 }: {
   order: MarketplaceOrder
   isPolling: boolean
   onPoll: () => Promise<void>
+  isRetryingProvider: boolean
+  onRetryProvider: () => Promise<void>
   isClaiming: boolean
   onClaim: () => Promise<void>
 }) {
@@ -1162,6 +1227,7 @@ function ProviderResponsePanel({
   const needsDeltaPayment =
     order.status === 'delta_payment_required' ||
     order.resultReleaseStatus === 'delta_payment_required'
+  const canRetryProvider = canRetryProviderCall(order)
 
   return (
     <Card className='space-y-5 p-5 sm:p-6'>
@@ -1296,14 +1362,39 @@ function ProviderResponsePanel({
 
       {order.status === 'failed' ? (
         <div className='border-destructive/35 bg-destructive/10 rounded-lg border p-4'>
-          <p className='font-semibold'>Provider failed after payment</p>
-          <p className='text-foreground/70 mt-1 text-sm leading-6'>
-            {order.resultReleaseStatus === 'refunded'
-              ? 'The payment was refunded from escrow. The refund transaction is linked above.'
-              : order.resultReleaseStatus === 'refundable'
-                ? 'The payment settled directly or the escrow refund did not complete. Treat this order as refundable and inspect the provider response below.'
-                : 'Inspect the provider response below to see what failed.'}
-          </p>
+          <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+            <div>
+              <p className='font-semibold'>Provider failed after payment</p>
+              <p className='text-foreground/70 mt-1 text-sm leading-6'>
+                {order.resultReleaseStatus === 'refunded'
+                  ? 'The payment was refunded from escrow. The refund transaction is linked above.'
+                  : order.resultReleaseStatus === 'refundable'
+                    ? 'The payment settled, but provider work did not finish. Retry the provider after fixing the listing, or inspect the response below.'
+                    : 'Inspect the provider response below to see what failed.'}
+              </p>
+            </div>
+            {canRetryProvider ? (
+              <Button
+                type='button'
+                variant='outline'
+                onClick={onRetryProvider}
+                disabled={isRetryingProvider}
+                className='shrink-0'
+              >
+                {isRetryingProvider ? (
+                  <>
+                    <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                    Retrying
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className='h-4 w-4' aria-hidden />
+                    Retry provider
+                  </>
+                )}
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -1738,6 +1829,15 @@ function dedupeText(parts: string[]) {
 
 function isPaidApiErrorBody(value: unknown): value is PaidApiErrorBody {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function canRetryProviderCall(order: MarketplaceOrder) {
+  return (
+    order.status === 'failed' &&
+    Boolean(order.receiptId) &&
+    Boolean(order.requestPayloadJson) &&
+    order.resultReleaseStatus !== 'refunded'
+  )
 }
 
 function isPermit2AllowanceError(
