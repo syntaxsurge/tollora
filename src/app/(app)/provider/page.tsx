@@ -7,6 +7,7 @@ import {
   BarChart3,
   CircleDollarSign,
   PackageSearch,
+  Plus,
   Receipt,
   TrendingUp
 } from 'lucide-react'
@@ -65,6 +66,13 @@ export default async function ProviderPage() {
               >
                 <BarChart3 className='h-4 w-4' aria-hidden />
                 Usage
+              </Link>
+              <Link
+                href='/provider/products/new'
+                className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              >
+                <Plus className='h-4 w-4' aria-hidden />
+                Create product
               </Link>
             </div>
           </div>
