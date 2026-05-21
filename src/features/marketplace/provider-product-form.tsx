@@ -169,6 +169,7 @@ export function ProviderProductForm() {
     setFormValue(form, 'authType', candidate.authType)
     setFormValue(form, 'authHeaderName', candidate.authHeaderName)
     setFormValue(form, 'authQueryParam', candidate.authQueryParam)
+    setFormValue(form, 'idempotencyHeader', candidate.idempotencyHeader)
     setExecutionMode(candidate.executionMode)
     setFormValue(form, 'executionMode', candidate.executionMode)
     setFormValue(form, 'settlementModel', candidate.settlementModel)

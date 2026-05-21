@@ -38,7 +38,8 @@ import {
   releaseEscrowPayment,
   reserveEscrowPayment,
   shouldUseApiPaymentEscrow,
-  toAtomicMusdAmount
+  toAtomicMusdAmount,
+  waitForEscrowSettlementTransaction
 } from '@/lib/contracts/api-payment-escrow'
 import { envServer } from '@/lib/env/env.server'
 import { NextRequestAdapter } from '@/lib/x402/next-request-adapter'
@@ -1050,6 +1051,7 @@ async function reservePrepaidEscrow({
     'amount' in requirement
       ? BigInt(requirement.amount ?? '0')
       : toAtomicMusdAmount(resolvedPrice.amountUsd)
+  await waitForEscrowSettlementTransaction(settlement.transaction)
   const reserve = await reserveEscrowPayment({
     paymentId,
     token: requirement.asset,
@@ -1062,6 +1064,14 @@ async function reservePrepaidEscrow({
   if (!reserve) {
     throw new Error(
       'Escrow is configured for this API, but the operator signer is not available.'
+    )
+  }
+
+  const state = await getEscrowPaymentState(paymentId)
+
+  if (state !== 'reserved') {
+    throw new Error(
+      'Escrow reserve transaction completed, but the payment is not reserved on-chain.'
     )
   }
 

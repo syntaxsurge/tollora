@@ -28,6 +28,7 @@ export type OpenApiImportCandidate = {
   authRequired: boolean
   authHeaderName: string
   authQueryParam: string
+  idempotencyHeader: string
   executionMode: ApiProductExecutionMode
   settlementModel: ApiProductSettlementModel
   resultDelivery: ApiProductResultDelivery
@@ -246,6 +247,7 @@ function buildCandidate({
         : 'Authorization',
     authQueryParam:
       auth.type === 'api_key_query' ? auth.security?.name || '' : '',
+    idempotencyHeader: inferIdempotencyHeader(operation),
     executionMode: acceptedAsync ? 'asynchronous' : 'synchronous',
     settlementModel: acceptedAsync
       ? 'pay_on_job_acceptance'
@@ -489,6 +491,22 @@ function inferAuth(document: OpenApiDocument, operation: OpenApiOperation) {
   }
 
   return { type: 'none' as const, required: false, security }
+}
+
+function inferIdempotencyHeader(operation: OpenApiOperation) {
+  const headerParameter = operation.parameters?.find(parameter => {
+    if (parameter.in !== 'header' || !parameter.name) {
+      return false
+    }
+
+    const normalized = parameter.name.toLowerCase()
+
+    return (
+      normalized === 'idempotency-key' || normalized.includes('idempotency')
+    )
+  })
+
+  return headerParameter?.name ?? ''
 }
 
 function inferCategory(

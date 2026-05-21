@@ -25,7 +25,7 @@ export const externalHttpAdapter: ProviderAdapter = {
       endpointUrl: product.providerEndpointUrl,
       method: product.method,
       auth: product.providerAuth,
-      idempotencyHeader: product.idempotencyHeader,
+      idempotencyHeader: resolveIdempotencyHeader(product),
       requestPayload: buildProviderRequestPayload({
         product,
         input
@@ -69,6 +69,20 @@ export const externalHttpAdapter: ProviderAdapter = {
       errorMessagePath: product.polling.errorMessagePath
     })
   }
+}
+
+function resolveIdempotencyHeader(
+  product: Awaited<ReturnType<typeof getProductBySlug>>
+) {
+  if (product?.idempotencyHeader) {
+    return product.idempotencyHeader
+  }
+
+  if (product?.method === 'POST' && product.executionMode === 'asynchronous') {
+    return 'Idempotency-Key'
+  }
+
+  return undefined
 }
 
 function buildProviderRequestPayload({

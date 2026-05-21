@@ -129,6 +129,7 @@ const product: ApiProduct = {
     errorMessagePath: candidate.errorMessagePath
   },
   timeoutSeconds: 300,
+  idempotencyHeader: candidate.idempotencyHeader || 'Idempotency-Key',
   estimatedLatency: candidate.estimatedLatency,
   executionMode: candidate.executionMode,
   settlementModel: candidate.settlementModel,

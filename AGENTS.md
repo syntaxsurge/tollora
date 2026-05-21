@@ -649,7 +649,8 @@ Before creating a new helper or service file:
   the generic external HTTP adapter for provider-created listings. The external
   HTTP adapter forwards paid requests to the configured upstream endpoint,
   applies bearer, API-key, query-key, or basic auth server-side, sends
-  idempotency headers, removes empty optional request fields from listing
+  configured idempotency headers and a default `Idempotency-Key` for
+  asynchronous POST jobs, removes empty optional request fields from listing
   schema-generated payloads before quoting or forwarding, extracts external job
   IDs, result URLs, public project handoff URLs, and clone URLs through
   configured and conventional JSON paths, and polls provider status endpoints
@@ -694,19 +695,19 @@ Before creating a new helper or service file:
   `src/features/marketplace/schemas.ts` to validate provider product metadata,
   schemas, upstream endpoint URL, upstream authentication requirements, async
   polling requirements, runtime model, fixed or credit-metered MUSD pricing,
-  wallet fields, agent readiness, OpenAPI-imported operation defaults, and
-  visibility before posting to the product API route. Provider form labels link
-  to field-specific anchors on `/developers/docs` instead of hover-only help,
-  including OpenAPI import, pricing, authentication, runtime, polling, schema,
-  webhook, and agent-readiness documentation. The provider form uses the shared
-  product input schema for client-side field errors before submission, and the
-  API route uses the same schema as the server guard. The OpenAPI importer
-  detects operation-level or document-level security schemes, credit fields such
-  as `estimatedCredits`, and 202 Accepted job operations, links async
-  job-creation operations to matching status endpoints from the imported spec,
-  marks required provider auth and polling fields accurately, and preserves
-  OpenAPI request-body required/optional field metadata and descriptions for
-  provider test runs.
+  connected-wallet owner profile, agent readiness, OpenAPI-imported operation
+  defaults, and visibility before posting to the product API route. Provider
+  form labels link to field-specific anchors on `/developers/docs` instead of
+  hover-only help, including OpenAPI import, pricing, authentication, runtime,
+  polling, schema, webhook, and agent-readiness documentation. The provider form
+  uses the shared product input schema for client-side field errors before
+  submission, and the API route uses the same schema as the server guard. The
+  OpenAPI importer detects operation-level or document-level security schemes,
+  credit fields such as `estimatedCredits`, idempotency header parameters, and
+  202 Accepted job operations, links async job-creation operations to matching
+  status endpoints from the imported spec, marks required provider auth and
+  polling fields accurately, and preserves OpenAPI request-body
+  required/optional field metadata and descriptions for provider test runs.
 - `/provider/products/[productId]` is the provider API management workspace. It
   shows lifecycle controls for publishing, pausing, and returning products to
   draft, a launch checklist, payable schema-driven test runs, gateway endpoint
@@ -754,13 +755,14 @@ Before creating a new helper or service file:
   deterministic credit field before x402 settlement, convert credits to MUSD
   with a configured rate and multiplier, settle the quoted amount before
   expensive provider work starts, route asynchronous metered payments to
-  ApiPaymentEscrow when configured, check on-chain escrow state before refund or
-  release attempts, refund escrowed payments when provider work fails before a
-  usable result, release escrowed payments only after successful completion or
-  result claim, compare final usage against the quote, lock results that need a
-  delta payment, include failed quote response status and response body in
-  pricing errors, and record quote, paid, actual, escrow, and release metadata
-  on orders and receipts.
+  ApiPaymentEscrow when configured, wait for settlement and reserve transaction
+  receipts before provider work starts, check on-chain escrow state before
+  refund or release attempts, refund escrowed payments when provider work fails
+  before a usable result, release escrowed payments only after successful
+  completion or result claim, compare final usage against the quote, lock
+  results that need a delta payment, include failed quote response status and
+  response body in pricing errors, and record quote, paid, actual, escrow, and
+  release metadata on orders and receipts.
 - `/receipts/[receiptId]` displays product, provider, buyer wallet, provider
   wallet, MUSD amount, fee split, network, transaction hash, and explorer link
   for settled API calls.

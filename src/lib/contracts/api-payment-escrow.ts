@@ -186,6 +186,18 @@ export async function getEscrowPaymentState(
   return 'none'
 }
 
+export async function waitForEscrowSettlementTransaction(txHash: Hex) {
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: txHash
+  })
+
+  if (receipt.status !== 'success') {
+    throw new Error('Escrow funding settlement transaction reverted.')
+  }
+
+  return receipt
+}
+
 function getEscrowAddress() {
   const address = envServer.NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS
 
@@ -231,9 +243,13 @@ async function writeEscrow({
   })
   const txHash = await walletClient.writeContract(request)
 
-  await publicClient.waitForTransactionReceipt({
+  const receipt = await publicClient.waitForTransactionReceipt({
     hash: txHash
   })
+
+  if (receipt.status !== 'success') {
+    throw new Error(`${functionName} transaction reverted.`)
+  }
 
   return {
     txHash,
