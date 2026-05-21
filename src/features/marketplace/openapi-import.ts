@@ -456,15 +456,11 @@ function resolveBaseUrl({
   if (/^https?:\/\//i.test(serverUrl)) {
     const normalizedServerUrl = serverUrl.replace(/\/$/, '')
 
-    if (!baseUrl) {
-      return recoverVersionedApiBaseUrl({
-        document,
-        serverUrl: normalizedServerUrl,
-        sourceUrl
-      })
-    }
-
-    return normalizedServerUrl
+    return recoverVersionedApiBaseUrl({
+      document,
+      serverUrl: normalizedServerUrl,
+      sourceUrl
+    })
   }
 
   if (sourceUrl && /^https?:\/\//i.test(sourceUrl)) {
