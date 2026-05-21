@@ -413,10 +413,12 @@ Before creating a new helper or service file:
 - `POST /api/admin/orders/bulk-delete` — allows admin wallets to delete
   selected marketplace order records from the persisted admin ledger.
 - `POST /api/providers/self/products` — validates provider API product input,
-  schema JSON, wallet fields, upstream endpoint URL, upstream auth, async
-  polling mappings, runtime model, price, agent readiness, and visibility, then
-  records a provider-created marketplace listing and returns the accepted
-  product response.
+  schema JSON, upstream endpoint URL, upstream auth, async polling mappings,
+  runtime model, price, agent readiness, and visibility; resolves the listing
+  owner wallet, payout wallet, provider name, and provider slug from the
+  connected wallet's completed Convex user profile; then records a
+  provider-created marketplace listing and returns the accepted product
+  response.
 - `PATCH /api/providers/self/products/[slug]/status` — updates an
   owner-matched provider product lifecycle state between draft, published, and
   paused for management workflows.
@@ -588,10 +590,12 @@ Before creating a new helper or service file:
   limit, reject narrow queries, or return temporary gateway errors.
   Provider-created listings are persisted to the workspace-local
   `.tollora/provider-products.json` catalog so draft, paused, and published
-  products remain manageable across local server restarts. Provider dashboards
-  and provider product management filter by product `ownerWallet`, while payout
-  settlement continues to use `providerWallet`; this keeps listing management
-  separate from the wallet that receives provider earnings.
+  products remain manageable across local server restarts. Provider product
+  records derive creator identity and payout wallet from the connected Convex
+  user profile instead of accepting owner wallet, receiving wallet, or provider
+  display name in the listing form. Provider dashboards and product management
+  filter by the profile wallet stored on each product, and payout settlement
+  uses the same profile wallet.
 - Autonomous agent templates, OpenAI planning and synthesis, deterministic
   fallback planning, run storage, funded budget ledgers, paid action execution,
   proof hashing, status labels, and UI clients live in `src/features/agents`.

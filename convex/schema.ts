@@ -37,13 +37,11 @@ export default defineSchema({
     .index('by_event_type', ['eventType'])
     .index('by_received_at', ['receivedAt']),
   providers: defineTable({
-    ownerWallet: v.string(),
-    displayName: v.string(),
+    userId: v.id('users'),
     slug: v.string(),
     description: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
-    receivingWallet: v.string(),
     status: v.union(
       v.literal('active'),
       v.literal('pending'),
@@ -52,7 +50,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number()
   })
-    .index('by_owner_wallet', ['ownerWallet'])
+    .index('by_user_id', ['userId'])
     .index('by_slug', ['slug'])
     .index('by_status', ['status']),
   apiProducts: defineTable({

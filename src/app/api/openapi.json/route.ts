@@ -264,6 +264,8 @@ export function GET() {
           responses: {
             '200': { description: 'Provider product accepted' },
             '400': { description: 'Invalid product payload' },
+            '401': { description: 'Wallet session required' },
+            '403': { description: 'Completed profile required' },
             '409': { description: 'Product slug already exists' }
           }
         }
@@ -607,7 +609,6 @@ export function GET() {
             'priceUsd',
             'endpointUrl',
             'method',
-            'receivingWallet',
             'requestSchemaJson',
             'responseSchemaJson'
           ],
@@ -628,7 +629,6 @@ export function GET() {
             externalJobIdPath: { type: 'string' },
             statusPath: { type: 'string' },
             resultUrlPath: { type: 'string' },
-            receivingWallet: { type: 'string' },
             requestSchemaJson: { type: 'string' },
             responseSchemaJson: { type: 'string' },
             referencePayloadJson: { type: 'string' },

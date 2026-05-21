@@ -161,6 +161,8 @@ The status endpoint should be cheap to call. Buyers should not pay again just to
     title: 'Product details',
     body: `
 Product details control how the listing appears in the marketplace and which upstream API Tollora calls after payment. These fields should describe the exact API operation buyers will run.
+
+The listing owner, payout wallet, and provider identity come from the connected Tollora profile. Complete your profile before publishing products so marketplace, receipt, and provider pages can show the correct creator identity.
 `
   },
   {
@@ -232,40 +234,6 @@ Validation: required valid URL.
 Choose the upstream method Tollora should use.
 
 Use \`POST\` for actions that create work, transform input, or start jobs. Use \`GET\` for read-only lookups where request values can safely be sent as query parameters.
-`
-  },
-  {
-    id: 'field-ownerWallet',
-    group: 'Product details',
-    title: 'Owner wallet',
-    body: `
-The wallet that manages this provider listing in Tollora.
-
-This should be a real provider/admin wallet, not a random test address.
-
-Validation: must be a valid \`0x\` address with 40 hex characters.
-`
-  },
-  {
-    id: 'field-receivingWallet',
-    group: 'Product details',
-    title: 'Receiving wallet',
-    body: `
-The wallet that receives provider payouts for successful paid calls.
-
-Use a wallet your team controls. Do not use the buyer wallet unless the buyer and provider are intentionally the same entity.
-
-Validation: must be a valid \`0x\` address with 40 hex characters.
-`
-  },
-  {
-    id: 'field-providerDisplayName',
-    group: 'Product details',
-    title: 'Provider display name',
-    body: `
-The provider name shown on marketplace, order, receipt, and usage pages.
-
-Use the real business, product, or team name buyers should trust.
 `
   },
   {

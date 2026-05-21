@@ -11,6 +11,9 @@ import {
   providerProductInputSchema
 } from '@/features/marketplace/schemas'
 import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
+import { getConvexClient } from '@/lib/db/convex/client'
+
+import { api } from '../../../../../../convex/_generated/api'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -30,12 +33,20 @@ export async function POST(request: Request) {
   const cookieStore = await cookies()
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
 
-  if (
-    !ownerWallet ||
-    payload.ownerWallet.toLowerCase() !== ownerWallet.toLowerCase()
-  ) {
+  if (!ownerWallet) {
     return NextResponse.json(
-      { error: 'Connected wallet must own the provider listing.' },
+      { error: 'Connect a wallet before creating a provider listing.' },
+      { status: 401 }
+    )
+  }
+
+  const profile = await getConvexClient().query(api.users.getByWallet, {
+    walletAddress: ownerWallet
+  })
+
+  if (!isCompleteProviderProfile(profile)) {
+    return NextResponse.json(
+      { error: 'Complete your Tollora profile before creating API products.' },
       { status: 403 }
     )
   }
@@ -71,10 +82,10 @@ export async function POST(request: Request) {
   const product: ApiProduct = {
     slug: payload.slug,
     name: payload.name,
-    ownerWallet: payload.ownerWallet as `0x${string}`,
-    providerName: payload.providerDisplayName,
-    providerSlug: slugify(payload.providerDisplayName),
-    providerWallet: payload.receivingWallet as `0x${string}`,
+    ownerWallet: profile.walletAddress as `0x${string}`,
+    providerName: profile.fullName,
+    providerSlug: profile.username || slugify(profile.fullName),
+    providerWallet: profile.walletAddress as `0x${string}`,
     category: payload.category,
     description: payload.description,
     priceUsd: payload.priceUsd,
@@ -171,5 +182,30 @@ function slugify(value: string) {
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'provider'
+  )
+}
+
+function isCompleteProviderProfile(value: unknown): value is {
+  walletAddress: string
+  fullName: string
+  username: string
+} {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const profile = value as {
+    walletAddress?: unknown
+    fullName?: unknown
+    username?: unknown
+  }
+
+  return (
+    typeof profile.walletAddress === 'string' &&
+    /^0x[a-fA-F0-9]{40}$/.test(profile.walletAddress) &&
+    typeof profile.fullName === 'string' &&
+    profile.fullName.trim().length >= 2 &&
+    typeof profile.username === 'string' &&
+    profile.username.trim().length >= 3
   )
 }

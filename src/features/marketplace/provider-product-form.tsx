@@ -258,27 +258,6 @@ export function ProviderProductForm() {
             <option value='POST'>POST</option>
             <option value='GET'>GET</option>
           </SelectField>
-          <Field
-            label='Owner wallet'
-            name='ownerWallet'
-            defaultValue=''
-            error={fieldErrors.ownerWallet}
-            help='Wallet that manages this provider listing in Tollora.'
-          />
-          <Field
-            label='Receiving wallet'
-            name='receivingWallet'
-            defaultValue=''
-            error={fieldErrors.receivingWallet}
-            help='Wallet that receives MUSD payments for this API product.'
-          />
-          <Field
-            label='Provider display name'
-            name='providerDisplayName'
-            defaultValue=''
-            error={fieldErrors.providerDisplayName}
-            help='Provider name shown on marketplace, order, and receipt pages.'
-          />
           <SelectField
             label='Visibility'
             name='status'

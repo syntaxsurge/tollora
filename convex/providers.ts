@@ -2,14 +2,12 @@ import { v } from 'convex/values'
 
 import { mutation, query } from './_generated/server'
 
-export const getByOwnerWallet = query({
-  args: { ownerWallet: v.string() },
-  handler: async (ctx: any, args: { ownerWallet: string }) => {
+export const getByUserId = query({
+  args: { userId: v.id('users') },
+  handler: async (ctx: any, args: { userId: string }) => {
     return await ctx.db
       .query('providers')
-      .withIndex('by_owner_wallet', (q: any) =>
-        q.eq('ownerWallet', args.ownerWallet)
-      )
+      .withIndex('by_user_id', (q: any) => q.eq('userId', args.userId))
       .first()
   }
 })
@@ -26,26 +24,31 @@ export const getBySlug = query({
 
 export const createProvider = mutation({
   args: {
-    ownerWallet: v.string(),
-    displayName: v.string(),
+    userId: v.id('users'),
     slug: v.string(),
     description: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
-    logoUrl: v.optional(v.string()),
-    receivingWallet: v.string()
+    logoUrl: v.optional(v.string())
   },
   handler: async (
     ctx: any,
     args: {
-      ownerWallet: string
-      displayName: string
+      userId: string
       slug: string
       description?: string
       websiteUrl?: string
       logoUrl?: string
-      receivingWallet: string
     }
   ) => {
+    const existingUserProvider = await ctx.db
+      .query('providers')
+      .withIndex('by_user_id', (q: any) => q.eq('userId', args.userId))
+      .first()
+
+    if (existingUserProvider) {
+      throw new Error('User already has a provider profile.')
+    }
+
     const existing = await ctx.db
       .query('providers')
       .withIndex('by_slug', (q: any) => q.eq('slug', args.slug))
@@ -69,11 +72,9 @@ export const createProvider = mutation({
 export const updateSettings = mutation({
   args: {
     providerId: v.id('providers'),
-    displayName: v.optional(v.string()),
     description: v.optional(v.string()),
     websiteUrl: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
-    receivingWallet: v.optional(v.string()),
     status: v.optional(
       v.union(v.literal('active'), v.literal('pending'), v.literal('suspended'))
     )
@@ -82,11 +83,9 @@ export const updateSettings = mutation({
     ctx: any,
     args: {
       providerId: string
-      displayName?: string
       description?: string
       websiteUrl?: string
       logoUrl?: string
-      receivingWallet?: string
       status?: 'active' | 'pending' | 'suspended'
     }
   ) => {
