@@ -415,30 +415,34 @@ function RequestSchemaField({
   return (
     <label className={cn('space-y-2', isLongText && 'lg:col-span-2')}>
       <span className='text-foreground/60 flex flex-wrap items-center gap-2 text-xs tracking-[0.16em] uppercase'>
-        {label}
-        {required ? <span className='text-red-500'>*</span> : null}
+        <span className='inline-flex min-w-0 items-center gap-1.5'>
+          <span>{label}</span>
+          {required ? <span className='text-red-500'>*</span> : null}
+          {fieldHelp ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type='button'
+                  className='text-foreground/60 hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+                  aria-label={`${label} help`}
+                >
+                  <Info className='h-3.5 w-3.5' aria-hidden />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className='font-semibold tracking-normal normal-case'>
+                  {label}
+                </p>
+                <p className='text-card-foreground/80 mt-1 tracking-normal normal-case'>
+                  {fieldHelp}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+        </span>
         <span className='bg-muted text-foreground/70 rounded-md px-2 py-1 font-mono text-[0.65rem] tracking-normal normal-case'>
           {baseTypeLabel}
         </span>
-        {fieldHelp ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type='button'
-                className='text-foreground/60 hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background inline-flex h-6 w-6 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
-                aria-label={`${label} help`}
-              >
-                <Info className='h-3.5 w-3.5' aria-hidden />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className='font-medium tracking-normal normal-case'>{label}</p>
-              <p className='text-foreground/70 mt-1 tracking-normal normal-case'>
-                {fieldHelp}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
       </span>
       {isBoolean ? (
         <select
@@ -812,18 +816,12 @@ function getLiteralOptions(typeLabel: string) {
         isQuotedLiteral
       }
     })
-    .filter(option => {
-      if (!option.value || /undefined|optional|null/i.test(option.value)) {
-        return false
-      }
-
-      return (
-        option.isQuotedLiteral ||
-        !/^(string|number|integer|float|boolean|object|array|json)$/i.test(
-          option.value
-        )
-      )
-    })
+    .filter(
+      option =>
+        option.isQuotedLiteral &&
+        Boolean(option.value) &&
+        !/undefined|optional|null/i.test(option.value)
+    )
     .map(option => option.value)
 }
 
