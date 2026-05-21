@@ -652,21 +652,35 @@ function describeSchemaField(schema: unknown, required: boolean): string {
     type?: string
     enum?: unknown[]
     format?: string
-    items?: { type?: string }
+    description?: string
+    externalDocs?: { url?: string }
+    items?: { type?: string; enum?: unknown[] }
     nullable?: boolean
   }
 
   const requirement = required ? 'required' : 'optional'
+  const help = [field.description, field.externalDocs?.url]
+    .filter((value): value is string => Boolean(value))
+    .join(' ')
+  const withHelp = (label: string) => (help ? `${label} — ${help}` : label)
 
   if (field.enum?.length) {
-    return `${field.enum.map(item => JSON.stringify(item)).join(' | ')} (${requirement})`
+    return withHelp(
+      `${field.enum.map(item => JSON.stringify(item)).join(' | ')} (${requirement})`
+    )
   }
 
   if (field.type === 'array') {
-    return `${field.items?.type ?? 'unknown'}[] (${requirement})`
+    const itemLabel = field.items?.enum?.length
+      ? field.items.enum.map(item => JSON.stringify(item)).join(' | ')
+      : (field.items?.type ?? 'unknown')
+
+    return withHelp(`array<${itemLabel}> (${requirement})`)
   }
 
-  return `${[field.type ?? 'object', field.format].filter(Boolean).join(':')} (${requirement})`
+  return withHelp(
+    `${[field.type ?? 'object', field.format].filter(Boolean).join(':')} (${requirement})`
+  )
 }
 
 function exampleValueForSchema(schema: unknown): unknown {

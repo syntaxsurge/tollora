@@ -677,9 +677,11 @@ Before creating a new helper or service file:
 - `/orders/new` shows selected product price, gateway endpoint, method,
   provider, connected buyer wallet, and a schema-driven request builder that
   generates validated fields from the product request schema, respects explicit
-  required/optional markers from imported OpenAPI schemas, coerces arrays,
-  objects, numbers, booleans, and URLs before quote requests, and keeps an
-  advanced JSON preview before a payable API request is created. Failed
+  required/optional markers from imported OpenAPI schemas, renders arrays as
+  repeatable item controls, surfaces imported schema descriptions as field
+  help, coerces arrays, objects, numbers, booleans, and URLs before quote
+  requests, and keeps an advanced JSON preview before a payable API request is
+  created. Failed
   preparation attempts show a compact readable error plus an expandable complete
   request/response payload so provider quote, validation, and pricing errors are
   visible and copyable during integration testing without cluttering the page.
@@ -709,7 +711,8 @@ Before creating a new helper or service file:
   as `estimatedCredits`, and 202 Accepted job operations, links async
   job-creation operations to matching status endpoints from the imported spec,
   marks required provider auth and polling fields accurately, and preserves
-  OpenAPI request-body required/optional field metadata for provider test runs.
+  OpenAPI request-body required/optional field metadata and descriptions for
+  provider test runs.
 - `/provider/products/[productId]` is the provider API management workspace. It
   shows lifecycle controls for publishing, pausing, and returning products to
   draft, a launch checklist, payable schema-driven test runs, gateway endpoint

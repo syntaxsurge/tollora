@@ -2,7 +2,14 @@
 
 import { FormEvent, useMemo, useState } from 'react'
 
-import { AlertTriangle, Play, RotateCcw } from 'lucide-react'
+import {
+  AlertTriangle,
+  Info,
+  Play,
+  Plus,
+  RotateCcw,
+  Trash2
+} from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
 import { JsonViewer } from '@/components/data-display/json-viewer'
@@ -15,7 +22,7 @@ import type { ApiProduct } from '@/features/marketplace/products'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { cn } from '@/lib/utils/cn'
 
-type RequestFieldValue = string | boolean
+type RequestFieldValue = string | boolean | string[]
 type ApiResponseDebug = {
   request?: {
     method: string
@@ -374,8 +381,11 @@ function RequestSchemaField({
   const label = humanizeFieldName(name)
   const required = isRequiredField(typeLabel)
   const options = getLiteralOptions(typeLabel)
+  const itemOptions = getArrayItemOptions(typeLabel)
+  const fieldHelp = getFieldHelp(typeLabel)
+  const baseTypeLabel = stripFieldHelp(typeLabel)
   const lowerName = name.toLowerCase()
-  const lowerType = typeLabel.toLowerCase()
+  const lowerType = baseTypeLabel.toLowerCase()
   const isBoolean = lowerType.includes('boolean')
   const isNumber =
     lowerType.includes('number') ||
@@ -400,8 +410,17 @@ function RequestSchemaField({
         {label}
         {required ? <span className='text-red-500'>*</span> : null}
         <span className='bg-muted text-foreground/70 rounded-md px-2 py-1 font-mono text-[0.65rem] tracking-normal normal-case'>
-          {typeLabel}
+          {baseTypeLabel}
         </span>
+        {fieldHelp ? (
+          <span
+            className='text-foreground/60 inline-flex items-center'
+            title={fieldHelp}
+            aria-label={`${label} help: ${fieldHelp}`}
+          >
+            <Info className='h-3.5 w-3.5' aria-hidden />
+          </span>
+        ) : null}
       </span>
       {isBoolean ? (
         <select
@@ -413,6 +432,13 @@ function RequestSchemaField({
           <option value='true'>true</option>
           <option value='false'>false</option>
         </select>
+      ) : isArray ? (
+        <ArrayFieldInput
+          value={Array.isArray(value) ? value : parseArrayInputValue(value)}
+          onChange={onChange}
+          options={itemOptions}
+          required={required}
+        />
       ) : options.length > 0 ? (
         <select
           value={String(value)}
@@ -452,11 +478,27 @@ function getInitialFieldValues(
   referencePayload: Record<string, unknown>
 ) {
   return Object.fromEntries(
-    Object.keys(schema).map(fieldName => [
-      fieldName,
-      stringifyReferenceValue(referencePayload[fieldName])
-    ])
+    Object.entries(schema).map(([fieldName, fieldType]) => {
+      const referenceValue = referencePayload[fieldName]
+
+      return [
+        fieldName,
+        isArrayType(stripFieldHelp(fieldType).toLowerCase())
+          ? stringifyReferenceArrayValue(referenceValue)
+          : stringifyReferenceValue(referenceValue)
+      ]
+    })
   ) as Record<string, RequestFieldValue>
+}
+
+function stringifyReferenceArrayValue(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.map(item =>
+    typeof item === 'string' ? item : JSON.stringify(item)
+  )
 }
 
 function stringifyReferenceValue(value: unknown): RequestFieldValue {
@@ -494,13 +536,18 @@ function coerceFieldValue(
   typeLabel: string,
   value: RequestFieldValue | undefined
 ) {
-  const lowerType = typeLabel.toLowerCase()
+  const baseTypeLabel = stripFieldHelp(typeLabel)
+  const lowerType = baseTypeLabel.toLowerCase()
   const lowerName = fieldName.toLowerCase()
   const required = isRequiredField(typeLabel)
   const isArray = isArrayType(lowerType)
-  const literalOptions = getLiteralOptions(typeLabel)
+  const literalOptions = getLiteralOptions(baseTypeLabel)
 
-  if (value === undefined || value === '') {
+  if (
+    value === undefined ||
+    value === '' ||
+    (Array.isArray(value) && value.length === 0)
+  ) {
     if (required) {
       throw new Error(`${humanizeFieldName(fieldName)} is required.`)
     }
@@ -512,8 +559,14 @@ function coerceFieldValue(
     return value
   }
 
+  if (isArray) {
+    return parseArrayValue(value, fieldName)
+  }
+
+  const stringValue = Array.isArray(value) ? value.join(',') : value
+
   if (literalOptions.length > 0) {
-    const literalValue = String(value)
+    const literalValue = String(stringValue)
 
     if (!literalOptions.includes(literalValue)) {
       throw new Error(
@@ -524,18 +577,12 @@ function coerceFieldValue(
     return literalValue
   }
 
-  if (isArray) {
-    const parsed = parseArrayValue(value, fieldName)
-
-    return parsed
-  }
-
   if (
     lowerType.includes('number') ||
     lowerType.includes('integer') ||
     lowerType.includes('float')
   ) {
-    const numberValue = Number(value)
+    const numberValue = Number(stringValue)
 
     if (!Number.isFinite(numberValue)) {
       throw new Error(`${humanizeFieldName(fieldName)} must be a number.`)
@@ -546,7 +593,7 @@ function coerceFieldValue(
 
   if (lowerName.includes('url') || lowerType.includes('url')) {
     try {
-      return new URL(value).toString()
+      return new URL(stringValue).toString()
     } catch {
       throw new Error(`${humanizeFieldName(fieldName)} must be a valid URL.`)
     }
@@ -558,13 +605,13 @@ function coerceFieldValue(
     lowerType.includes('json')
   ) {
     try {
-      return JSON.parse(value) as unknown
+      return JSON.parse(stringValue) as unknown
     } catch {
       throw new Error(`${humanizeFieldName(fieldName)} must be valid JSON.`)
     }
   }
 
-  return value
+  return stringValue
 }
 
 function parseRawPayload(value: string) {
@@ -679,7 +726,15 @@ function extractProviderMessage(value: string) {
   return null
 }
 
-function parseArrayValue(value: string, fieldName: string) {
+function parseArrayValue(value: RequestFieldValue, fieldName: string) {
+  if (Array.isArray(value)) {
+    return value.map(item => item.trim()).filter(Boolean)
+  }
+
+  if (typeof value === 'boolean') {
+    throw new Error(`${humanizeFieldName(fieldName)} must be a valid array.`)
+  }
+
   const trimmed = value.trim()
 
   if (!trimmed) {
@@ -721,7 +776,13 @@ function isRequiredField(typeLabel: string) {
 }
 
 function getLiteralOptions(typeLabel: string) {
-  return stripRequirementLabel(typeLabel)
+  const baseTypeLabel = stripFieldHelp(typeLabel)
+
+  if (isArrayType(baseTypeLabel.toLowerCase())) {
+    return []
+  }
+
+  return stripRequirementLabel(baseTypeLabel)
     .split('|')
     .map(option => {
       const rawOption = option.trim()
@@ -749,11 +810,146 @@ function getLiteralOptions(typeLabel: string) {
 }
 
 function isArrayType(lowerTypeLabel: string) {
-  return lowerTypeLabel.includes('[]') || lowerTypeLabel.includes('array')
+  return (
+    lowerTypeLabel.includes('[]') ||
+    lowerTypeLabel.includes('array') ||
+    lowerTypeLabel.startsWith('array<')
+  )
 }
 
 function stripRequirementLabel(typeLabel: string) {
   return typeLabel.replace(/\s*\((required|optional)\)\s*$/i, '')
+}
+
+function stripFieldHelp(typeLabel: string) {
+  return typeLabel.split(/\s+—\s+/)[0]?.trim() ?? typeLabel
+}
+
+function getFieldHelp(typeLabel: string) {
+  return typeLabel
+    .split(/\s+—\s+/)
+    .slice(1)
+    .join(' — ')
+    .trim()
+}
+
+function getArrayItemOptions(typeLabel: string) {
+  const match = stripRequirementLabel(stripFieldHelp(typeLabel)).match(
+    /^array<(.+)>$/i
+  )
+
+  if (!match) {
+    return []
+  }
+
+  return match[1]
+    .split('|')
+    .map(option => option.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(
+      option => option && !/^(string|number|integer|object)$/i.test(option)
+    )
+}
+
+function parseArrayInputValue(value: RequestFieldValue): string[] {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (typeof value === 'boolean' || !value.trim()) {
+    return []
+  }
+
+  if (value.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value) as unknown
+      return Array.isArray(parsed) ? parsed.map(item => String(item)) : []
+    } catch {
+      return []
+    }
+  }
+
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function ArrayFieldInput({
+  value,
+  onChange,
+  options,
+  required
+}: {
+  value: string[]
+  onChange: (value: RequestFieldValue) => void
+  options: string[]
+  required: boolean
+}) {
+  const rows = value.length > 0 ? value : ['']
+
+  function updateItem(index: number, nextValue: string) {
+    const nextRows = [...rows]
+    nextRows[index] = nextValue
+    onChange(nextRows.map(item => item.trim()).filter(Boolean))
+  }
+
+  function removeItem(index: number) {
+    onChange(rows.filter((_, rowIndex) => rowIndex !== index).filter(Boolean))
+  }
+
+  return (
+    <div className='space-y-2'>
+      {rows.map((item, index) => (
+        <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: Rows are simple editable values without stable IDs.
+          key={index}
+          className='flex gap-2'
+        >
+          {options.length > 0 ? (
+            <select
+              value={item}
+              onChange={event => updateItem(index, event.target.value)}
+              required={required && index === 0}
+              className='border-border bg-card text-foreground focus-visible:ring-ring focus-visible:ring-offset-background h-11 min-w-0 flex-1 rounded-lg border px-4 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+            >
+              <option value=''>Select value</option>
+              {options.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Input
+              value={item}
+              onChange={event => updateItem(index, event.target.value)}
+              required={required && index === 0}
+              placeholder='Array item'
+            />
+          )}
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            className='h-11 w-11 shrink-0 px-0'
+            onClick={() => removeItem(index)}
+            disabled={rows.length === 1 && !item}
+            aria-label='Remove array item'
+          >
+            <Trash2 className='h-4 w-4' aria-hidden />
+          </Button>
+        </div>
+      ))}
+      <Button
+        type='button'
+        variant='outline'
+        onClick={() => onChange([...rows, ''])}
+      >
+        <Plus className='h-4 w-4' aria-hidden />
+        Add value
+      </Button>
+    </div>
+  )
 }
 
 function humanizeFieldName(value: string) {
