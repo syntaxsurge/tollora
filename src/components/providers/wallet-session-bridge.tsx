@@ -10,6 +10,12 @@ import {
 } from 'thirdweb/react'
 import { useAccount } from 'wagmi'
 
+import {
+  WALLET_ADDRESS_COOKIE,
+  WALLET_SESSION_COOKIE,
+  WALLET_SESSION_COOKIE_VALUE,
+  WALLET_SESSION_MAX_AGE_SECONDS
+} from '@/lib/auth/wallet-session'
 import { walletProvider } from '@/lib/config/wallet'
 import {
   clearUserSettings,
@@ -23,6 +29,8 @@ type AuthSessionResponse = {
 
 async function syncWalletSession(isConnected: boolean, address?: string) {
   if (isConnected && address) {
+    writeWalletSessionCookies(address)
+
     const response = await fetch('/api/auth', {
       method: 'POST',
       headers: {
@@ -43,6 +51,7 @@ async function syncWalletSession(isConnected: boolean, address?: string) {
     return
   }
 
+  clearWalletSessionCookies()
   await fetch('/api/auth', {
     method: 'DELETE'
   }).catch(() => undefined)
@@ -66,6 +75,7 @@ function useWalletSessionCookie(
 
       void syncWalletSession(true, address).then(() => {
         const walletAddress = address?.toLowerCase()
+        router.refresh()
 
         if (
           walletAddress &&
@@ -107,6 +117,22 @@ function shouldRedirectAfterWalletConnect(pathname: string) {
     '/settings',
     '/admin'
   ].some(path => pathname === path || pathname.startsWith(`${path}/`))
+}
+
+function writeWalletSessionCookies(address: string) {
+  const normalizedAddress = address.trim().toLowerCase()
+  const maxAge = `Max-Age=${WALLET_SESSION_MAX_AGE_SECONDS}`
+  const cookieOptions = `${maxAge}; Path=/; SameSite=Lax`
+
+  document.cookie = `${WALLET_SESSION_COOKIE}=${WALLET_SESSION_COOKIE_VALUE}; ${cookieOptions}`
+  document.cookie = `${WALLET_ADDRESS_COOKIE}=${normalizedAddress}; ${cookieOptions}`
+}
+
+function clearWalletSessionCookies() {
+  const expiredCookieOptions = 'Max-Age=0; Path=/; SameSite=Lax'
+
+  document.cookie = `${WALLET_SESSION_COOKIE}=; ${expiredCookieOptions}`
+  document.cookie = `${WALLET_ADDRESS_COOKIE}=; ${expiredCookieOptions}`
 }
 
 function RainbowKitWalletSessionBridge() {
