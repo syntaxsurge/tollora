@@ -153,6 +153,7 @@ export default defineSchema({
     ),
     amountUsd: v.number(),
     amountMusd: v.optional(v.string()),
+    providerIdempotencyKey: v.optional(v.string()),
     requestPayloadJson: v.string(),
     responsePayloadJson: v.optional(v.string()),
     externalJobId: v.optional(v.string()),

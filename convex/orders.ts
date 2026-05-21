@@ -83,6 +83,10 @@ export const upsertSnapshot = mutation({
       status: toPersistedStatus(order.status),
       amountUsd: parseMusd(order.amountMusd),
       amountMusd: order.amountMusd,
+      providerIdempotencyKey:
+        typeof order.providerIdempotencyKey === 'string'
+          ? order.providerIdempotencyKey
+          : undefined,
       requestPayloadJson:
         typeof order.requestPayloadJson === 'string'
           ? order.requestPayloadJson

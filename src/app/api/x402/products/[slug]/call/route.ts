@@ -172,6 +172,9 @@ async function handlePaidProductCall(
     .update(requestId)
     .digest('hex')
     .slice(0, 12)}`
+  const providerIdempotencyKey =
+    existingOrder?.providerIdempotencyKey ??
+    createProviderIdempotencyKey({ orderId, requestId })
   const providerAdapter = await getProviderAdapter(product.slug)
   let resolvedPrice: ResolvedProductPrice
 
@@ -236,6 +239,7 @@ async function handlePaidProductCall(
     requestPayload: payload,
     orderId,
     requestId,
+    providerIdempotencyKey,
     receiptId,
     buyerWallet: extractBuyerWallet(processResult.paymentPayload)
   })
@@ -331,6 +335,7 @@ async function handlePaidProductCall(
     ...buildOrderPricingFields(resolvedPrice, resolvedPrice),
     resultReleaseStatus: 'released' as const,
     requestId,
+    providerIdempotencyKey,
     requestPayloadJson:
       existingOrder?.requestPayloadJson ?? JSON.stringify(payload, null, 2),
     receiptId,
@@ -414,6 +419,9 @@ async function handlePrepaidAsyncProviderCall({
   existingOrder: Awaited<ReturnType<typeof getMarketplaceOrderById>> | undefined
   agentRunId?: string
 }) {
+  const providerIdempotencyKey =
+    existingOrder?.providerIdempotencyKey ??
+    createProviderIdempotencyKey({ orderId, requestId })
   const reservationResponse = buildReservationResponse({
     product,
     orderId,
@@ -486,6 +494,7 @@ async function handlePrepaidAsyncProviderCall({
     escrowReserveTxHash: escrowContext?.reserveTxHash,
     escrowReserveExplorerUrl: escrowContext?.reserveExplorerUrl,
     requestId,
+    providerIdempotencyKey,
     requestPayloadJson:
       existingOrder?.requestPayloadJson ?? JSON.stringify(payload, null, 2),
     receiptId,
@@ -506,6 +515,7 @@ async function handlePrepaidAsyncProviderCall({
     requestPayload: payload,
     orderId,
     requestId,
+    providerIdempotencyKey,
     receiptId,
     buyerWallet: baseOrder.buyerWallet
   })
@@ -1001,6 +1011,16 @@ function buildOrderPricingFields(
         : undefined,
     pricingSource: quotedPrice.source
   }
+}
+
+function createProviderIdempotencyKey({
+  orderId,
+  requestId
+}: {
+  orderId: string
+  requestId: string
+}) {
+  return `tollora_${orderId}_${requestId}`
 }
 
 async function reservePrepaidEscrow({

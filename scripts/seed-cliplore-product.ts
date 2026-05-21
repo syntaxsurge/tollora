@@ -39,8 +39,10 @@ const providerAuthSecret =
   existingProduct?.providerAuth?.secret
 
 const specResponse = await fetch(openApiUrl, {
+  cache: 'no-store',
   headers: {
-    Accept: 'application/json, application/yaml, text/yaml, text/plain'
+    Accept: 'application/json, application/yaml, text/yaml, text/plain',
+    'Cache-Control': 'no-cache'
   }
 })
 

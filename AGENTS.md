@@ -430,7 +430,8 @@ Before creating a new helper or service file:
   provider catalog; default admin-owned products are ignored by the product
   store.
 - `POST /api/orders` — validates a buyer API request payload and returns a
-  payment-required order record for the selected marketplace product.
+  payment-required order record with a stable provider idempotency key for the
+  selected marketplace product.
 - `GET /api/orders/[orderId]` — returns an order lifecycle record.
 - `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
   long-running job status, compares final credit-metered usage with the prepaid
@@ -447,7 +448,8 @@ Before creating a new helper or service file:
 - `POST /api/credits/products/[slug]/call` — calls a product with a Tollora API
   key, reserves managed credits before provider work starts, releases the
   reservation on provider failure, settles lower final usage back to the credit
-  balance, and records a receipt linked to the top-up transaction.
+  balance, sends a stable provider idempotency key to upstream POST endpoints,
+  and records a receipt linked to the top-up transaction.
 - `GET /api/agents/runs` and `POST /api/agents/runs` — list and create
   autonomous agent runs with optional template ID, objective, source context,
   owner wallet, budget cap, max paid actions, and tool selection mode. AI
@@ -483,7 +485,8 @@ Before creating a new helper or service file:
   — protect product calls with x402, return HTTP 402 payment requirements for
   unpaid requests, quote credit-metered requests before payment, verify and
   settle signed MUSD payments through the configured facilitator, start
-  credit-metered async provider work only after settlement, return paid provider
+  credit-metered async provider work only after settlement, send the order's
+  provider idempotency key to upstream POST endpoints, return paid provider
   responses or pollable job records, and attach receipt metadata.
 - `POST /api/x402/orders/[orderId]/claim` — protects metered result release with
   x402 when final provider usage exceeds the prepaid quote, settles the delta in
@@ -494,10 +497,11 @@ Before creating a new helper or service file:
   result mapping.
 - External HTTP provider calls save a sanitized provider request trace on the
   order record, including method, upstream URL, query/body payload, redacted
-  request headers, response status, selected response headers, and the provider
-  response preview. Order detail pages render this trace in a collapsed JSON
-  diagnostic panel so listing owners can reproduce upstream calls without
-  exposing provider secrets.
+  request headers, the order idempotency header for upstream POST creation
+  calls, response status, selected response headers, and the provider response
+  preview. Order detail pages render this trace in a collapsed JSON diagnostic
+  panel so listing owners can reproduce upstream calls without exposing provider
+  secrets.
 - `GET /api/openapi.json` — returns the Tollora OpenAPI document.
 - `GET /api/reference` — serves the Scalar API reference for the OpenAPI
   document.

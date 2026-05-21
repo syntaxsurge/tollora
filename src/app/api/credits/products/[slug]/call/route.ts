@@ -75,6 +75,10 @@ export async function POST(
   const orderId = `ord_credit_${randomBytes(6).toString('hex')}`
   const requestId = `req_credit_${randomBytes(6).toString('hex')}`
   const receiptId = `rcpt_credit_${randomBytes(6).toString('hex')}`
+  const providerIdempotencyKey = createProviderIdempotencyKey({
+    orderId,
+    requestId
+  })
   const resolvedPrice = await resolveProductPrice({
     product,
     requestPayload: payload
@@ -113,6 +117,7 @@ export async function POST(
     orderId,
     requestId,
     receiptId,
+    providerIdempotencyKey,
     buyerWallet: account.wallet
   })
 
@@ -228,6 +233,7 @@ export async function POST(
     pricingSource: resolvedPrice.source,
     resultReleaseStatus,
     requestId,
+    providerIdempotencyKey,
     requestPayloadJson: JSON.stringify(payload, null, 2),
     receiptId,
     explorerUrl: receipt.explorerUrl,
@@ -278,4 +284,14 @@ function getBearerToken(header: string | null) {
   }
 
   return header.slice(7).trim()
+}
+
+function createProviderIdempotencyKey({
+  orderId,
+  requestId
+}: {
+  orderId: string
+  requestId: string
+}) {
+  return `tollora_${orderId}_${requestId}`
 }

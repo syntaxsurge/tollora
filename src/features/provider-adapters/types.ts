@@ -2,6 +2,7 @@ export type ProviderAdapterInput = {
   productSlug: string
   orderId: string
   requestId: string
+  providerIdempotencyKey?: string
   requestPayload: unknown
   buyerWallet: string
   receiptId: string

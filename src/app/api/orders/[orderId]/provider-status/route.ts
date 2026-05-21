@@ -91,6 +91,12 @@ async function handleProviderStatus(
             productSlug: order.productSlug,
             orderId: order.id,
             requestId: order.requestId,
+            providerIdempotencyKey:
+              order.providerIdempotencyKey ??
+              createProviderIdempotencyKey({
+                orderId: order.id,
+                requestId: order.requestId
+              }),
             requestPayload,
             buyerWallet: order.buyerWallet,
             receiptId: order.receiptId
@@ -318,6 +324,16 @@ function parseMusdLabel(value: string) {
   const amount = Number(value.replace(/[^0-9.]/g, ''))
 
   return Number.isFinite(amount) ? amount : 0
+}
+
+function createProviderIdempotencyKey({
+  orderId,
+  requestId
+}: {
+  orderId: string
+  requestId: string
+}) {
+  return `tollora_${orderId}_${requestId}`
 }
 
 function parseJsonOrEmpty(value: string | undefined) {

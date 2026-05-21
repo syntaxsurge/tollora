@@ -49,6 +49,7 @@ export type MarketplaceOrder = {
   escrowRefundExplorerUrl?: string | null
   refundAmountMusd?: string
   requestId: string
+  providerIdempotencyKey?: string
   requestPayloadJson?: string
   receiptId?: string
   explorerUrl?: string | null

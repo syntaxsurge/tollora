@@ -100,6 +100,10 @@ export async function POST(request: Request) {
 
   const requestId = `req_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
   const orderId = `ord_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
+  const providerIdempotencyKey = createProviderIdempotencyKey({
+    orderId,
+    requestId
+  })
   const createdAt = new Date().toISOString()
 
   const order: MarketplaceOrder = {
@@ -120,6 +124,7 @@ export async function POST(request: Request) {
         : 'not_applicable',
     isProviderTest: product.status === 'draft' && parsed.data.allowDraftTest,
     requestId,
+    providerIdempotencyKey,
     requestPayloadJson: JSON.stringify(sanitizedRequestPayload),
     createdAt,
     updatedAt: createdAt
@@ -128,4 +133,14 @@ export async function POST(request: Request) {
   await recordMarketplaceOrder(order)
 
   return NextResponse.json(order)
+}
+
+function createProviderIdempotencyKey({
+  orderId,
+  requestId
+}: {
+  orderId: string
+  requestId: string
+}) {
+  return `tollora_${orderId}_${requestId}`
 }

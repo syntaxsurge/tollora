@@ -30,6 +30,7 @@ export const externalHttpAdapter: ProviderAdapter = {
         product,
         input
       }),
+      idempotencyKey: input.providerIdempotencyKey,
       timeoutSeconds: product.timeoutSeconds,
       executionMode: product.executionMode,
       externalJobIdPath: product.polling?.externalJobIdPath,
@@ -116,6 +117,7 @@ async function callExternalApi({
   method,
   auth,
   requestPayload,
+  idempotencyKey,
   timeoutSeconds = 60,
   executionMode,
   externalJobIdPath,
@@ -134,6 +136,7 @@ async function callExternalApi({
     password?: string
   }
   requestPayload: unknown
+  idempotencyKey?: string
   timeoutSeconds?: number
   executionMode: 'synchronous' | 'asynchronous'
   externalJobIdPath?: string
@@ -163,6 +166,9 @@ async function callExternalApi({
     }
   } else {
     headers.set('Content-Type', 'application/json')
+    if (idempotencyKey) {
+      headers.set('Idempotency-Key', idempotencyKey)
+    }
     requestBody = requestPayload ?? {}
     init.body = JSON.stringify(requestBody)
   }
