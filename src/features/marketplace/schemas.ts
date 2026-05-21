@@ -84,7 +84,6 @@ export const apiProductBaseSchema = z.object({
   authUsername: z.string().trim().max(200).optional(),
   authPassword: z.string().trim().max(2000).optional(),
   timeoutSeconds: z.coerce.number().int().min(1).max(900).default(60),
-  idempotencyHeader: z.string().trim().max(80).optional(),
   statusEndpointUrl: z.string().trim().url().optional().or(z.literal('')),
   statusMethod: z.enum(['GET', 'POST']).default('GET'),
   externalJobIdPath: z.string().trim().max(120).optional(),

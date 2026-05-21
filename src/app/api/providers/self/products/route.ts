@@ -127,7 +127,6 @@ export async function POST(request: Request) {
       errorMessagePath: payload.errorMessagePath || undefined
     },
     timeoutSeconds: payload.timeoutSeconds,
-    idempotencyHeader: payload.idempotencyHeader || undefined,
     estimatedLatency: payload.estimatedLatency,
     executionMode: payload.executionMode,
     settlementModel: payload.settlementModel,

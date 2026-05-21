@@ -169,7 +169,6 @@ export function ProviderProductForm() {
     setFormValue(form, 'authType', candidate.authType)
     setFormValue(form, 'authHeaderName', candidate.authHeaderName)
     setFormValue(form, 'authQueryParam', candidate.authQueryParam)
-    setFormValue(form, 'idempotencyHeader', candidate.idempotencyHeader)
     setExecutionMode(candidate.executionMode)
     setFormValue(form, 'executionMode', candidate.executionMode)
     setFormValue(form, 'settlementModel', candidate.settlementModel)
@@ -541,14 +540,6 @@ export function ProviderProductForm() {
             defaultValue='60'
             error={fieldErrors.timeoutSeconds}
             help='Maximum time Tollora waits for the upstream provider response.'
-          />
-          <Field
-            label='Idempotency header'
-            name='idempotencyHeader'
-            defaultValue=''
-            required={false}
-            error={fieldErrors.idempotencyHeader}
-            help='Optional upstream header Tollora sends to avoid duplicate provider jobs.'
           />
         </div>
       </Card>

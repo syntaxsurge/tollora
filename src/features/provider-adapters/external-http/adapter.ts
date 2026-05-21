@@ -26,12 +26,10 @@ export const externalHttpAdapter: ProviderAdapter = {
       endpointUrl: product.providerEndpointUrl,
       method: product.method,
       auth: product.providerAuth,
-      idempotencyHeader: resolveIdempotencyHeader(product),
       requestPayload: buildProviderRequestPayload({
         product,
         input
       }),
-      orderId: input.orderId,
       timeoutSeconds: product.timeoutSeconds,
       executionMode: product.executionMode,
       externalJobIdPath: product.polling?.externalJobIdPath,
@@ -70,12 +68,6 @@ export const externalHttpAdapter: ProviderAdapter = {
       errorMessagePath: product.polling.errorMessagePath
     })
   }
-}
-
-function resolveIdempotencyHeader(
-  product: Awaited<ReturnType<typeof getProductBySlug>>
-) {
-  return product?.idempotencyHeader || undefined
 }
 
 function buildProviderRequestPayload({
@@ -123,9 +115,7 @@ async function callExternalApi({
   endpointUrl,
   method,
   auth,
-  idempotencyHeader,
   requestPayload,
-  orderId,
   timeoutSeconds = 60,
   executionMode,
   externalJobIdPath,
@@ -143,9 +133,7 @@ async function callExternalApi({
     username?: string
     password?: string
   }
-  idempotencyHeader?: string
   requestPayload: unknown
-  orderId?: string
   timeoutSeconds?: number
   executionMode: 'synchronous' | 'asynchronous'
   externalJobIdPath?: string
@@ -159,10 +147,6 @@ async function callExternalApi({
   const headers = new Headers({ Accept: 'application/json' })
 
   applyAuth({ url, headers, auth })
-
-  if (idempotencyHeader && orderId) {
-    headers.set(idempotencyHeader, `tollora_${orderId}`)
-  }
 
   const init: RequestInit = {
     method,

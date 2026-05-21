@@ -80,7 +80,6 @@ export type ApiProduct = {
   providerAuth?: ApiProductProviderAuth
   polling?: ApiProductPollingConfig
   timeoutSeconds?: number
-  idempotencyHeader?: string
   estimatedLatency: string
   executionMode: ApiProductExecutionMode
   settlementModel: ApiProductSettlementModel
@@ -479,7 +478,6 @@ export async function recordProviderProduct({
       authHeaderName: product.providerAuth?.headerName,
       authQueryParam: product.providerAuth?.queryParam,
       timeoutSeconds: product.timeoutSeconds,
-      idempotencyHeader: product.idempotencyHeader,
       requestSchemaJson: JSON.stringify(product.requestSchema),
       responseSchemaJson: JSON.stringify(product.responseSchema),
       demoPayloadJson: JSON.stringify(product.referencePayload),

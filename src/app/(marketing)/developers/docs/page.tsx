@@ -590,18 +590,6 @@ Validation: integer from 1 to 900.
 `
   },
   {
-    id: 'field-idempotencyHeader',
-    group: 'Runtime',
-    title: 'Idempotency header',
-    body: `
-Optional upstream header Tollora sends so duplicate retries do not create duplicate provider jobs.
-
-Common value: \`Idempotency-Key\`.
-
-Leave this blank when the provider already returns a stable job ID and the status URL uses that job ID. Fill it only when the upstream provider explicitly requires a separate idempotency header for job creation retries.
-`
-  },
-  {
     id: 'section-async-polling',
     group: 'Async polling',
     title: 'Async polling',

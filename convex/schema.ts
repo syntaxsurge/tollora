@@ -107,7 +107,6 @@ export default defineSchema({
     resultUrlPath: v.optional(v.string()),
     errorMessagePath: v.optional(v.string()),
     timeoutSeconds: v.optional(v.number()),
-    idempotencyHeader: v.optional(v.string()),
     requestSchemaJson: v.string(),
     responseSchemaJson: v.string(),
     demoPayloadJson: v.optional(v.string()),

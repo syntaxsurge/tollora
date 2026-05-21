@@ -31,8 +31,8 @@ provider dashboards.
 - Public proof pages for autonomous runs with receipt rollups, proof hashes, and
   Mezo explorer links.
 - Generic external HTTP adapter for provider-created APIs, including private
-  upstream auth, optional provider-required idempotency headers, async job
-  polling, and result-path extraction behind the same paid gateway contract.
+  upstream auth, async job polling, and result-path extraction behind the same
+  paid gateway contract.
 - OpenAPI import for faster provider onboarding from hosted JSON/YAML specs or
   uploaded files.
 - OpenAPI JSON and Scalar API reference for gateway, receipt, provider, and
