@@ -648,14 +648,21 @@ function describeSchemaField(schema: unknown, required: boolean): string {
     return required ? 'unknown (required)' : 'unknown (optional)'
   }
 
+  const resolvedSchema = pickDisplaySchemaVariant(schema)
   const field = schema as {
-    type?: string
+    type?: string | string[]
     enum?: unknown[]
     format?: string
     description?: string
     externalDocs?: { url?: string }
-    items?: { type?: string; enum?: unknown[] }
+    items?: { type?: string | string[]; enum?: unknown[] }
     nullable?: boolean
+  }
+  const displayField = resolvedSchema as {
+    type?: string | string[]
+    enum?: unknown[]
+    format?: string
+    items?: { type?: string | string[]; enum?: unknown[] }
   }
 
   const requirement = required ? 'required' : 'optional'
@@ -664,22 +671,24 @@ function describeSchemaField(schema: unknown, required: boolean): string {
     .join(' ')
   const withHelp = (label: string) => (help ? `${label} — ${help}` : label)
 
-  if (field.enum?.length) {
+  if (displayField.enum?.length) {
     return withHelp(
-      `${field.enum.map(item => JSON.stringify(item)).join(' | ')} (${requirement})`
+      `${displayField.enum.map(item => JSON.stringify(item)).join(' | ')} (${requirement})`
     )
   }
 
-  if (field.type === 'array') {
-    const itemLabel = field.items?.enum?.length
-      ? field.items.enum.map(item => JSON.stringify(item)).join(' | ')
-      : (field.items?.type ?? 'unknown')
+  if (normalizeSchemaType(displayField.type) === 'array') {
+    const itemLabel = displayField.items?.enum?.length
+      ? displayField.items.enum.map(item => JSON.stringify(item)).join(' | ')
+      : (normalizeSchemaType(displayField.items?.type) ?? 'unknown')
 
     return withHelp(`array<${itemLabel}> (${requirement})`)
   }
 
   return withHelp(
-    `${[field.type ?? 'object', field.format].filter(Boolean).join(':')} (${requirement})`
+    `${[normalizeSchemaType(displayField.type) ?? 'object', displayField.format]
+      .filter(Boolean)
+      .join(':')} (${requirement})`
   )
 }
 
@@ -688,11 +697,13 @@ function exampleValueForSchema(schema: unknown): unknown {
     return ''
   }
 
-  const field = schema as {
+  const selectedSchema = pickExampleSchemaVariant(schema)
+  const field = selectedSchema as {
     example?: unknown
     default?: unknown
     enum?: unknown[]
-    type?: string
+    const?: unknown
+    type?: string | string[]
     items?: unknown
   }
 
@@ -708,19 +719,94 @@ function exampleValueForSchema(schema: unknown): unknown {
     return field.enum[0]
   }
 
-  if (field.type === 'number' || field.type === 'integer') {
+  if (field.const !== undefined) {
+    return field.const
+  }
+
+  const type = normalizeSchemaType(field.type)
+
+  if (type === 'number' || type === 'integer') {
     return 1
   }
 
-  if (field.type === 'boolean') {
+  if (type === 'boolean') {
     return true
   }
 
-  if (field.type === 'array') {
+  if (type === 'array') {
     return []
   }
 
   return ''
+}
+
+function pickDisplaySchemaVariant(schema: unknown): unknown {
+  const variants = readSchemaVariants(schema)
+
+  if (!variants.length) {
+    return schema
+  }
+
+  return (
+    variants.find(variant => {
+      const type = normalizeSchemaType((variant as { type?: unknown }).type)
+
+      return type && type !== 'null'
+    }) ?? variants[0]
+  )
+}
+
+function pickExampleSchemaVariant(schema: unknown): unknown {
+  const variants = readSchemaVariants(schema)
+
+  if (!variants.length) {
+    return schema
+  }
+
+  return (
+    variants.find(variant => {
+      const field = variant as {
+        default?: unknown
+        example?: unknown
+        const?: unknown
+        enum?: unknown[]
+      }
+
+      return (
+        field.default !== undefined ||
+        field.example !== undefined ||
+        field.const !== undefined ||
+        Boolean(field.enum?.length)
+      )
+    }) ?? pickDisplaySchemaVariant(schema)
+  )
+}
+
+function readSchemaVariants(schema: unknown) {
+  if (!schema || typeof schema !== 'object') {
+    return []
+  }
+
+  const variants =
+    (schema as { anyOf?: unknown[]; oneOf?: unknown[] }).anyOf ??
+    (schema as { anyOf?: unknown[]; oneOf?: unknown[] }).oneOf
+
+  return Array.isArray(variants)
+    ? variants.filter(
+        (variant): variant is Record<string, unknown> =>
+          Boolean(variant) && typeof variant === 'object'
+      )
+    : []
+}
+
+function normalizeSchemaType(type: unknown) {
+  if (Array.isArray(type)) {
+    return type.find(
+      (item): item is string => typeof item === 'string' && item !== 'null'
+    )
+  }
+
+  return typeof type === 'string' ? type : undefined
 }
 
 function pickFirstField(fields: Record<string, string>, names: string[]) {

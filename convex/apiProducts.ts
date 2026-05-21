@@ -165,49 +165,51 @@ export const listProviderCatalog = query({
   }
 })
 
+const providerCatalogProductArgs = {
+  userId: v.id('users'),
+  providerSlug: v.string(),
+  slug: v.string(),
+  name: v.string(),
+  description: v.string(),
+  category,
+  priceUsd: v.number(),
+  priceLabel: v.string(),
+  endpointUrl: v.string(),
+  method: v.union(v.literal('GET'), v.literal('POST')),
+  estimatedLatency: v.optional(v.string()),
+  executionMode: v.union(v.literal('synchronous'), v.literal('asynchronous')),
+  settlementModel: v.union(
+    v.literal('pay_on_successful_response'),
+    v.literal('pay_on_job_acceptance'),
+    v.literal('pay_to_claim_result')
+  ),
+  resultDelivery: v.union(
+    v.literal('direct_response'),
+    v.literal('poll_or_webhook'),
+    v.literal('claim_after_completion')
+  ),
+  authType: v.union(
+    v.literal('none'),
+    v.literal('bearer'),
+    v.literal('api_key_header'),
+    v.literal('api_key_query'),
+    v.literal('basic')
+  ),
+  authHeaderName: v.optional(v.string()),
+  authQueryParam: v.optional(v.string()),
+  timeoutSeconds: v.optional(v.number()),
+  idempotencyHeader: v.optional(v.string()),
+  requestSchemaJson: v.string(),
+  responseSchemaJson: v.string(),
+  demoPayloadJson: v.optional(v.string()),
+  productJson: v.string(),
+  isX402Protected: v.boolean(),
+  isAgentReady: v.boolean(),
+  status: productStatus
+}
+
 export const createProviderCatalogProduct = mutation({
-  args: {
-    userId: v.id('users'),
-    providerSlug: v.string(),
-    slug: v.string(),
-    name: v.string(),
-    description: v.string(),
-    category,
-    priceUsd: v.number(),
-    priceLabel: v.string(),
-    endpointUrl: v.string(),
-    method: v.union(v.literal('GET'), v.literal('POST')),
-    estimatedLatency: v.optional(v.string()),
-    executionMode: v.union(v.literal('synchronous'), v.literal('asynchronous')),
-    settlementModel: v.union(
-      v.literal('pay_on_successful_response'),
-      v.literal('pay_on_job_acceptance'),
-      v.literal('pay_to_claim_result')
-    ),
-    resultDelivery: v.union(
-      v.literal('direct_response'),
-      v.literal('poll_or_webhook'),
-      v.literal('claim_after_completion')
-    ),
-    authType: v.union(
-      v.literal('none'),
-      v.literal('bearer'),
-      v.literal('api_key_header'),
-      v.literal('api_key_query'),
-      v.literal('basic')
-    ),
-    authHeaderName: v.optional(v.string()),
-    authQueryParam: v.optional(v.string()),
-    timeoutSeconds: v.optional(v.number()),
-    idempotencyHeader: v.optional(v.string()),
-    requestSchemaJson: v.string(),
-    responseSchemaJson: v.string(),
-    demoPayloadJson: v.optional(v.string()),
-    productJson: v.string(),
-    isX402Protected: v.boolean(),
-    isAgentReady: v.boolean(),
-    status: productStatus
-  },
+  args: providerCatalogProductArgs,
   handler: async (ctx: any, args: any) => {
     const existingProduct = await ctx.db
       .query('apiProducts')
@@ -241,6 +243,59 @@ export const createProviderCatalogProduct = mutation({
     })
 
     return await productResponse(ctx, await ctx.db.get(productId))
+  }
+})
+
+export const upsertProviderCatalogProduct = mutation({
+  args: providerCatalogProductArgs,
+  handler: async (ctx: any, args: any) => {
+    const existingProduct = await ctx.db
+      .query('apiProducts')
+      .withIndex('by_slug', (q: any) => q.eq('slug', args.slug))
+      .first()
+    const providerId = await getOrCreateProvider(ctx, {
+      userId: args.userId,
+      slug: args.providerSlug
+    })
+    const now = Date.now()
+    const { userId: _userId, providerSlug: _providerSlug, ...product } = args
+    const productFields = {
+      ...product,
+      providerId,
+      updatedAt: now
+    }
+    const productId = existingProduct?._id
+
+    if (productId) {
+      await ctx.db.patch(productId, productFields)
+    } else {
+      await ctx.db.insert('apiProducts', {
+        ...productFields,
+        createdAt: now
+      })
+    }
+
+    const row = productId
+      ? await ctx.db.get(productId)
+      : await ctx.db
+          .query('apiProducts')
+          .withIndex('by_slug', (q: any) => q.eq('slug', args.slug))
+          .first()
+
+    if (!row) {
+      throw new Error('Unable to persist provider catalog product.')
+    }
+
+    await ctx.db.insert('apiProductVersions', {
+      productId: row._id,
+      version: await nextProductVersion(ctx, row._id),
+      requestSchemaJson: args.requestSchemaJson,
+      responseSchemaJson: args.responseSchemaJson,
+      endpointUrl: args.endpointUrl,
+      createdAt: now
+    })
+
+    return await productResponse(ctx, await ctx.db.get(row._id))
   }
 })
 
@@ -362,6 +417,21 @@ export const pause = mutation({
     return args.productId
   }
 })
+
+async function nextProductVersion(ctx: any, productId: string) {
+  const versions = await ctx.db
+    .query('apiProductVersions')
+    .withIndex('by_product', (q: any) => q.eq('productId', productId))
+    .collect()
+
+  return (
+    versions.reduce(
+      (highest: number, version: { version?: number }) =>
+        Math.max(highest, Number(version.version) || 0),
+      0
+    ) + 1
+  )
+}
 
 async function getOrCreateProvider(
   ctx: any,

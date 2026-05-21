@@ -255,7 +255,10 @@ function addJsonObjectIssue(
 export const createOrderSchema = z.object({
   productSlug: z.string().trim().min(3),
   buyerWallet: z.string().trim().min(10),
-  requestPayloadJson: z.string().trim().min(2),
+  requestPayloadJson: z.union([
+    z.string().trim().min(2),
+    z.record(z.unknown())
+  ]),
   allowDraftTest: z.coerce.boolean().optional().default(false)
 })
 

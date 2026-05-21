@@ -50,7 +50,10 @@ export async function POST(request: Request) {
   let requestPayload: unknown
 
   try {
-    requestPayload = JSON.parse(parsed.data.requestPayloadJson)
+    requestPayload =
+      typeof parsed.data.requestPayloadJson === 'string'
+        ? JSON.parse(parsed.data.requestPayloadJson)
+        : parsed.data.requestPayloadJson
   } catch {
     return NextResponse.json(
       { error: 'Request payload must contain valid JSON.' },

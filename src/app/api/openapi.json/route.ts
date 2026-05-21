@@ -643,7 +643,9 @@ export function GET() {
               type: 'string'
             },
             buyerWallet: { type: 'string' },
-            requestPayloadJson: { type: 'string' }
+            requestPayloadJson: {
+              oneOf: [{ type: 'string' }, { type: 'object' }]
+            }
           }
         },
         Order: {
