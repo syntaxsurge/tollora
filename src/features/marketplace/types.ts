@@ -1,4 +1,5 @@
 import { orderStatuses } from '@/features/marketplace/schemas'
+import type { ProviderRequestTrace } from '@/features/provider-adapters/types'
 
 export type OrderStatus = (typeof orderStatuses)[number]
 
@@ -53,6 +54,7 @@ export type MarketplaceOrder = {
   explorerUrl?: string | null
   externalJobId?: string
   responsePayload?: unknown
+  providerRequest?: ProviderRequestTrace
   lockedResponsePayload?: unknown
   providerRetry?: {
     retryable: boolean

@@ -1398,6 +1398,16 @@ function ProviderResponsePanel({
         </div>
       ) : null}
 
+      {order.providerRequest ? (
+        <JsonViewer
+          title='Provider request trace'
+          value={order.providerRequest}
+          defaultOpen={false}
+          maxHeightClassName='max-h-[28rem]'
+          copyLabel='Copy trace'
+        />
+      ) : null}
+
       {hasResponse ? (
         <JsonViewer
           title='Response JSON'

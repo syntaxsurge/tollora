@@ -129,6 +129,7 @@ export async function POST(
         creditAccount: toPublicManagedCreditAccount(debitResult.account),
         provider: {
           id: providerAdapter.id,
+          request: providerResult.providerRequest,
           response: providerResult.responsePayload
         }
       },
@@ -232,6 +233,7 @@ export async function POST(
     explorerUrl: receipt.explorerUrl,
     externalJobId: providerResult.externalJobId,
     responsePayload,
+    providerRequest: providerResult.providerRequest,
     lockedResponsePayload:
       resultReleaseStatus === 'delta_payment_required'
         ? providerResult.responsePayload

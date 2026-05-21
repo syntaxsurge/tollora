@@ -2,6 +2,7 @@
 
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
+import type { ProviderRequestTrace } from '@/features/provider-adapters/types'
 import { omitIndexedCharacterMaps } from '@/lib/utils/json-payload'
 
 const maxOrderSnapshotBytes = 500_000
@@ -46,9 +47,16 @@ function safeSetSessionItem(
 function createCompactOrderSnapshot(order: MarketplaceOrder): MarketplaceOrder {
   return {
     ...order,
+    providerRequest: createCompactProviderRequest(order.providerRequest),
     responsePayload: createCompactPayload(order.responsePayload),
     lockedResponsePayload: createCompactPayload(order.lockedResponsePayload)
   }
+}
+
+function createCompactProviderRequest(
+  value: ProviderRequestTrace | undefined
+): ProviderRequestTrace | undefined {
+  return createCompactPayload(value) as ProviderRequestTrace | undefined
 }
 
 function createCompactPayload(value: unknown) {

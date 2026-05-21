@@ -200,6 +200,7 @@ async function handleProviderStatus(
     status: nextStatus,
     externalJobId: providerResult.externalJobId ?? order.externalJobId,
     responsePayload,
+    providerRequest: providerResult.providerRequest ?? order.providerRequest,
     lockedResponsePayload:
       resultReleaseStatus === 'delta_payment_required'
         ? omitIndexedCharacterMaps(providerResult.responsePayload)

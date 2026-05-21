@@ -13,6 +13,20 @@ export type ProviderAdapterResult = {
   externalJobId?: string
   resultUrl?: string
   errorMessage?: string
+  providerRequest?: ProviderRequestTrace
+}
+
+export type ProviderRequestTrace = {
+  method: 'GET' | 'POST'
+  url: string
+  requestHeaders: Record<string, string>
+  requestQuery?: Record<string, string>
+  requestBody?: unknown
+  responseStatus?: number
+  responseStatusText?: string
+  responseHeaders?: Record<string, string>
+  responseBody?: unknown
+  error?: string
 }
 
 export interface ProviderAdapter {

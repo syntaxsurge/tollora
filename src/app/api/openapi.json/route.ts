@@ -672,6 +672,12 @@ export function GET() {
             explorerUrl: { type: 'string' },
             externalJobId: { type: 'string' },
             resultUrl: { type: 'string' },
+            providerRequest: {
+              type: 'object',
+              additionalProperties: true,
+              description:
+                'Sanitized upstream provider request and response trace for diagnostics. Provider secrets are redacted.'
+            },
             responsePayload: { type: 'object', additionalProperties: true }
           }
         },
@@ -709,6 +715,10 @@ export function GET() {
                 status: { type: 'string' },
                 externalJobId: { type: 'string' },
                 resultUrl: { type: 'string' },
+                providerRequest: {
+                  type: 'object',
+                  additionalProperties: true
+                },
                 responsePayload: { type: 'object', additionalProperties: true },
                 errorMessage: { type: 'string' }
               }

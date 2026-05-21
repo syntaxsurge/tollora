@@ -251,6 +251,7 @@ async function handlePaidProductCall(
         error: adapterResult.errorMessage ?? 'Provider request failed.',
         provider: {
           id: providerAdapter.id,
+          request: adapterResult.providerRequest,
           response: adapterResult.responsePayload
         }
       },
@@ -336,6 +337,7 @@ async function handlePaidProductCall(
     externalJobId: adapterResult.externalJobId,
     explorerUrl: receipt.explorerUrl,
     responsePayload: adapterResult.responsePayload ?? finalBody.data,
+    providerRequest: adapterResult.providerRequest,
     resultUrl: adapterResult.resultUrl,
     agentRunId,
     createdAt: existingOrder?.createdAt ?? createdAt,
@@ -522,6 +524,7 @@ async function handlePrepaidAsyncProviderCall({
       const retryingOrder = await updateMarketplaceOrder(orderId, {
         status: 'processing',
         responsePayload: adapterResult.responsePayload,
+        providerRequest: adapterResult.providerRequest,
         resultReleaseStatus: 'provider_retrying',
         escrowStatus: escrowContext ? 'reserved' : 'not_applicable',
         providerRetry: {
@@ -550,6 +553,7 @@ async function handlePrepaidAsyncProviderCall({
             ...baseOrder,
             status: 'processing' as const,
             responsePayload: adapterResult.responsePayload,
+            providerRequest: adapterResult.providerRequest,
             resultReleaseStatus: 'provider_retrying' as const
           },
           receipt,
@@ -560,6 +564,7 @@ async function handlePrepaidAsyncProviderCall({
             retryAfterSeconds: failurePolicy.retryAfterSeconds,
             attempts: failurePolicy.attempts,
             error: adapterResult.errorMessage ?? 'Provider request failed.',
+            request: adapterResult.providerRequest,
             response: adapterResult.responsePayload
           },
           x402: {
@@ -594,6 +599,7 @@ async function handlePrepaidAsyncProviderCall({
     const failedOrder = await updateMarketplaceOrder(orderId, {
       status: 'failed',
       responsePayload: adapterResult.responsePayload,
+      providerRequest: adapterResult.providerRequest,
       resultReleaseStatus: refundedEscrow ? 'refunded' : 'refundable',
       escrowStatus: escrowContext
         ? refundedEscrow
@@ -621,6 +627,7 @@ async function handlePrepaidAsyncProviderCall({
           ...baseOrder,
           status: 'failed',
           responsePayload: adapterResult.responsePayload,
+          providerRequest: adapterResult.providerRequest,
           resultReleaseStatus: refundedEscrow
             ? ('refunded' as const)
             : ('refundable' as const)
@@ -636,6 +643,7 @@ async function handlePrepaidAsyncProviderCall({
         provider: {
           id: providerAdapter.id,
           error: adapterResult.errorMessage ?? 'Provider request failed.',
+          request: adapterResult.providerRequest,
           response: adapterResult.responsePayload
         },
         x402: {
@@ -711,6 +719,7 @@ async function handlePrepaidAsyncProviderCall({
     status: nextStatus,
     externalJobId: adapterResult.externalJobId,
     responsePayload,
+    providerRequest: adapterResult.providerRequest,
     lockedResponsePayload:
       resultReleaseStatus === 'delta_payment_required'
         ? adapterResult.responsePayload

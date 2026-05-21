@@ -435,9 +435,10 @@ Before creating a new helper or service file:
 - `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
   long-running job status, compares final credit-metered usage with the prepaid
   quote, locks results that require a metered delta, and returns the latest
-  provider payload. `POST /api/orders/[orderId]/provider-status` retries the
-  provider call for paid failed orders that still have a retryable/refundable
-  settled request, without creating a second buyer payment.
+  provider payload plus the sanitized upstream request trace. `POST
+  /api/orders/[orderId]/provider-status` retries the provider call for paid
+  failed orders that still have a retryable/refundable settled request, without
+  creating a second buyer payment.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
 - `POST /api/credits/accounts` — creates or returns a managed credit account and
   Tollora API key for a wallet.
@@ -491,6 +492,12 @@ Before creating a new helper or service file:
   JSON/YAML document and returns paid-listing candidates with inferred endpoint
   URL, method, auth type, schemas, reference payload, async polling paths, and
   result mapping.
+- External HTTP provider calls save a sanitized provider request trace on the
+  order record, including method, upstream URL, query/body payload, redacted
+  request headers, response status, selected response headers, and the provider
+  response preview. Order detail pages render this trace in a collapsed JSON
+  diagnostic panel so listing owners can reproduce upstream calls without
+  exposing provider secrets.
 - `GET /api/openapi.json` — returns the Tollora OpenAPI document.
 - `GET /api/reference` — serves the Scalar API reference for the OpenAPI
   document.
@@ -515,8 +522,8 @@ Before creating a new helper or service file:
   `src/components/layout`.
 - Shared JSON rendering lives in `src/components/data-display/json-viewer.tsx`
   with default copy support, collapsible diagnostics, and nested JSON string
-  normalization for provider responses, request previews, agent deliverables,
-  and public proof payloads.
+  normalization for provider responses, sanitized provider request traces,
+  request previews, agent deliverables, and public proof payloads.
 - Shared server-fed table rendering lives in
   `src/components/data-display/server-data-table.tsx` with URL-driven search,
   sorting, pagination, optional current-page row selection, and optional bulk
@@ -683,6 +690,11 @@ Before creating a new helper or service file:
   the page. Successful preparation clears failure debug state, shows a short
   success status, stores the order in browser session storage, and redirects to
   the Run & Pay order page.
+- `/orders/[orderId]` shows payment, escrow, provider job, result, receipt, and
+  metered usage state. Provider responses include a collapsed sanitized
+  upstream request trace with method, URL, query/body, redacted headers,
+  response status, selected response headers, and provider response body so
+  provider integrations can be debugged without exposing API secrets.
 - `/provider` shows the connected wallet's owned provider revenue, API call
   volume, success rate, top product, recent request activity, product listing
   health, production narrative, and tiered provider revenue split.
