@@ -2,7 +2,7 @@
 
 import { FormEvent, type ReactNode, useRef, useState } from 'react'
 
-import { BookOpen, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, CheckCircle2, Eye, EyeOff, X } from 'lucide-react'
 import { useRouter } from 'nextjs-toploader/app'
 
 import { Button } from '@/components/ui/button'
@@ -706,6 +706,7 @@ function OpenApiImportPanel({
 }: {
   onApply: (candidate: OpenApiImportCandidate) => void
 }) {
+  const toastTimeoutRef = useRef<number | null>(null)
   const [specUrl, setSpecUrl] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
   const [specText, setSpecText] = useState('')
@@ -715,6 +716,11 @@ function OpenApiImportPanel({
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [isImporting, setIsImporting] = useState(false)
+  const [toast, setToast] = useState<{
+    description: string
+    id: number
+    title: string
+  } | null>(null)
 
   const selectedCandidate =
     candidates.find(
@@ -759,8 +765,11 @@ function OpenApiImportPanel({
       setCandidates(nextCandidates)
       setSelectedOperationId(nextCandidates[0]?.operationId ?? '')
       setSelectedPollingId(nextCandidates[0]?.pollingOptions[0]?.id ?? '')
-      setStatus(
-        `Imported ${nextCandidates.length} operation${nextCandidates.length === 1 ? '' : 's'} from ${data.info?.title ?? 'OpenAPI'}.`
+      const importedMessage = `Imported ${nextCandidates.length} operation${nextCandidates.length === 1 ? '' : 's'} from ${data.info?.title ?? 'OpenAPI'}.`
+      setStatus(importedMessage)
+      showToast(
+        'OpenAPI import complete',
+        `${importedMessage} Choose an operation, then fill the listing.`
       )
     } catch (caughtError) {
       setError(
@@ -771,6 +780,38 @@ function OpenApiImportPanel({
     } finally {
       setIsImporting(false)
     }
+  }
+
+  function handleApplySelectedCandidate() {
+    if (!selectedCandidate) {
+      return
+    }
+
+    const filledCandidate = withSelectedPolling(
+      selectedCandidate,
+      selectedPollingCandidate
+    )
+    onApply(filledCandidate)
+    showToast(
+      'Listing fields filled',
+      `${filledCandidate.name} has been applied. Review pricing, auth secret, and validation fields before publishing.`
+    )
+  }
+
+  function showToast(title: string, description: string) {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current)
+    }
+
+    setToast({
+      description,
+      id: Date.now(),
+      title
+    })
+
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToast(null)
+    }, 6000)
   }
 
   return (
@@ -915,12 +956,7 @@ function OpenApiImportPanel({
             variant='outline'
             className='w-full sm:w-auto'
             disabled={!selectedCandidate}
-            onClick={() =>
-              selectedCandidate &&
-              onApply(
-                withSelectedPolling(selectedCandidate, selectedPollingCandidate)
-              )
-            }
+            onClick={handleApplySelectedCandidate}
           >
             Fill listing
           </Button>
@@ -944,6 +980,34 @@ function OpenApiImportPanel({
         <p className='text-sm text-red-600' role='alert'>
           {error}
         </p>
+      ) : null}
+      {toast ? (
+        <div
+          key={toast.id}
+          role='status'
+          aria-live='polite'
+          className='border-border bg-card text-card-foreground fixed right-4 bottom-4 z-50 w-[calc(100vw-2rem)] max-w-md rounded-lg border p-4 shadow-2xl shadow-black/20'
+        >
+          <div className='flex gap-3'>
+            <div className='bg-primary/10 text-primary mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg'>
+              <CheckCircle2 className='h-5 w-5' aria-hidden />
+            </div>
+            <div className='min-w-0 flex-1'>
+              <p className='text-sm font-semibold'>{toast.title}</p>
+              <p className='text-muted-foreground mt-1 text-sm leading-6'>
+                {toast.description}
+              </p>
+            </div>
+            <button
+              type='button'
+              onClick={() => setToast(null)}
+              aria-label='Dismiss notification'
+              className='text-muted-foreground hover:text-foreground focus-ring -m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition'
+            >
+              <X className='h-4 w-4' aria-hidden />
+            </button>
+          </div>
+        </div>
       ) : null}
     </Card>
   )
