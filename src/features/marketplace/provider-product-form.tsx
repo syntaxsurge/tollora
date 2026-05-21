@@ -545,7 +545,7 @@ export function ProviderProductForm() {
           <Field
             label='Idempotency header'
             name='idempotencyHeader'
-            defaultValue='Idempotency-Key'
+            defaultValue=''
             required={false}
             error={fieldErrors.idempotencyHeader}
             help='Optional upstream header Tollora sends to avoid duplicate provider jobs.'

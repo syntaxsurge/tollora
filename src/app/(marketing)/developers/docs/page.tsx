@@ -598,7 +598,7 @@ Optional upstream header Tollora sends so duplicate retries do not create duplic
 
 Common value: \`Idempotency-Key\`.
 
-Your provider should store this key and return the same job for repeated requests with the same key.
+Leave this blank when the provider already returns a stable job ID and the status URL uses that job ID. Fill it only when the upstream provider explicitly requires a separate idempotency header for job creation retries.
 `
   },
   {

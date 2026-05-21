@@ -21,6 +21,7 @@ const providerUsername =
   process.env.CLIPLORE_PROVIDER_USERNAME ?? 'cliplore-provider'
 const providerEmail =
   process.env.CLIPLORE_PROVIDER_EMAIL ?? 'provider@cliplore.ai'
+const idempotencyHeader = process.env.CLIPLORE_IDEMPOTENCY_HEADER?.trim()
 const productSlug = 'create-a-video-generation-job'
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
@@ -129,7 +130,7 @@ const product: ApiProduct = {
     errorMessagePath: candidate.errorMessagePath
   },
   timeoutSeconds: 300,
-  idempotencyHeader: candidate.idempotencyHeader || 'Idempotency-Key',
+  idempotencyHeader: idempotencyHeader || undefined,
   estimatedLatency: candidate.estimatedLatency,
   executionMode: candidate.executionMode,
   settlementModel: candidate.settlementModel,
@@ -170,7 +171,7 @@ const seeded = await client.mutation(
     authHeaderName: product.providerAuth?.headerName,
     authQueryParam: product.providerAuth?.queryParam,
     timeoutSeconds: product.timeoutSeconds,
-    idempotencyHeader: product.idempotencyHeader,
+    idempotencyHeader: product.idempotencyHeader ?? '',
     requestSchemaJson: JSON.stringify(product.requestSchema),
     responseSchemaJson: JSON.stringify(product.responseSchema),
     demoPayloadJson: JSON.stringify(product.referencePayload),
@@ -188,6 +189,7 @@ console.log(
       endpointUrl: product.providerEndpointUrl,
       quoteEndpointUrl: product.pricing.quoteEndpointUrl,
       status: seeded?.status,
+      idempotencyHeader: product.idempotencyHeader ?? null,
       hasProviderAuthSecret: Boolean(providerAuthSecret)
     },
     null,

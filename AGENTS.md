@@ -655,13 +655,13 @@ Before creating a new helper or service file:
 - Provider adapters live in `src/features/provider-adapters`; the registry uses
   the generic external HTTP adapter for provider-created listings. The external
   HTTP adapter forwards paid requests to the configured upstream endpoint,
-  applies bearer, API-key, query-key, or basic auth server-side, sends
-  configured idempotency headers and a default `Idempotency-Key` for
-  asynchronous POST jobs, removes empty optional request fields from listing
-  schema-generated payloads before quoting or forwarding, extracts external job
-  IDs, result URLs, public project handoff URLs, and clone URLs through
-  configured and conventional JSON paths, and polls provider status endpoints
-  for async products. Credit-metered async providers always receive
+  applies bearer, API-key, query-key, or basic auth server-side, sends only
+  explicitly configured provider-required idempotency headers, removes empty
+  optional request fields from listing schema-generated payloads before quoting
+  or forwarding, extracts external job IDs, result URLs, public project handoff
+  URLs, and clone URLs through configured and conventional JSON paths, and
+  polls provider status endpoints for async products. Credit-metered async
+  providers always receive
   `billingMode: "external_prepaid"` plus generic external prepaid metadata with
   order, receipt, buyer, requested billing mode, and settlement references so
   provider APIs can report estimated, charged, and refunded usage without
@@ -715,8 +715,9 @@ Before creating a new helper or service file:
   uses the shared product input schema for client-side field errors before
   submission, and the API route uses the same schema as the server guard. The
   OpenAPI importer detects operation-level or document-level security schemes,
-  credit fields such as `estimatedCredits`, idempotency header parameters, and
-  202 Accepted job operations, links async job-creation operations to matching
+  credit fields such as `estimatedCredits`, optional idempotency header
+  parameters, and 202 Accepted job operations, links async job-creation
+  operations to matching
   status endpoints from the imported spec, marks required provider auth and
   polling fields accurately, and preserves OpenAPI request-body
   required/optional field metadata and descriptions for provider test runs.

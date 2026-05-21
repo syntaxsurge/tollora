@@ -75,15 +75,7 @@ export const externalHttpAdapter: ProviderAdapter = {
 function resolveIdempotencyHeader(
   product: Awaited<ReturnType<typeof getProductBySlug>>
 ) {
-  if (product?.idempotencyHeader) {
-    return product.idempotencyHeader
-  }
-
-  if (product?.method === 'POST' && product.executionMode === 'asynchronous') {
-    return 'Idempotency-Key'
-  }
-
-  return undefined
+  return product?.idempotencyHeader || undefined
 }
 
 function buildProviderRequestPayload({
