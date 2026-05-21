@@ -137,9 +137,11 @@ export default defineSchema({
     .index('by_product', ['productId'])
     .index('by_product_version', ['productId', 'version']),
   orders: defineTable({
+    orderKey: v.optional(v.string()),
+    orderJson: v.optional(v.string()),
     buyerWallet: v.string(),
-    providerId: v.id('providers'),
-    productId: v.id('apiProducts'),
+    providerId: v.optional(v.id('providers')),
+    productId: v.optional(v.id('apiProducts')),
     status: v.union(
       v.literal('created'),
       v.literal('payment_required'),
@@ -160,12 +162,15 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number()
   })
+    .index('by_order_key', ['orderKey'])
     .index('by_buyer_wallet', ['buyerWallet'])
     .index('by_provider', ['providerId'])
     .index('by_product', ['productId'])
     .index('by_status', ['status']),
   receipts: defineTable({
-    orderId: v.id('orders'),
+    receiptKey: v.optional(v.string()),
+    receiptJson: v.optional(v.string()),
+    orderId: v.optional(v.id('orders')),
     buyerWallet: v.string(),
     providerWallet: v.string(),
     amountMusd: v.string(),
@@ -175,8 +180,18 @@ export default defineSchema({
     explorerUrl: v.optional(v.string()),
     createdAt: v.number()
   })
+    .index('by_receipt_key', ['receiptKey'])
     .index('by_order', ['orderId'])
     .index('by_buyer_wallet', ['buyerWallet']),
+  managedCreditAccounts: defineTable({
+    wallet: v.string(),
+    apiKey: v.string(),
+    accountJson: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_wallet', ['wallet'])
+    .index('by_api_key', ['apiKey']),
   apiRequests: defineTable({
     orderId: v.id('orders'),
     productId: v.id('apiProducts'),
@@ -246,8 +261,10 @@ export default defineSchema({
     updatedAt: v.number()
   }).index('by_provider', ['providerId']),
   agentRuns: defineTable({
+    runKey: v.optional(v.string()),
+    runJson: v.optional(v.string()),
     ownerWallet: v.string(),
-    template: v.literal('launch-pack'),
+    template: v.string(),
     objective: v.string(),
     sourceText: v.optional(v.string()),
     budgetCapMusd: v.number(),
@@ -268,6 +285,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number()
   })
+    .index('by_run_key', ['runKey'])
     .index('by_owner_wallet', ['ownerWallet'])
     .index('by_status', ['status']),
   agentActions: defineTable({
@@ -296,7 +314,10 @@ export default defineSchema({
     .index('by_run', ['runId'])
     .index('by_status', ['status']),
   agentProofs: defineTable({
-    runId: v.id('agentRuns'),
+    proofKey: v.optional(v.string()),
+    proofJson: v.optional(v.string()),
+    runId: v.optional(v.id('agentRuns')),
+    runKey: v.optional(v.string()),
     ownerWallet: v.string(),
     proofHash: v.string(),
     proofUri: v.string(),
@@ -307,7 +328,9 @@ export default defineSchema({
     totalSpendMusd: v.string(),
     createdAt: v.number()
   })
+    .index('by_proof_key', ['proofKey'])
     .index('by_run', ['runId'])
+    .index('by_run_key', ['runKey'])
     .index('by_owner_wallet', ['ownerWallet'])
     .index('by_proof_hash', ['proofHash']),
   savedExamples: defineTable({

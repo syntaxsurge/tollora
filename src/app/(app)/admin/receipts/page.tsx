@@ -9,7 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { settlementReceipts } from '@/features/marketplace/receipt-store'
+import { listSettlementReceipts } from '@/features/marketplace/receipt-store'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import {
   queryServerRows,
@@ -34,6 +34,7 @@ export default async function AdminReceiptsPage({
     defaultSort: 'created',
     defaultPageSize: 10
   })
+  const settlementReceipts = await listSettlementReceipts()
   const table = queryServerRows(settlementReceipts, state, {
     searchText: receipt =>
       [

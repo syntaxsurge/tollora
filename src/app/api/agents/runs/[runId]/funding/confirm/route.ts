@@ -27,7 +27,7 @@ export async function POST(
     )
   }
 
-  const run = confirmAgentRunFunding({
+  const run = await confirmAgentRunFunding({
     runId: (await params).runId,
     fundingTxHash,
     approvalTxHash: body?.approvalTxHash

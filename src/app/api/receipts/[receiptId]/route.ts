@@ -9,7 +9,7 @@ type ReceiptRouteProps = {
 }
 
 export async function GET(_request: Request, { params }: ReceiptRouteProps) {
-  const receipt = getMarketplaceReceiptById((await params).receiptId)
+  const receipt = await getMarketplaceReceiptById((await params).receiptId)
 
   if (!receipt) {
     return NextResponse.json(

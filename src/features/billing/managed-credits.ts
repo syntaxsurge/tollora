@@ -1,10 +1,9 @@
 import { randomBytes } from 'node:crypto'
 
 import { getProductBySlug } from '@/features/marketplace/products'
-import {
-  readWorkspaceJsonArray,
-  writeWorkspaceJsonArray
-} from '@/lib/persistence/workspace-json-store'
+import { getConvexClient } from '@/lib/db/convex/client'
+
+import { api } from '../../../convex/_generated/api'
 
 export type ManagedCreditTopUp = {
   id: string
@@ -34,32 +33,43 @@ export type ManagedCreditAccount = {
   updatedAt: string
 }
 
-const globalForManagedCredits = globalThis as typeof globalThis & {
-  __tolloraManagedCreditAccounts?: ManagedCreditAccount[]
-}
-
-export const managedCreditAccounts =
-  globalForManagedCredits.__tolloraManagedCreditAccounts ??
-  readWorkspaceJsonArray({
-    fileName: 'managed-credit-accounts.json',
-    isItem: isManagedCreditAccount
-  })
-
-globalForManagedCredits.__tolloraManagedCreditAccounts = managedCreditAccounts
-persistManagedCreditAccounts()
-
-export function getManagedCreditAccountByWallet(wallet: string) {
-  return managedCreditAccounts.find(
-    account => account.wallet.toLowerCase() === wallet.toLowerCase()
+export async function listManagedCreditAccounts() {
+  const rows = await getConvexClient().query(
+    api.managedCredits.listSnapshots,
+    {}
   )
+
+  return Array.isArray(rows)
+    ? rows
+        .map(normalizeManagedCreditAccount)
+        .filter((account): account is ManagedCreditAccount => Boolean(account))
+    : []
 }
 
-export function getManagedCreditAccountByApiKey(apiKey: string) {
-  return managedCreditAccounts.find(account => account.apiKey === apiKey)
+export async function getManagedCreditAccountByWallet(wallet: string) {
+  const account = await getConvexClient().query(
+    api.managedCredits.getByWallet,
+    {
+      wallet
+    }
+  )
+
+  return normalizeManagedCreditAccount(account)
 }
 
-export function getOrCreateManagedCreditAccount(wallet: string) {
-  const existing = getManagedCreditAccountByWallet(wallet)
+export async function getManagedCreditAccountByApiKey(apiKey: string) {
+  const account = await getConvexClient().query(
+    api.managedCredits.getByApiKey,
+    {
+      apiKey
+    }
+  )
+
+  return normalizeManagedCreditAccount(account)
+}
+
+export async function getOrCreateManagedCreditAccount(wallet: string) {
+  const existing = await getManagedCreditAccountByWallet(wallet)
 
   if (existing) {
     return existing
@@ -76,13 +86,12 @@ export function getOrCreateManagedCreditAccount(wallet: string) {
     updatedAt: createdAt
   }
 
-  managedCreditAccounts.unshift(account)
-  persistManagedCreditAccounts()
+  await persistManagedCreditAccount(account)
 
   return account
 }
 
-export function recordManagedCreditTopUp({
+export async function recordManagedCreditTopUp({
   wallet,
   amountMusd,
   settlementTxHash
@@ -91,7 +100,7 @@ export function recordManagedCreditTopUp({
   amountMusd: number
   settlementTxHash: string
 }) {
-  const account = getOrCreateManagedCreditAccount(wallet)
+  const account = await getOrCreateManagedCreditAccount(wallet)
   const topUp = {
     id: `top_${randomBytes(6).toString('hex')}`,
     amountMusd,
@@ -102,7 +111,7 @@ export function recordManagedCreditTopUp({
   account.balanceMusd = Number((account.balanceMusd + amountMusd).toFixed(2))
   account.topUps.unshift(topUp)
   account.updatedAt = topUp.createdAt
-  persistManagedCreditAccounts()
+  await persistManagedCreditAccount(account)
 
   return { account, topUp }
 }
@@ -118,7 +127,7 @@ export async function debitManagedCredits({
   receiptId: string
   amountMusd?: number
 }) {
-  const account = getManagedCreditAccountByApiKey(apiKey)
+  const account = await getManagedCreditAccountByApiKey(apiKey)
   const product = await getProductBySlug(productSlug)
 
   if (!account || !product) {
@@ -145,12 +154,12 @@ export async function debitManagedCredits({
   account.balanceMusd = Number((account.balanceMusd - debitAmount).toFixed(2))
   account.debits.unshift(debit)
   account.updatedAt = debit.createdAt
-  persistManagedCreditAccounts()
+  await persistManagedCreditAccount(account)
 
   return { account, product, debit }
 }
 
-export function refundManagedCreditDebit({
+export async function refundManagedCreditDebit({
   apiKey,
   debitId,
   note
@@ -159,7 +168,7 @@ export function refundManagedCreditDebit({
   debitId: string
   note: string
 }) {
-  const account = getManagedCreditAccountByApiKey(apiKey)
+  const account = await getManagedCreditAccountByApiKey(apiKey)
 
   if (!account) {
     return null
@@ -177,12 +186,12 @@ export function refundManagedCreditDebit({
     (account.balanceMusd + debit.amountMusd).toFixed(6)
   )
   account.updatedAt = new Date().toISOString()
-  persistManagedCreditAccounts()
+  await persistManagedCreditAccount(account)
 
   return { account, debit }
 }
 
-export function settleManagedCreditDebit({
+export async function settleManagedCreditDebit({
   apiKey,
   debitId,
   actualAmountMusd,
@@ -193,7 +202,7 @@ export function settleManagedCreditDebit({
   actualAmountMusd: number
   note: string
 }) {
-  const account = getManagedCreditAccountByApiKey(apiKey)
+  const account = await getManagedCreditAccountByApiKey(apiKey)
 
   if (!account) {
     return null
@@ -220,7 +229,7 @@ export function settleManagedCreditDebit({
 
   debit.note = note
   account.updatedAt = new Date().toISOString()
-  persistManagedCreditAccounts()
+  await persistManagedCreditAccount(account)
 
   return { account, debit, deltaMusd }
 }
@@ -237,18 +246,24 @@ export function toPublicManagedCreditAccount(account: ManagedCreditAccount) {
   }
 }
 
-function persistManagedCreditAccounts() {
-  writeWorkspaceJsonArray('managed-credit-accounts.json', managedCreditAccounts)
+async function persistManagedCreditAccount(account: ManagedCreditAccount) {
+  await getConvexClient().mutation(api.managedCredits.upsertSnapshot, {
+    wallet: account.wallet,
+    apiKey: account.apiKey,
+    accountJson: JSON.stringify(account)
+  })
 }
 
-function isManagedCreditAccount(value: unknown): value is ManagedCreditAccount {
+function normalizeManagedCreditAccount(
+  value: unknown
+): ManagedCreditAccount | null {
   if (!value || typeof value !== 'object') {
-    return false
+    return null
   }
 
   const account = value as Partial<ManagedCreditAccount>
 
-  return (
+  if (
     typeof account.wallet === 'string' &&
     typeof account.apiKey === 'string' &&
     typeof account.balanceMusd === 'number' &&
@@ -256,5 +271,9 @@ function isManagedCreditAccount(value: unknown): value is ManagedCreditAccount {
     Array.isArray(account.debits) &&
     typeof account.createdAt === 'string' &&
     typeof account.updatedAt === 'string'
-  )
+  ) {
+    return account as ManagedCreditAccount
+  }
+
+  return null
 }

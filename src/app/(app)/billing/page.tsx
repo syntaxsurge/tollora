@@ -24,7 +24,7 @@ import {
   toPublicManagedCreditAccount
 } from '@/features/billing/managed-credits'
 import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
-import { settlementReceipts } from '@/features/marketplace/receipt-store'
+import { listSettlementReceipts } from '@/features/marketplace/receipt-store'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 import { getProjectSnapshot } from '@/lib/config/project'
@@ -52,9 +52,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const cookieStore = await cookies()
   const walletAddress = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value ?? null
   const snapshot = await getProjectSnapshot()
-  const agentMetrics = getAgentMetrics()
+  const agentMetrics = await getAgentMetrics()
   const managedCreditAccount = walletAddress
-    ? getManagedCreditAccountByWallet(walletAddress)
+    ? await getManagedCreditAccountByWallet(walletAddress)
     : null
   const publicCreditAccount = managedCreditAccount
     ? toPublicManagedCreditAccount(managedCreditAccount)
@@ -91,6 +91,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       updated: row => row.updatedTimestamp
     }
   })
+  const settlementReceipts = await listSettlementReceipts()
   const walletReceipts = walletAddress
     ? settlementReceipts.filter(
         receipt =>

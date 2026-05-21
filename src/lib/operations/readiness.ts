@@ -1,5 +1,5 @@
 import { getPublishedProducts } from '@/features/marketplace/products'
-import { settlementReceipts } from '@/features/marketplace/receipt-store'
+import { listSettlementReceipts } from '@/features/marketplace/receipt-store'
 import { x402Network } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
@@ -14,7 +14,10 @@ export type ReadinessItem = {
 }
 
 export async function getOperationalReadiness() {
-  const products = await getPublishedProducts()
+  const [products, settlementReceipts] = await Promise.all([
+    getPublishedProducts(),
+    listSettlementReceipts()
+  ])
   const facilitatorUrl =
     envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
 

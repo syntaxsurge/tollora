@@ -21,6 +21,7 @@
     "x402:call": "tsx scripts/x402-paid-call.ts"
   },
   "dependencies": {
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@scalar/nextjs-api-reference": "^0.10.14",
     "@tailwindcss/postcss": "4.1.7",

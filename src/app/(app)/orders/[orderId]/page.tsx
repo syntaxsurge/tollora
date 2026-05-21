@@ -17,7 +17,7 @@ export default async function OrderDetailPage({
   params
 }: OrderDetailPageProps) {
   const { orderId } = await params
-  const order = getMarketplaceOrderById(orderId) ?? null
+  const order = (await getMarketplaceOrderById(orderId)) ?? null
 
   return (
     <div className='space-y-6'>

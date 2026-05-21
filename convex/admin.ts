@@ -22,12 +22,16 @@ export const truncateAll = mutation({
       'apiProductVersions',
       'orders',
       'receipts',
+      'managedCreditAccounts',
       'apiRequests',
       'webhookEvents',
       'webhookEndpoints',
       'webhookDeliveries',
       'apiUsageEvents',
       'providerPayouts',
+      'agentRuns',
+      'agentActions',
+      'agentProofs',
       'savedExamples',
       'reviews'
     ]

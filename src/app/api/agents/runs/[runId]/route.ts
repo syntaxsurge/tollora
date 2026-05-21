@@ -11,7 +11,7 @@ type AgentRunRouteProps = {
 }
 
 export async function GET(_request: Request, { params }: AgentRunRouteProps) {
-  const run = getAgentRun((await params).runId)
+  const run = await getAgentRun((await params).runId)
 
   if (!run) {
     return NextResponse.json(

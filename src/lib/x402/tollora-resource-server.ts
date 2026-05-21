@@ -35,14 +35,14 @@ async function requireProductFromContext(context: HTTPRequestContext) {
   const slug = getProductSlugFromPath(context.path)
   const product = slug ? await getProductBySlug(slug) : undefined
 
-  if (!product || !canPriceProductFromContext(product, context)) {
+  if (!product || !(await canPriceProductFromContext(product, context))) {
     throw new Error('Published API product was not found.')
   }
 
   return product
 }
 
-function canPriceProductFromContext(
+async function canPriceProductFromContext(
   product: NonNullable<Awaited<ReturnType<typeof getProductBySlug>>>,
   context: HTTPRequestContext
 ) {
@@ -55,7 +55,7 @@ function canPriceProductFromContext(
   }
 
   const orderId = context.adapter.getHeader?.('x-tollora-order-id')
-  const order = orderId ? getMarketplaceOrderById(orderId) : undefined
+  const order = orderId ? await getMarketplaceOrderById(orderId) : undefined
 
   if (!order || order.productSlug !== product.slug) {
     return false
@@ -143,7 +143,7 @@ const claimRoute: RouteConfig = {
     scheme: 'exact',
     network: x402Network as Network,
     payTo: async context => {
-      const order = requireClaimOrderFromContext(context)
+      const order = await requireClaimOrderFromContext(context)
       const product = await getProductBySlug(order.productSlug)
 
       if (!product) {
@@ -152,8 +152,8 @@ const claimRoute: RouteConfig = {
 
       return product.providerWallet
     },
-    price: context => {
-      const order = requireClaimOrderFromContext(context)
+    price: async context => {
+      const order = await requireClaimOrderFromContext(context)
       const amount = parseMusdAmount(order.deltaAmountMusd)
 
       if (amount <= 0) {
@@ -167,8 +167,8 @@ const claimRoute: RouteConfig = {
   description:
     'MUSD-settled Tollora result claim for credit-metered API usage that exceeded the prepaid quote.',
   mimeType: 'application/json',
-  unpaidResponseBody: context => {
-    const order = requireClaimOrderFromContext(context)
+  unpaidResponseBody: async context => {
+    const order = await requireClaimOrderFromContext(context)
 
     return {
       contentType: 'application/json',
@@ -200,9 +200,9 @@ const claimRoute: RouteConfig = {
   })
 }
 
-function requireClaimOrderFromContext(context: HTTPRequestContext) {
+async function requireClaimOrderFromContext(context: HTTPRequestContext) {
   const orderId = getOrderIdFromClaimPath(context.path)
-  const order = orderId ? getMarketplaceOrderById(orderId) : undefined
+  const order = orderId ? await getMarketplaceOrderById(orderId) : undefined
 
   if (
     !order ||

@@ -53,7 +53,7 @@ export async function POST(
     )
   }
 
-  const account = getManagedCreditAccountByApiKey(apiKey)
+  const account = await getManagedCreditAccountByApiKey(apiKey)
 
   if (!account) {
     return NextResponse.json(
@@ -117,7 +117,7 @@ export async function POST(
   })
 
   if (providerResult.status === 'failed') {
-    refundManagedCreditDebit({
+    await refundManagedCreditDebit({
       apiKey,
       debitId: debitResult.debit.id,
       note: 'Provider failed after reservation; reserved MUSD was returned to the managed credit balance.'
@@ -148,7 +148,7 @@ export async function POST(
       : null
   const settlementAdjustment =
     usageDelta?.actualPrice && usageDelta.releaseStatus !== 'not_applicable'
-      ? settleManagedCreditDebit({
+      ? await settleManagedCreditDebit({
           apiKey,
           debitId: debitResult.debit.id,
           actualAmountMusd: usageDelta.actualPrice.amountUsd,
@@ -248,8 +248,8 @@ export async function POST(
     updatedAt: createdAt
   }
 
-  recordMarketplaceReceipt(receipt)
-  recordMarketplaceOrder(order)
+  await recordMarketplaceReceipt(receipt)
+  await recordMarketplaceOrder(order)
 
   return NextResponse.json({
     order,

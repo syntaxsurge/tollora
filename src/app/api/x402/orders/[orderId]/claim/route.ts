@@ -42,7 +42,7 @@ type VerifiedPaymentResult = Extract<
 
 export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
   const { orderId } = await params
-  const order = getMarketplaceOrderById(orderId)
+  const order = await getMarketplaceOrderById(orderId)
 
   if (
     !order ||
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     createdAt,
     resultUrl: order.lockedResultUrl ?? order.resultUrl
   }
-  recordMarketplaceReceipt(receipt)
+  await recordMarketplaceReceipt(receipt)
   const escrowPaymentId = isHexBytes32(order.escrowPaymentId)
     ? order.escrowPaymentId
     : null
@@ -157,11 +157,11 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     ? escrowRelease
     : null
   const originalReceipt = order.receiptId
-    ? getMarketplaceReceiptById(order.receiptId)
+    ? await getMarketplaceReceiptById(order.receiptId)
     : undefined
 
   if (originalReceipt && releasedEscrow) {
-    recordMarketplaceReceipt({
+    await recordMarketplaceReceipt({
       ...originalReceipt,
       escrowStatus: 'released',
       escrowReleaseTxHash: releasedEscrow.txHash,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     })
   }
 
-  const releasedOrder = updateMarketplaceOrder(order.id, {
+  const releasedOrder = await updateMarketplaceOrder(order.id, {
     status: 'completed',
     paidAmountMusd: order.actualAmountMusd ?? order.paidAmountMusd,
     resultReleaseStatus: 'released',

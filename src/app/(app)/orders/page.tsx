@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import {
   getOrderMetrics,
-  marketplaceOrders
+  listMarketplaceOrders
 } from '@/features/marketplace/orders'
 import { orderStatusLabels } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
@@ -31,7 +31,8 @@ type OrdersPageProps = {
 
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const params = await searchParams
-  const metrics = getOrderMetrics()
+  const metrics = await getOrderMetrics()
+  const marketplaceOrders = await listMarketplaceOrders()
   const state = resolveServerTableState(params, {
     defaultSort: 'updatedAt',
     defaultPageSize: 10

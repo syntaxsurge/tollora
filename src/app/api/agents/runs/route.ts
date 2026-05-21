@@ -6,9 +6,9 @@ import { getPublishedProducts } from '@/features/marketplace/products'
 
 export const dynamic = 'force-dynamic'
 
-export function GET() {
+export async function GET() {
   return NextResponse.json({
-    runs: listAgentRuns()
+    runs: await listAgentRuns()
   })
 }
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       : (await getPublishedProducts())
           .filter(product => product.isAgentReady)
           .map(product => product.slug)
-  const run = createAgentRun({
+  const run = await createAgentRun({
     ...parsed.data,
     allowedTools
   })

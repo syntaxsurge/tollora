@@ -15,7 +15,7 @@ type AgentRunPageProps = {
 
 export default async function AgentRunPage({ params }: AgentRunPageProps) {
   const { runId } = await params
-  const run = getAgentRun(runId) ?? null
+  const run = (await getAgentRun(runId)) ?? null
 
   return (
     <div className='space-y-8'>

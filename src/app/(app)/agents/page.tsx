@@ -39,7 +39,7 @@ type AgentsPageProps = {
 export default async function AgentsPage({ searchParams }: AgentsPageProps) {
   const params = await searchParams
   const tab = params?.tab === 'templates' ? 'templates' : 'runs'
-  const metrics = getAgentMetrics()
+  const metrics = await getAgentMetrics()
   const state = resolveServerTableState(params, {
     defaultSort: tab === 'runs' ? 'updatedAt' : 'title',
     defaultPageSize: 8
@@ -60,7 +60,7 @@ export default async function AgentsPage({ searchParams }: AgentsPageProps) {
       actions: template => template.maxPaidActions
     }
   })
-  const runs = queryServerRows(listAgentRuns(), state, {
+  const runs = queryServerRows(await listAgentRuns(), state, {
     searchText: run =>
       [
         run.title,

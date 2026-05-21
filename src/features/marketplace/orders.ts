@@ -1,49 +1,41 @@
 import type { MarketplaceOrder } from '@/features/marketplace/types'
-import {
-  readWorkspaceJsonArray,
-  writeWorkspaceJsonArray
-} from '@/lib/persistence/workspace-json-store'
+import { getConvexClient } from '@/lib/db/convex/client'
 
-const globalForMarketplaceOrders = globalThis as typeof globalThis & {
-  __tolloraMarketplaceOrders?: MarketplaceOrder[]
+import { api } from '../../../convex/_generated/api'
+
+export async function listMarketplaceOrders() {
+  const rows = await getConvexClient().query(api.orders.listSnapshots, {})
+
+  return Array.isArray(rows)
+    ? rows
+        .map(normalizeMarketplaceOrder)
+        .filter((order): order is MarketplaceOrder => Boolean(order))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    : []
 }
 
-export const marketplaceOrders =
-  globalForMarketplaceOrders.__tolloraMarketplaceOrders ??
-  readWorkspaceJsonArray({
-    fileName: 'marketplace-orders.json',
-    isItem: isMarketplaceOrder
+export async function getMarketplaceOrderById(orderId: string) {
+  const order = await getConvexClient().query(api.orders.getSnapshotByKey, {
+    orderKey: orderId
   })
 
-globalForMarketplaceOrders.__tolloraMarketplaceOrders = marketplaceOrders
-persistMarketplaceOrders()
-
-export function getMarketplaceOrderById(orderId: string) {
-  return marketplaceOrders.find(order => order.id === orderId)
+  return normalizeMarketplaceOrder(order)
 }
 
-export function recordMarketplaceOrder(order: MarketplaceOrder) {
-  const existingIndex = marketplaceOrders.findIndex(
-    item => item.id === order.id
-  )
+export async function recordMarketplaceOrder(order: MarketplaceOrder) {
+  const saved = await getConvexClient().mutation(api.orders.upsertSnapshot, {
+    orderKey: order.id,
+    orderJson: JSON.stringify(order)
+  })
 
-  if (existingIndex >= 0) {
-    marketplaceOrders[existingIndex] = order
-    persistMarketplaceOrders()
-    return order
-  }
-
-  marketplaceOrders.unshift(order)
-  persistMarketplaceOrders()
-
-  return order
+  return normalizeMarketplaceOrder(saved) ?? order
 }
 
-export function updateMarketplaceOrder(
+export async function updateMarketplaceOrder(
   orderId: string,
   updates: Partial<MarketplaceOrder>
 ) {
-  const existing = getMarketplaceOrderById(orderId)
+  const existing = await getMarketplaceOrderById(orderId)
 
   if (!existing) {
     return null
@@ -56,42 +48,39 @@ export function updateMarketplaceOrder(
     updatedAt: new Date().toISOString()
   }
 
-  recordMarketplaceOrder(nextOrder)
-
-  return nextOrder
+  return await recordMarketplaceOrder(nextOrder)
 }
 
-export function deleteMarketplaceOrders(orderIds: string[]) {
-  const orderIdSet = new Set(orderIds)
-  const initialCount = marketplaceOrders.length
+export async function deleteMarketplaceOrders(orderIds: string[]) {
+  return await getConvexClient().mutation(api.orders.deleteSnapshots, {
+    orderKeys: orderIds
+  })
+}
 
-  for (let index = marketplaceOrders.length - 1; index >= 0; index -= 1) {
-    if (orderIdSet.has(marketplaceOrders[index].id)) {
-      marketplaceOrders.splice(index, 1)
-    }
+export async function getOrderMetrics() {
+  const orders = await listMarketplaceOrders()
+  const completed = orders.filter(order => order.status === 'completed')
+  const processing = orders.filter(order => order.status === 'processing')
+  const paymentRequired = orders.filter(
+    order => order.status === 'payment_required'
+  )
+
+  return {
+    total: orders.length,
+    completed: completed.length,
+    processing: processing.length,
+    paymentRequired: paymentRequired.length
   }
-
-  const deletedCount = initialCount - marketplaceOrders.length
-
-  if (deletedCount > 0) {
-    persistMarketplaceOrders()
-  }
-
-  return deletedCount
 }
 
-function persistMarketplaceOrders() {
-  writeWorkspaceJsonArray('marketplace-orders.json', marketplaceOrders)
-}
-
-function isMarketplaceOrder(value: unknown): value is MarketplaceOrder {
+function normalizeMarketplaceOrder(value: unknown): MarketplaceOrder | null {
   if (!value || typeof value !== 'object') {
-    return false
+    return null
   }
 
   const order = value as Partial<MarketplaceOrder>
 
-  return (
+  if (
     typeof order.id === 'string' &&
     typeof order.productSlug === 'string' &&
     typeof order.productName === 'string' &&
@@ -100,24 +89,9 @@ function isMarketplaceOrder(value: unknown): value is MarketplaceOrder {
     typeof order.status === 'string' &&
     typeof order.requestId === 'string' &&
     typeof order.createdAt === 'string'
-  )
-}
-
-export function getOrderMetrics() {
-  const completed = marketplaceOrders.filter(
-    order => order.status === 'completed'
-  )
-  const processing = marketplaceOrders.filter(
-    order => order.status === 'processing'
-  )
-  const paymentRequired = marketplaceOrders.filter(
-    order => order.status === 'payment_required'
-  )
-
-  return {
-    total: marketplaceOrders.length,
-    completed: completed.length,
-    processing: processing.length,
-    paymentRequired: paymentRequired.length
+  ) {
+    return order as MarketplaceOrder
   }
+
+  return null
 }

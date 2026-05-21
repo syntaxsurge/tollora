@@ -11,13 +11,13 @@ type ProofRouteProps = {
 }
 
 export async function GET(_request: Request, { params }: ProofRouteProps) {
-  const proof = getAgentProof((await params).proofId)
+  const proof = await getAgentProof((await params).proofId)
 
   if (!proof) {
     return NextResponse.json({ error: 'Proof was not found.' }, { status: 404 })
   }
 
-  const run = listAgentRuns().find(item => item.id === proof.runId)
+  const run = (await listAgentRuns()).find(item => item.id === proof.runId)
 
   return NextResponse.json({
     proof,

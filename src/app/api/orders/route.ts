@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     updatedAt: createdAt
   }
 
-  recordMarketplaceOrder(order)
+  await recordMarketplaceOrder(order)
 
   return NextResponse.json(order)
 }

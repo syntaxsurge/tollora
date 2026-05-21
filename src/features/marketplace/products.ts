@@ -1,5 +1,6 @@
-import { marketplaceOrders } from '@/features/marketplace/orders'
-import { settlementReceipts } from '@/features/marketplace/receipt-store'
+import { listMarketplaceOrders } from '@/features/marketplace/orders'
+import { listSettlementReceipts } from '@/features/marketplace/receipt-store'
+import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { getConvexClient } from '@/lib/db/convex/client'
 
@@ -409,11 +410,15 @@ export async function getProviderPublishedProducts(
 }
 
 export async function getAllProducts() {
-  const providerProducts = await readProviderProducts()
+  const [providerProducts, orders, receipts] = await Promise.all([
+    readProviderProducts(),
+    listMarketplaceOrders(),
+    listSettlementReceipts()
+  ])
 
   return [...providerProducts, ...marketplaceProducts]
     .map(withDisplayPriceLabel)
-    .map(withUsageMetrics)
+    .map(product => withUsageMetrics(product, orders, receipts))
 }
 
 export async function getFeaturedProduct() {
@@ -549,11 +554,13 @@ export async function getMarketplaceMetrics() {
 
 export async function getProviderDashboardMetrics(ownerWallet?: string | null) {
   const products = await getProviderOwnedProducts(ownerWallet)
+  const [allOrders, allReceipts] = await Promise.all([
+    listMarketplaceOrders(),
+    listSettlementReceipts()
+  ])
   const productSlugs = new Set(products.map(product => product.slug))
-  const orders = marketplaceOrders.filter(order =>
-    productSlugs.has(order.productSlug)
-  )
-  const receipts = settlementReceipts.filter(receipt =>
+  const orders = allOrders.filter(order => productSlugs.has(order.productSlug))
+  const receipts = allReceipts.filter(receipt =>
     productSlugs.has(receipt.productSlug)
   )
   const completedOrders = orders.filter(isCompletedProviderOrder)
@@ -564,7 +571,7 @@ export async function getProviderDashboardMetrics(ownerWallet?: string | null) {
     )
   )
   const providerRevenue = receipts
-    .filter(receipt => isProviderEarningReceipt(receipt.orderId))
+    .filter(receipt => isProviderEarningReceipt(receipt.orderId, allOrders))
     .reduce((sum, receipt) => sum + parseMusd(receipt.providerAmountMusd), 0)
   const grossVolume = receipts.reduce(
     (sum, receipt) => sum + parseMusd(receipt.amountMusd),
@@ -589,9 +596,10 @@ export async function getProviderDashboardMetrics(ownerWallet?: string | null) {
 
 export async function getProviderOrders(ownerWallet?: string | null) {
   const products = await getProviderOwnedProducts(ownerWallet)
+  const orders = await listMarketplaceOrders()
   const productSlugs = new Set(products.map(product => product.slug))
 
-  return marketplaceOrders.filter(order => productSlugs.has(order.productSlug))
+  return orders.filter(order => productSlugs.has(order.productSlug))
 }
 
 async function readProviderProducts() {
@@ -626,16 +634,20 @@ function withDisplayPriceLabel(product: ApiProduct): ApiProduct {
   }
 }
 
-function withUsageMetrics(product: ApiProduct): ApiProduct {
-  const productOrders = marketplaceOrders.filter(
+function withUsageMetrics(
+  product: ApiProduct,
+  orders: MarketplaceOrder[],
+  receipts: MarketplaceReceipt[]
+): ApiProduct {
+  const productOrders = orders.filter(
     order => order.productSlug === product.slug
   )
   const completedOrders = productOrders.filter(isCompletedProviderOrder)
-  const productReceipts = settlementReceipts.filter(
+  const productReceipts = receipts.filter(
     receipt => receipt.productSlug === product.slug
   )
   const revenue = productReceipts
-    .filter(receipt => isProviderEarningReceipt(receipt.orderId))
+    .filter(receipt => isProviderEarningReceipt(receipt.orderId, orders))
     .reduce((sum, receipt) => sum + parseMusd(receipt.providerAmountMusd), 0)
 
   return {
@@ -657,8 +669,8 @@ function isCompletedProviderOrder(order: MarketplaceOrder) {
   )
 }
 
-function isProviderEarningReceipt(orderId: string) {
-  const order = marketplaceOrders.find(item => item.id === orderId)
+function isProviderEarningReceipt(orderId: string, orders: MarketplaceOrder[]) {
+  const order = orders.find(item => item.id === orderId)
 
   if (!order) {
     return false

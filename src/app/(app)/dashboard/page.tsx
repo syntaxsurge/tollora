@@ -17,8 +17,8 @@ export default async function DashboardPage() {
   const products = await getPublishedProducts()
   const featuredProduct = await getFeaturedProduct()
   const metrics = await getMarketplaceMetrics()
-  const agentMetrics = getAgentMetrics()
-  const recentAgentRun = listAgentRuns()[0]
+  const agentMetrics = await getAgentMetrics()
+  const recentAgentRun = (await listAgentRuns())[0]
 
   return (
     <div className='space-y-8'>

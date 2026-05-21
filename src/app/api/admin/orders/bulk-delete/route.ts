@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const deleted = deleteMarketplaceOrders(ids)
+  const deleted = await deleteMarketplaceOrders(ids)
 
   revalidatePath('/admin')
   revalidatePath('/admin/orders')

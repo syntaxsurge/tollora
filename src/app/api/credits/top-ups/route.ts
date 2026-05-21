@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const { account, topUp } = recordManagedCreditTopUp(parsed.data)
+  const { account, topUp } = await recordManagedCreditTopUp(parsed.data)
 
   return NextResponse.json({
     account: toPublicManagedCreditAccount(account),

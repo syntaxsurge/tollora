@@ -16,6 +16,12 @@ import { JsonViewer } from '@/components/data-display/json-viewer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import { storeMarketplaceOrderSnapshot } from '@/features/marketplace/order-session-storage'
 import type { ApiProduct } from '@/features/marketplace/products'
@@ -53,16 +59,18 @@ export function OrderCreateForm({
   providerDraftTest
 }: OrderCreateFormProps) {
   return (
-    <WalletAddressConsumer>
-      {({ address }) => (
-        <OrderCreateFormFields
-          product={product}
-          connectedWallet={address}
-          compact={compact}
-          providerDraftTest={providerDraftTest}
-        />
-      )}
-    </WalletAddressConsumer>
+    <TooltipProvider delayDuration={120}>
+      <WalletAddressConsumer>
+        {({ address }) => (
+          <OrderCreateFormFields
+            product={product}
+            connectedWallet={address}
+            compact={compact}
+            providerDraftTest={providerDraftTest}
+          />
+        )}
+      </WalletAddressConsumer>
+    </TooltipProvider>
   )
 }
 
@@ -413,13 +421,23 @@ function RequestSchemaField({
           {baseTypeLabel}
         </span>
         {fieldHelp ? (
-          <span
-            className='text-foreground/60 inline-flex items-center'
-            title={fieldHelp}
-            aria-label={`${label} help: ${fieldHelp}`}
-          >
-            <Info className='h-3.5 w-3.5' aria-hidden />
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type='button'
+                className='text-foreground/60 hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background inline-flex h-6 w-6 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+                aria-label={`${label} help`}
+              >
+                <Info className='h-3.5 w-3.5' aria-hidden />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className='font-medium tracking-normal normal-case'>{label}</p>
+              <p className='text-foreground/70 mt-1 tracking-normal normal-case'>
+                {fieldHelp}
+              </p>
+            </TooltipContent>
+          </Tooltip>
         ) : null}
       </span>
       {isBoolean ? (

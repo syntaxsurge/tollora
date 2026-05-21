@@ -17,6 +17,7 @@ export type ResolvedProductPrice = {
   usageCreditPath?: string
   source: 'fixed' | 'request_payload' | 'quote_endpoint' | 'provider_response'
   quoteResponse?: unknown
+  quoteError?: string
 }
 
 export type PriceDelta = {
@@ -49,6 +50,7 @@ export async function resolveProductPrice({
   }
 
   const pricing = product.pricing
+  let quoteError: string | undefined
   const sourcePayload = providerResponse
     ? providerResponse
     : pricing.quoteEndpointUrl
@@ -57,6 +59,13 @@ export async function resolveProductPrice({
           method: pricing.quoteMethod ?? 'POST',
           auth: product.providerAuth,
           requestPayload: sanitizedRequestPayload
+        }).catch(error => {
+          quoteError =
+            error instanceof Error
+              ? error.message
+              : 'Pricing quote endpoint failed.'
+
+          return sanitizedRequestPayload
         })
       : sanitizedRequestPayload
   const creditUnitPath =
@@ -66,8 +75,26 @@ export async function resolveProductPrice({
   const creditValue = readNumberPath(sourcePayload, creditUnitPath)
 
   if (creditValue === null) {
+    const fallbackAmountUsd =
+      pricing.minimumChargeUsd && pricing.minimumChargeUsd > 0
+        ? pricing.minimumChargeUsd
+        : product.priceUsd
+
+    if (fallbackAmountUsd > 0) {
+      return {
+        amountUsd: fallbackAmountUsd,
+        amountLabel: formatMusdAmount(fallbackAmountUsd),
+        model: 'credit_metered',
+        source: 'fixed',
+        quoteError:
+          quoteError ??
+          `Unable to calculate usage-based price because ${creditUnitPath} was not found.`
+      }
+    }
+
     throw new Error(
-      `Unable to calculate usage-based price because ${creditUnitPath} was not found.`
+      quoteError ??
+        `Unable to calculate usage-based price because ${creditUnitPath} was not found.`
     )
   }
 
@@ -95,7 +122,8 @@ export async function resolveProductPrice({
         ? 'quote_endpoint'
         : 'request_payload',
     quoteResponse:
-      !providerResponse && pricing.quoteEndpointUrl ? sourcePayload : undefined
+      !providerResponse && pricing.quoteEndpointUrl ? sourcePayload : undefined,
+    quoteError
   }
 }
 

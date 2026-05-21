@@ -18,7 +18,7 @@ export default async function ReceiptDetailPage({
   params
 }: ReceiptDetailPageProps) {
   const { receiptId } = await params
-  const receipt = getMarketplaceReceiptById(receiptId) ?? null
+  const receipt = (await getMarketplaceReceiptById(receiptId)) ?? null
 
   return (
     <div className='space-y-8'>

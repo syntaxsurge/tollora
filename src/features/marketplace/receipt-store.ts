@@ -1,58 +1,48 @@
 import 'server-only'
 
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
-import {
-  readWorkspaceJsonArray,
-  writeWorkspaceJsonArray
-} from '@/lib/persistence/workspace-json-store'
+import { getConvexClient } from '@/lib/db/convex/client'
 
-const globalForSettlementReceipts = globalThis as typeof globalThis & {
-  __tolloraSettlementReceipts?: MarketplaceReceipt[]
+import { api } from '../../../convex/_generated/api'
+
+export async function listSettlementReceipts() {
+  const rows = await getConvexClient().query(api.receipts.listSnapshots, {})
+
+  return Array.isArray(rows)
+    ? rows
+        .map(normalizeMarketplaceReceipt)
+        .filter((receipt): receipt is MarketplaceReceipt => Boolean(receipt))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    : []
 }
 
-export const settlementReceipts =
-  globalForSettlementReceipts.__tolloraSettlementReceipts ??
-  readWorkspaceJsonArray({
-    fileName: 'settlement-receipts.json',
-    isItem: isMarketplaceReceipt
+export async function getMarketplaceReceiptById(receiptId: string) {
+  const receipt = await getConvexClient().query(api.receipts.getSnapshotByKey, {
+    receiptKey: receiptId
   })
 
-globalForSettlementReceipts.__tolloraSettlementReceipts = settlementReceipts
-persistMarketplaceReceipts()
-
-export function getMarketplaceReceiptById(receiptId: string) {
-  return settlementReceipts.find(receipt => receipt.id === receiptId)
+  return normalizeMarketplaceReceipt(receipt)
 }
 
-export function recordMarketplaceReceipt(receipt: MarketplaceReceipt) {
-  const existingIndex = settlementReceipts.findIndex(
-    item => item.id === receipt.id
-  )
+export async function recordMarketplaceReceipt(receipt: MarketplaceReceipt) {
+  const saved = await getConvexClient().mutation(api.receipts.upsertSnapshot, {
+    receiptKey: receipt.id,
+    receiptJson: JSON.stringify(receipt)
+  })
 
-  if (existingIndex >= 0) {
-    settlementReceipts[existingIndex] = receipt
-    persistMarketplaceReceipts()
-    return receipt
-  }
-
-  settlementReceipts.unshift(receipt)
-  persistMarketplaceReceipts()
-
-  return receipt
+  return normalizeMarketplaceReceipt(saved) ?? receipt
 }
 
-function persistMarketplaceReceipts() {
-  writeWorkspaceJsonArray('settlement-receipts.json', settlementReceipts)
-}
-
-function isMarketplaceReceipt(value: unknown): value is MarketplaceReceipt {
+function normalizeMarketplaceReceipt(
+  value: unknown
+): MarketplaceReceipt | null {
   if (!value || typeof value !== 'object') {
-    return false
+    return null
   }
 
   const receipt = value as Partial<MarketplaceReceipt>
 
-  return (
+  if (
     typeof receipt.id === 'string' &&
     typeof receipt.orderId === 'string' &&
     typeof receipt.requestId === 'string' &&
@@ -61,5 +51,9 @@ function isMarketplaceReceipt(value: unknown): value is MarketplaceReceipt {
     typeof receipt.providerName === 'string' &&
     typeof receipt.amountMusd === 'string' &&
     typeof receipt.createdAt === 'string'
-  )
+  ) {
+    return receipt as MarketplaceReceipt
+  }
+
+  return null
 }

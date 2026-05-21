@@ -14,7 +14,7 @@ export async function POST(
   _request: Request,
   { params }: AgentRunFundingRouteProps
 ) {
-  const prepared = prepareAgentRunFunding((await params).runId)
+  const prepared = await prepareAgentRunFunding((await params).runId)
 
   if (!prepared) {
     return NextResponse.json(

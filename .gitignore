@@ -44,9 +44,6 @@ next-env.d.ts
 
 .vscode
 
-# local runtime state
-.tollora/
-
 # Docker
 postgres_data/
 

@@ -9,9 +9,11 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as agentState from "../agentState.js";
 import type * as apiProducts from "../apiProducts.js";
 import type * as apiRequests from "../apiRequests.js";
 import type * as functions_workspaces from "../functions/workspaces.js";
+import type * as managedCredits from "../managedCredits.js";
 import type * as orders from "../orders.js";
 import type * as providers from "../providers.js";
 import type * as receipts from "../receipts.js";
@@ -26,9 +28,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  agentState: typeof agentState;
   apiProducts: typeof apiProducts;
   apiRequests: typeof apiRequests;
   "functions/workspaces": typeof functions_workspaces;
+  managedCredits: typeof managedCredits;
   orders: typeof orders;
   providers: typeof providers;
   receipts: typeof receipts;

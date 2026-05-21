@@ -15,13 +15,13 @@ type ProofPageProps = {
 
 export default async function ProofPage({ params }: ProofPageProps) {
   const { proofId } = await params
-  const proof = getAgentProof(proofId)
+  const proof = await getAgentProof(proofId)
 
   if (!proof) {
     notFound()
   }
 
-  const run = listAgentRuns().find(item => item.id === proof.runId)
+  const run = (await listAgentRuns()).find(item => item.id === proof.runId)
 
   return (
     <div className='container-page space-y-8 py-16'>

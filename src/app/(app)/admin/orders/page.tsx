@@ -9,7 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { marketplaceOrders } from '@/features/marketplace/orders'
+import { listMarketplaceOrders } from '@/features/marketplace/orders'
 import { orderStatusLabels } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import {
@@ -35,6 +35,7 @@ export default async function AdminOrdersPage({
     defaultSort: 'updated',
     defaultPageSize: 10
   })
+  const marketplaceOrders = await listMarketplaceOrders()
   const table = queryServerRows(marketplaceOrders, state, {
     searchText: order =>
       [

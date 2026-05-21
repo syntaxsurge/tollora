@@ -23,15 +23,16 @@ import {
   parseMusdToAtomic,
   writeAgentRunVault
 } from '@/lib/contracts/agent-run-vault'
-import {
-  readWorkspaceJsonArray,
-  writeWorkspaceJsonArray
-} from '@/lib/persistence/workspace-json-store'
+import { getConvexClient } from '@/lib/db/convex/client'
+
+import { api } from '../../../convex/_generated/api'
 
 type AgentGlobalStore = {
   runs: Map<string, AgentRun>
   proofs: Map<string, AgentProof>
   cancelledRuns: Set<string>
+  loadedRuns?: boolean
+  loadedProofs?: boolean
 }
 
 const globalStore = globalThis as typeof globalThis & {
@@ -41,18 +42,8 @@ const globalStore = globalThis as typeof globalThis & {
 const store =
   globalStore.__tolloraAgentStore ??
   (globalStore.__tolloraAgentStore = {
-    runs: new Map(
-      readWorkspaceJsonArray({
-        fileName: 'agent-runs.json',
-        isItem: isAgentRun
-      }).map(run => [run.id, run])
-    ),
-    proofs: new Map(
-      readWorkspaceJsonArray({
-        fileName: 'agent-proofs.json',
-        isItem: isAgentProof
-      }).map(proof => [proof.id, proof])
-    ),
+    runs: new Map<string, AgentRun>(),
+    proofs: new Map<string, AgentProof>(),
     cancelledRuns: new Set<string>()
   })
 
@@ -62,24 +53,29 @@ const runs = store.runs
 const proofs = store.proofs
 const cancelledRuns = store.cancelledRuns
 
-persistAgentRuns()
-persistAgentProofs()
+export async function listAgentRuns() {
+  await loadAgentRuns()
 
-export function listAgentRuns() {
   return Array.from(runs.values()).sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt)
   )
 }
 
-export function getAgentRun(runId: string) {
+export async function getAgentRun(runId: string) {
+  await loadAgentRuns()
+
   return runs.get(runId)
 }
 
-export function getAgentProof(proofId: string) {
+export async function getAgentProof(proofId: string) {
+  await loadAgentProofs()
+
   return proofs.get(proofId)
 }
 
-export function createAgentRun(input: CreateAgentRunInput) {
+export async function createAgentRun(input: CreateAgentRunInput) {
+  await loadAgentRuns()
+
   const now = new Date().toISOString()
   const runId = `run_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
   const vaultAddress = getAgentRunVaultAddress() ?? undefined
@@ -115,14 +111,14 @@ export function createAgentRun(input: CreateAgentRunInput) {
   }
 
   runs.set(run.id, run)
-  persistAgentRuns()
   cancelledRuns.delete(run.id)
+  await persistAgentRun(run)
 
   return run
 }
 
 export async function deleteAgentRun(runId: string) {
-  const run = getAgentRun(runId)
+  const run = await getAgentRun(runId)
 
   if (!run) {
     return null
@@ -148,13 +144,15 @@ export async function deleteAgentRun(runId: string) {
   }
 
   runs.delete(runId)
-  persistAgentRuns()
+  await getConvexClient().mutation(api.agentState.deleteRun, { runKey: runId })
   Array.from(proofs.entries()).forEach(([proofId, proof]) => {
     if (proof.runId === runId) {
       proofs.delete(proofId)
     }
   })
-  persistAgentProofs()
+  await getConvexClient().mutation(api.agentState.deleteProofsForRun, {
+    runKey: runId
+  })
 
   return run
 }
@@ -164,7 +162,7 @@ export function isAgentRunCancelled(runId: string) {
 }
 
 export async function executeStoredAgentRun(runId: string, appUrl?: string) {
-  const run = getAgentRun(runId)
+  const run = await getAgentRun(runId)
 
   if (!run) {
     return null
@@ -196,7 +194,7 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
     updatedAt: new Date().toISOString()
   } satisfies AgentRun
   runs.set(run.id, running)
-  persistAgentRuns()
+  await persistAgentRun(running)
 
   await writeAgentRunVault({
     functionName: 'markRunning',
@@ -232,7 +230,7 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
-  persistAgentRuns()
+  await persistAgentRun(nextRun)
 
   await writeAgentRunVault({
     functionName: 'markCompleted',
@@ -242,8 +240,8 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
   return nextRun
 }
 
-export function prepareAgentRunFunding(runId: string) {
-  const run = getAgentRun(runId)
+export async function prepareAgentRunFunding(runId: string) {
+  const run = await getAgentRun(runId)
   const vaultAddress = getAgentRunVaultAddress()
   const agentSigner = getAgentSignerAddress()
 
@@ -277,7 +275,7 @@ export function prepareAgentRunFunding(runId: string) {
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
-  persistAgentRuns()
+  await persistAgentRun(nextRun)
 
   return {
     run: nextRun,
@@ -293,7 +291,7 @@ export function prepareAgentRunFunding(runId: string) {
   }
 }
 
-export function confirmAgentRunFunding({
+export async function confirmAgentRunFunding({
   runId,
   fundingTxHash,
   approvalTxHash
@@ -302,7 +300,7 @@ export function confirmAgentRunFunding({
   fundingTxHash: string
   approvalTxHash?: string
 }) {
-  const run = getAgentRun(runId)
+  const run = await getAgentRun(runId)
 
   if (!run) {
     return null
@@ -334,7 +332,7 @@ export function confirmAgentRunFunding({
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
-  persistAgentRuns()
+  await persistAgentRun(nextRun)
 
   return nextRun
 }
@@ -346,7 +344,7 @@ export async function refundAgentRunUnusedBudget({
   runId: string
   refundTxHash?: string
 }) {
-  const run = getAgentRun(runId)
+  const run = await getAgentRun(runId)
 
   if (!run) {
     return null
@@ -383,17 +381,17 @@ export async function refundAgentRunUnusedBudget({
   } satisfies AgentRun
 
   runs.set(run.id, nextRun)
-  persistAgentRuns()
+  await persistAgentRun(nextRun)
 
   return nextRun
 }
 
-export function getAgentRunLedger(runId: string) {
-  return getAgentRun(runId)?.ledgerEvents ?? null
+export async function getAgentRunLedger(runId: string) {
+  return (await getAgentRun(runId))?.ledgerEvents ?? null
 }
 
 export async function attestStoredAgentRun(runId: string) {
-  const run = getAgentRun(runId)
+  const run = await getAgentRun(runId)
 
   if (!run) {
     return null
@@ -414,12 +412,13 @@ export async function attestStoredAgentRun(runId: string) {
     createdAt: now
   } satisfies Omit<AgentProof, 'txHash' | 'explorerUrl'>
 
-  runs.set(run.id, {
+  const attestingRun = {
     ...run,
     status: 'attesting',
     updatedAt: now
-  })
-  persistAgentRuns()
+  } satisfies AgentRun
+  runs.set(run.id, attestingRun)
+  await persistAgentRun(attestingRun)
 
   const attestation = await attestAgentRunOnMezo(run, proofBase)
   const proof: AgentProof = {
@@ -436,14 +435,14 @@ export async function attestStoredAgentRun(runId: string) {
 
   proofs.set(proof.id, proof)
   runs.set(run.id, nextRun)
-  persistAgentProofs()
-  persistAgentRuns()
+  await persistAgentProof(proof)
+  await persistAgentRun(nextRun)
 
   return nextRun
 }
 
-export function getAgentMetrics() {
-  const allRuns = listAgentRuns()
+export async function getAgentMetrics() {
+  const allRuns = await listAgentRuns()
   const completed = allRuns.filter(run =>
     ['completed', 'attested'].includes(run.status)
   )
@@ -539,6 +538,58 @@ async function buildSpendLedger(run: AgentRun, actions: AgentRun['actions']) {
   }
 }
 
+async function loadAgentRuns() {
+  if (store.loadedRuns) {
+    return
+  }
+
+  const rows = await getConvexClient().query(api.agentState.listRuns, {})
+  runs.clear()
+
+  if (Array.isArray(rows)) {
+    for (const row of rows) {
+      if (isAgentRun(row)) {
+        runs.set(row.id, row)
+      }
+    }
+  }
+
+  store.loadedRuns = true
+}
+
+async function loadAgentProofs() {
+  if (store.loadedProofs) {
+    return
+  }
+
+  const rows = await getConvexClient().query(api.agentState.listProofs, {})
+  proofs.clear()
+
+  if (Array.isArray(rows)) {
+    for (const row of rows) {
+      if (isAgentProof(row)) {
+        proofs.set(row.id, row)
+      }
+    }
+  }
+
+  store.loadedProofs = true
+}
+
+async function persistAgentRun(run: AgentRun) {
+  await getConvexClient().mutation(api.agentState.upsertRun, {
+    runKey: run.id,
+    runJson: JSON.stringify(run)
+  })
+}
+
+async function persistAgentProof(proof: AgentProof) {
+  await getConvexClient().mutation(api.agentState.upsertProof, {
+    proofKey: proof.id,
+    proofJson: JSON.stringify(proof)
+  })
+}
+
 function parseMusd(value: string) {
   const amount = Number(value.replace(/[^0-9.]/g, ''))
 
@@ -547,14 +598,6 @@ function parseMusd(value: string) {
 
 function addMusd(first: string, second: string) {
   return `${(parseMusd(first) + parseMusd(second)).toFixed(2)} MUSD`
-}
-
-function persistAgentRuns() {
-  writeWorkspaceJsonArray('agent-runs.json', listAgentRuns())
-}
-
-function persistAgentProofs() {
-  writeWorkspaceJsonArray('agent-proofs.json', Array.from(proofs.values()))
 }
 
 function isAgentRun(value: unknown): value is AgentRun {

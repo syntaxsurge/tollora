@@ -97,7 +97,7 @@ async function handlePaidProductCall(
   const requestedOrderId = request.headers.get('x-tollora-order-id')
   const agentRunId = request.headers.get('x-tollora-agent-run-id') ?? undefined
   const existingOrder = requestedOrderId
-    ? getMarketplaceOrderById(requestedOrderId)
+    ? await getMarketplaceOrderById(requestedOrderId)
     : undefined
 
   if (!product || !canCallProduct(product, existingOrder)) {
@@ -283,7 +283,7 @@ async function handlePaidProductCall(
     resultUrl: adapterResult.resultUrl,
     agentRunId
   }
-  recordMarketplaceReceipt(receipt)
+  await recordMarketplaceReceipt(receipt)
 
   const finalBody = {
     ...paidResponse,
@@ -326,9 +326,9 @@ async function handlePaidProductCall(
   }
 
   if (existingOrder) {
-    updateMarketplaceOrder(orderId, nextOrder)
+    await updateMarketplaceOrder(orderId, nextOrder)
   } else {
-    recordMarketplaceOrder(nextOrder)
+    await recordMarketplaceOrder(nextOrder)
   }
 
   return NextResponse.json(finalBody, {
@@ -341,7 +341,7 @@ async function handlePaidProductCall(
 
 function canCallProduct(
   product: ProductForCall,
-  order: ReturnType<typeof getMarketplaceOrderById> | undefined
+  order: Awaited<ReturnType<typeof getMarketplaceOrderById>> | undefined
 ) {
   if (product.status === 'published') {
     return true
@@ -392,7 +392,7 @@ async function handlePrepaidAsyncProviderCall({
   receiptId: string
   resolvedPrice: ResolvedProductPrice
   createdAt: string
-  existingOrder: ReturnType<typeof getMarketplaceOrderById> | undefined
+  existingOrder: Awaited<ReturnType<typeof getMarketplaceOrderById>> | undefined
   agentRunId?: string
 }) {
   const reservationResponse = buildReservationResponse({
@@ -445,7 +445,7 @@ async function handlePrepaidAsyncProviderCall({
     agentRunId,
     createdAt
   }
-  recordMarketplaceReceipt(receipt)
+  await recordMarketplaceReceipt(receipt)
 
   const baseOrder = {
     id: orderId,
@@ -477,9 +477,9 @@ async function handlePrepaidAsyncProviderCall({
   }
 
   if (existingOrder) {
-    updateMarketplaceOrder(orderId, baseOrder)
+    await updateMarketplaceOrder(orderId, baseOrder)
   } else {
-    recordMarketplaceOrder(baseOrder)
+    await recordMarketplaceOrder(baseOrder)
   }
 
   const adapterResult = await providerAdapter.call({
@@ -502,7 +502,7 @@ async function handlePrepaidAsyncProviderCall({
     })
 
     if (failurePolicy.retryable && !failurePolicy.expired) {
-      const retryingOrder = updateMarketplaceOrder(orderId, {
+      const retryingOrder = await updateMarketplaceOrder(orderId, {
         status: 'processing',
         responsePayload: adapterResult.responsePayload,
         resultReleaseStatus: 'provider_retrying',
@@ -566,7 +566,7 @@ async function handlePrepaidAsyncProviderCall({
       : null
     const refundedEscrow = isEscrowWriteResult(refund) ? refund : null
     const refundError = isEscrowWriteError(refund) ? refund.error : ''
-    const updatedReceipt = recordMarketplaceReceipt({
+    const updatedReceipt = await recordMarketplaceReceipt({
       ...receipt,
       escrowStatus: escrowContext
         ? refundedEscrow
@@ -576,7 +576,7 @@ async function handlePrepaidAsyncProviderCall({
       escrowRefundTxHash: refundedEscrow?.txHash,
       escrowRefundExplorerUrl: refundedEscrow?.explorerUrl
     })
-    const failedOrder = updateMarketplaceOrder(orderId, {
+    const failedOrder = await updateMarketplaceOrder(orderId, {
       status: 'failed',
       responsePayload: adapterResult.responsePayload,
       resultReleaseStatus: refundedEscrow ? 'refunded' : 'refundable',
@@ -679,7 +679,7 @@ async function handlePrepaidAsyncProviderCall({
   const releasedEscrow = isEscrowWriteResult(escrowRelease)
     ? escrowRelease
     : null
-  const updatedReceipt = recordMarketplaceReceipt({
+  const updatedReceipt = await recordMarketplaceReceipt({
     ...receipt,
     escrowStatus: escrowContext
       ? shouldReleaseEscrow
@@ -692,7 +692,7 @@ async function handlePrepaidAsyncProviderCall({
     escrowReleaseExplorerUrl: releasedEscrow?.explorerUrl
   })
 
-  const finalOrder = updateMarketplaceOrder(orderId, {
+  const finalOrder = await updateMarketplaceOrder(orderId, {
     status: nextStatus,
     externalJobId: adapterResult.externalJobId,
     responsePayload,

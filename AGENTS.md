@@ -561,27 +561,25 @@ Before creating a new helper or service file:
   Subscription plan metadata and tier fee splits live in
   `src/lib/contracts/subscription.ts`: Free providers keep 95%, Base providers
   keep 97%, and Plus providers keep 99% of successful paid calls. Marketplace
-  orders persist to `.tollora/marketplace-orders.json`, settlement receipts
-  persist to `.tollora/settlement-receipts.json`, managed credit accounts
-  persist to `.tollora/managed-credit-accounts.json`, and provider call counts,
-  success rates, gross volume, platform fees, and earnings are derived from
-  those order and receipt ledgers instead of static product counters. Receipt
-  builders resolve the provider profile plan through
-  `src/features/marketplace/provider-fees.ts`, default to Free when no saved
-  plan exists, and store the provider plan, platform fee bps, provider share
-  bps, platform fee amount, and provider amount on successful receipts. Tollora
-  Labs public data wrappers for Wikipedia search, Hacker News trend search,
-  GitHub repository search, npm package search, OpenAlex research search, and
-  GDELT news search use no upstream account or API key, stay x402-protected as
-  paid Tollora marketplace products, are owned by the allowlisted admin provider
-  wallet, and are agent-ready for no-key public-data runs. Marketplace and
-  product pages show the creator identity card with avatar, name, username, and
-  wallet address for these products and provider-created listings. These
-  products execute through the dedicated
-  `src/features/provider-adapters/public-data/adapter.ts` adapter, which
-  normalizes provider-specific request parameters, applies bounded upstream
-  timeouts, and uses no-key public fallback sources for providers that rate
-  limit, reject narrow queries, or return temporary gateway errors.
+  orders, settlement receipts, and managed credit accounts persist to Convex
+  snapshot-backed ledger rows, and provider call counts, success rates, gross
+  volume, platform fees, and earnings are derived from those order and receipt
+  ledgers instead of static product counters. Receipt builders resolve the
+  provider profile plan through `src/features/marketplace/provider-fees.ts`,
+  default to Free when no saved plan exists, and store the provider plan,
+  platform fee bps, provider share bps, platform fee amount, and provider amount
+  on successful receipts. Tollora Labs public data wrappers for Wikipedia
+  search, Hacker News trend search, GitHub repository search, npm package
+  search, OpenAlex research search, and GDELT news search use no upstream
+  account or API key, stay x402-protected as paid Tollora marketplace products,
+  are owned by the allowlisted admin provider wallet, and are agent-ready for
+  no-key public-data runs. Marketplace and product pages show the creator
+  identity card with avatar, name, username, and wallet address for these
+  products and provider-created listings. These products execute through the
+  dedicated `src/features/provider-adapters/public-data/adapter.ts` adapter,
+  which normalizes provider-specific request parameters, applies bounded
+  upstream timeouts, and uses no-key public fallback sources for providers that
+  rate limit, reject narrow queries, or return temporary gateway errors.
   Provider-created listings persist to Convex `apiProducts` rows linked to a
   Convex `providers` record for the connected user, with the full marketplace
   product configuration stored as a product snapshot for marketplace,
@@ -595,35 +593,34 @@ Before creating a new helper or service file:
 - Autonomous agent templates, OpenAI planning and synthesis, deterministic
   fallback planning, run storage, funded budget ledgers, paid action execution,
   proof hashing, status labels, and UI clients live in `src/features/agents`.
-  Agent runs and proof records persist to `.tollora/agent-runs.json` and
-  `.tollora/agent-proofs.json` so recent runs, statuses, funding ledgers,
-  paid-action diagnostics, receipts, and proofs remain visible across local
-  server restarts. Template definitions live in
-  `src/features/agents/templates.ts` and include reusable objectives, context,
-  budgets, action limits, tool strategy, and deliverables for launch, research,
-  documentation, readiness, and creative workflows, including video-first launch
-  campaigns that combine public data scans with async media-generation tools
-  when budget allows. Agent runs require the owner to fund the `AgentRunVault`
-  with MUSD before the configured agent signer can execute x402 paid actions.
-  Before an agent spends, the runner verifies the production agent signer's MUSD
-  balance, submits the required Permit2 approval when the allowance is
-  insufficient, waits until the allowance is readable, and then executes the
-  hosted x402 call from the same origin that triggered the run. Paid action
-  failures preserve the response body, settlement guidance, and provider details
-  in action diagnostics. Agent-paid x402 calls include the agent run ID in
-  gateway order and receipt records so provider dashboards and usage pages count
-  autonomous tool calls in the same revenue ledger as browser and developer API
-  calls. When `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI
-  Responses API with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate
-  request payloads, skip unrelated tools, set a budget strategy, and synthesize
-  the final launch pack from completed paid responses and receipts. When no paid
-  action completes in production, the run remains failed and presents
-  diagnostics instead of treating generated copy as verified output. When the
-  key is absent, the deterministic fallback ranks the allowed marketplace tools
-  from the objective and source context. Both planner modes record the prompt,
-  model or fallback label, rationale, skipped tools, selected tools, funding
-  ledger, and synthesis metadata in run deliverables, action cards, and proof
-  payloads.
+  Agent runs and proof records persist to Convex snapshot-backed run and proof
+  rows so recent runs, statuses, funding ledgers, paid-action diagnostics,
+  receipts, and proofs remain visible across machines. Template definitions live
+  in `src/features/agents/templates.ts` and include reusable objectives,
+  context, budgets, action limits, tool strategy, and deliverables for launch,
+  research, documentation, readiness, and creative workflows, including
+  video-first launch campaigns that combine public data scans with async
+  media-generation tools when budget allows. Agent runs require the owner to
+  fund the `AgentRunVault` with MUSD before the configured agent signer can
+  execute x402 paid actions. Before an agent spends, the runner verifies the
+  production agent signer's MUSD balance, submits the required Permit2 approval
+  when the allowance is insufficient, waits until the allowance is readable, and
+  then executes the hosted x402 call from the same origin that triggered the
+  run. Paid action failures preserve the response body, settlement guidance, and
+  provider details in action diagnostics. Agent-paid x402 calls include the
+  agent run ID in gateway order and receipt records so provider dashboards and
+  usage pages count autonomous tool calls in the same revenue ledger as browser
+  and developer API calls. When `AGENT_LLM_API_KEY` is configured, the agent
+  uses the OpenAI Responses API with `AGENT_LLM_MODEL` or `gpt-5.2` to select
+  tools, generate request payloads, skip unrelated tools, set a budget strategy,
+  and synthesize the final launch pack from completed paid responses and
+  receipts. When no paid action completes in production, the run remains failed
+  and presents diagnostics instead of treating generated copy as verified
+  output. When the key is absent, the deterministic fallback ranks the allowed
+  marketplace tools from the objective and source context. Both planner modes
+  record the prompt, model or fallback label, rationale, skipped tools, selected
+  tools, funding ledger, and synthesis metadata in run deliverables, action
+  cards, and proof payloads.
 - `/agents` is a tabbed command center that opens on recent runs and also
   exposes a templates tab. Both tabs use separate server-fed tables with search,
   sorting, and pagination; recent runs support current-page row selection and

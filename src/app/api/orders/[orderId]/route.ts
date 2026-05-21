@@ -10,7 +10,7 @@ type OrderRouteProps = {
 
 export async function GET(_request: Request, { params }: OrderRouteProps) {
   const { orderId } = await params
-  const order = getMarketplaceOrderById(orderId)
+  const order = await getMarketplaceOrderById(orderId)
 
   if (!order) {
     return NextResponse.json({ error: 'Order was not found.' }, { status: 404 })

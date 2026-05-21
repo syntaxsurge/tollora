@@ -16,12 +16,12 @@ import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getAgentMetrics } from '@/features/agents/store'
-import { marketplaceOrders } from '@/features/marketplace/orders'
+import { listMarketplaceOrders } from '@/features/marketplace/orders'
 import {
   getAllProducts,
   getMarketplaceMetrics
 } from '@/features/marketplace/products'
-import { settlementReceipts } from '@/features/marketplace/receipt-store'
+import { listSettlementReceipts } from '@/features/marketplace/receipt-store'
 import { ADMIN_USER_OVERRIDES_COOKIE } from '@/lib/admin/admin-user-cookies'
 import {
   applyAdminUserOverrides,
@@ -44,7 +44,9 @@ export default async function AdminPage() {
   const stats = getAdminStats(users)
   const products = await getAllProducts()
   const marketplaceMetrics = await getMarketplaceMetrics()
-  const agentMetrics = getAgentMetrics()
+  const agentMetrics = await getAgentMetrics()
+  const marketplaceOrders = await listMarketplaceOrders()
+  const settlementReceipts = await listSettlementReceipts()
 
   return (
     <div className='space-y-8'>

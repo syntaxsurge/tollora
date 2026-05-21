@@ -33,7 +33,7 @@ export default async function ProviderPage() {
     providerWallet: ownerWallet ?? ''
   })
   const providerMetrics = await getProviderDashboardMetrics(ownerWallet)
-  const agentMetrics = getAgentMetrics()
+  const agentMetrics = await getAgentMetrics()
   const orders = await getProviderOrders(ownerWallet)
   const topProduct = products
     .slice()

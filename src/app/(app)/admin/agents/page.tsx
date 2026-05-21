@@ -30,8 +30,8 @@ export default async function AdminAgentsPage({
   searchParams
 }: AdminAgentsPageProps) {
   const params = await searchParams
-  const runs = listAgentRuns()
-  const metrics = getAgentMetrics()
+  const runs = await listAgentRuns()
+  const metrics = await getAgentMetrics()
   const state = resolveServerTableState(params, {
     defaultSort: 'updated',
     defaultPageSize: 10

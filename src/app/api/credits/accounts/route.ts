@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     )
   }
 
-  const account = getManagedCreditAccountByWallet(wallet)
+  const account = await getManagedCreditAccountByWallet(wallet)
 
   return NextResponse.json({
     account: account ? toPublicManagedCreditAccount(account) : null
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const account = getOrCreateManagedCreditAccount(parsed.data.wallet)
+  const account = await getOrCreateManagedCreditAccount(parsed.data.wallet)
 
   return NextResponse.json({
     account: toPublicManagedCreditAccount(account)

@@ -29,7 +29,7 @@ export async function GET(
   { params }: OrderProviderStatusRouteProps
 ) {
   const { orderId } = await params
-  const order = getMarketplaceOrderById(orderId)
+  const order = await getMarketplaceOrderById(orderId)
 
   if (!order) {
     return NextResponse.json({ error: 'Order was not found.' }, { status: 404 })
@@ -152,11 +152,11 @@ export async function GET(
     ? escrowRelease
     : null
   const receipt = order.receiptId
-    ? getMarketplaceReceiptById(order.receiptId)
+    ? await getMarketplaceReceiptById(order.receiptId)
     : undefined
 
   if (receipt && (refundedEscrow || releasedEscrow || shouldRefundEscrow)) {
-    recordMarketplaceReceipt({
+    await recordMarketplaceReceipt({
       ...receipt,
       escrowStatus: shouldRefundEscrow
         ? refundedEscrow
@@ -172,7 +172,7 @@ export async function GET(
     })
   }
 
-  const nextOrder = updateMarketplaceOrder(order.id, {
+  const nextOrder = await updateMarketplaceOrder(order.id, {
     status: nextStatus,
     externalJobId: providerResult.externalJobId ?? order.externalJobId,
     responsePayload,
