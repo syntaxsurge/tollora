@@ -523,10 +523,12 @@ Before creating a new helper or service file:
   server-paginated page, plus a compact bulk-action toolbar above the table.
   Table search, sort, pagination, and filter controls update the URL with
   client-side router pushes that preserve scroll position so server-fed table
-  interactions feel local instead of page-jumping. Selection is enabled only
-  for tables that need row-level or bulk operations, and the shared selection
-  controller supports current-page master selection plus controlled selection
-  state for custom workflows.
+  interactions feel local instead of page-jumping. Pages with multiple
+  independent tables use prefixed query parameters so each table can be
+  searched, sorted, and paginated without resetting neighboring tables.
+  Selection is enabled only for tables that need row-level or bulk operations,
+  and the shared selection controller supports current-page master selection
+  plus controlled selection state for custom workflows.
   Server-side query helpers live in `src/lib/table/server-table.ts` and are
   used by agent templates/runs, marketplace products, orders, and provider
   product management.
@@ -561,9 +563,11 @@ Before creating a new helper or service file:
   `src/lib/contracts/subscription.ts`: Free providers keep 95%, Base providers
   keep 97%, and Plus providers keep 99% of successful paid calls.
   Marketplace orders persist to `.tollora/marketplace-orders.json`, settlement
-  receipts persist to `.tollora/settlement-receipts.json`, and provider call
-  counts, success rates, gross volume, platform fees, and earnings are derived
-  from those order and receipt ledgers instead of static product counters.
+  receipts persist to `.tollora/settlement-receipts.json`, managed credit
+  accounts persist to `.tollora/managed-credit-accounts.json`, and provider
+  call counts, success rates, gross volume, platform fees, and earnings are
+  derived from those order and receipt ledgers instead of static product
+  counters.
   Receipt builders resolve the provider profile plan through
   `src/features/marketplace/provider-fees.ts`, default to Free when no saved
   plan exists, and store the provider plan, platform fee bps, provider share
@@ -572,7 +576,8 @@ Before creating a new helper or service file:
   search, GitHub repository search, npm package search, OpenAlex research
   search, and GDELT news search use no upstream account or API key, stay
   x402-protected as paid Tollora marketplace products, are owned by the
-  allowlisted admin provider wallet, and are agent-ready for no-key demo runs.
+  allowlisted admin provider wallet, and are agent-ready for no-key public-data
+  runs.
   Marketplace and product pages show the creator identity card with avatar,
   name, username, and wallet address for these products and provider-created
   listings. These products

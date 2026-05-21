@@ -345,7 +345,7 @@ export default async function MarketingPage({
             <div className='space-y-3'>
               <Badge className='w-fit'>
                 <Zap className='h-3.5 w-3.5' aria-hidden />
-                Live demo path
+                Live workflow
               </Badge>
               <h2 className='font-display text-3xl font-semibold'>
                 Start with a funded agent run.

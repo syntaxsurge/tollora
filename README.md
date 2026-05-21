@@ -119,7 +119,6 @@ Key values:
 - `NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID=31611`
 - `NEXT_PUBLIC_X402_NETWORK=eip155:31611`
 - `X402_FACILITATOR_URL=https://facilitator.vativ.io/`
-- `TOLLORA_PLATFORM_FEE_BPS=500`
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `AGENT_LLM_API_KEY`
@@ -133,9 +132,9 @@ Key values:
    connected wallet and is not typed manually.
 3. Start the run, open `/agents/[runId]`, and execute paid actions.
 4. Attest the completed run and open `/proofs/[proofId]`.
-5. For the judged OpenAI demo, set `AGENT_LLM_API_KEY` and optionally
+5. For OpenAI-planned agent runs, set `AGENT_LLM_API_KEY` and optionally
    `AGENT_LLM_MODEL`; otherwise the run is labeled as deterministic fallback.
-6. For production settlement, fund `AGENT_SPENDER_PRIVATE_KEY` with MUSD and set
+6. For x402 settlement, fund `AGENT_SPENDER_PRIVATE_KEY` with MUSD and set
    `NEXT_PUBLIC_APP_URL` to the deployed app URL.
 
 ## Core Commands

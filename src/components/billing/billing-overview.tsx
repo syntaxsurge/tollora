@@ -1,9 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
 
-import { CreditCard, Settings, WalletCards } from 'lucide-react'
+import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
 
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -43,23 +42,6 @@ function BillingOverviewContent({
   const plan =
     subscriptionPlans.find(item => item.key === settings.plan) ??
     subscriptionPlans[0]
-  const usage = useMemo(
-    () => [
-      {
-        label: 'Connected wallets',
-        value: address ? 1 : 0,
-        limit: 1,
-        icon: WalletCards
-      },
-      {
-        label: 'Subscription contract',
-        value: subscriptionConfigured ? 1 : 0,
-        limit: 1,
-        icon: CreditCard
-      }
-    ],
-    [address, subscriptionConfigured]
-  )
 
   return (
     <section className='grid gap-5 lg:grid-cols-[0.9fr_1.1fr]'>
@@ -116,52 +98,61 @@ function BillingOverviewContent({
           </div>
         </div>
         <Link
-          href='/settings'
+          href='/pricing'
           className={buttonClasses({
+            variant: 'outline',
             className:
               'w-full text-center whitespace-normal sm:whitespace-nowrap'
           })}
         >
-          <Settings className='h-4 w-4' aria-hidden />
-          Billing contact
+          Upgrade or compare plans
+          <ArrowRight className='h-4 w-4' aria-hidden />
         </Link>
       </Card>
 
       <Card className='space-y-5'>
         <div>
           <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Usage
+            Plan access
           </p>
-          <h2 className='font-display mt-2 text-2xl'>Plan limits</h2>
+          <h2 className='font-display mt-2 text-2xl'>Included features</h2>
+          <p className='text-foreground/65 mt-2 text-sm leading-6'>
+            Provider revenue share and platform fee are calculated from this
+            plan on successful paid receipts.
+          </p>
         </div>
-        <div className='space-y-5'>
-          {usage.map(item => {
-            const Icon = item.icon
-            const percent = Math.min((item.value / item.limit) * 100, 100)
-
-            return (
-              <div key={item.label}>
-                <div className='flex items-center justify-between gap-4 text-sm'>
-                  <span className='flex min-w-0 items-center gap-2 font-medium'>
-                    <Icon
-                      className='text-accent h-4 w-4 shrink-0'
-                      aria-hidden
-                    />
-                    <span className='truncate'>{item.label}</span>
-                  </span>
-                  <span className='text-foreground/60 shrink-0'>
-                    {item.value} / {item.limit}
-                  </span>
-                </div>
-                <div className='bg-muted mt-2 h-2 rounded-full'>
-                  <div
-                    className='bg-accent h-2 rounded-full'
-                    style={{ width: `${percent}%` }}
+        <div className='grid gap-3 text-sm'>
+          {plan.included.map(feature => (
+            <div key={feature} className='flex gap-3'>
+              <CheckCircle2
+                className='mt-0.5 h-4 w-4 shrink-0 text-emerald-400'
+                aria-hidden
+              />
+              <span className='text-foreground/80'>{feature}</span>
+            </div>
+          ))}
+        </div>
+        <div className='border-foreground/10 rounded-lg border p-4'>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Not included
+          </p>
+          {plan.excluded.length > 0 ? (
+            <div className='mt-3 grid gap-3 text-sm'>
+              {plan.excluded.map(feature => (
+                <div key={feature} className='flex gap-3'>
+                  <XCircle
+                    className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0'
+                    aria-hidden
                   />
+                  <span className='text-muted-foreground'>{feature}</span>
                 </div>
-              </div>
-            )
-          })}
+              ))}
+            </div>
+          ) : (
+            <p className='text-muted-foreground mt-3 text-sm leading-6'>
+              All current provider features are included in this plan.
+            </p>
+          )}
         </div>
       </Card>
     </section>

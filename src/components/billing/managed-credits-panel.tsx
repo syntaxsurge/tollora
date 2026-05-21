@@ -1,12 +1,12 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { FormEvent, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
-import { CopyTextButton } from '@/features/marketplace/copy-endpoint-button'
 
 type PublicManagedCreditAccount = {
   wallet: string
@@ -27,17 +27,33 @@ type PublicManagedCreditAccount = {
   }>
 }
 
-export function ManagedCreditsPanel() {
+export function ManagedCreditsPanel({
+  initialAccount = null
+}: {
+  initialAccount?: PublicManagedCreditAccount | null
+}) {
   return (
     <WalletAddressConsumer>
-      {({ address }) => <ManagedCreditsPanelContent address={address} />}
+      {({ address }) => (
+        <ManagedCreditsPanelContent
+          address={address}
+          initialAccount={initialAccount}
+        />
+      )}
     </WalletAddressConsumer>
   )
 }
 
-function ManagedCreditsPanelContent({ address }: { address: string | null }) {
+function ManagedCreditsPanelContent({
+  address,
+  initialAccount
+}: {
+  address: string | null
+  initialAccount: PublicManagedCreditAccount | null
+}) {
+  const router = useRouter()
   const [account, setAccount] = useState<PublicManagedCreditAccount | null>(
-    null
+    initialAccount
   )
   const [status, setStatus] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -68,6 +84,7 @@ function ManagedCreditsPanelContent({ address }: { address: string | null }) {
 
       setAccount(body.account)
       setStatus('Managed credit account ready.')
+      router.refresh()
     } catch (caughtError) {
       setStatus(
         caughtError instanceof Error
@@ -114,6 +131,7 @@ function ManagedCreditsPanelContent({ address }: { address: string | null }) {
       setAccount(body.account)
       setStatus('MUSD top-up recorded for managed API-key usage.')
       event.currentTarget.reset()
+      router.refresh()
     } catch (caughtError) {
       setStatus(
         caughtError instanceof Error
@@ -134,9 +152,9 @@ function ManagedCreditsPanelContent({ address }: { address: string | null }) {
           </p>
           <h2 className='font-display mt-2 text-2xl'>API-key path for teams</h2>
           <p className='text-foreground/65 mt-2 max-w-2xl text-sm leading-6'>
-            x402 remains the native payment path. Managed credits let a team
-            record a MUSD top-up once, receive a Tollora API key, and debit
-            usage from an off-chain balance for API-key ergonomics.
+            x402 remains the native payment path. Managed credits let a team top
+            up MUSD once, receive a Tollora API key, and debit usage from the
+            saved balance before provider work starts.
           </p>
         </div>
         <Button onClick={createAccount} disabled={isLoading || !address}>
@@ -158,22 +176,6 @@ function ManagedCreditsPanelContent({ address }: { address: string | null }) {
           value={(account?.debits.length ?? 0).toString()}
         />
       </div>
-
-      {account ? (
-        <div className='border-foreground/10 rounded-lg border p-4'>
-          <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-            <div className='min-w-0'>
-              <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-                Tollora API key
-              </p>
-              <p className='mt-2 font-mono text-xs break-all'>
-                {account.apiKey}
-              </p>
-            </div>
-            <CopyTextButton text={account.apiKey} label='Copy API key' />
-          </div>
-        </div>
-      ) : null}
 
       <form
         onSubmit={recordTopUp}
@@ -199,31 +201,6 @@ function ManagedCreditsPanelContent({ address }: { address: string | null }) {
         </Button>
       </form>
 
-      <div className='grid gap-4 lg:grid-cols-2'>
-        <HistoryList
-          title='Top-ups'
-          empty='Recorded MUSD top-ups appear here.'
-          rows={
-            account?.topUps.map(item => ({
-              id: item.id,
-              label: `${item.amountMusd.toFixed(2)} MUSD`,
-              detail: item.settlementTxHash
-            })) ?? []
-          }
-        />
-        <HistoryList
-          title='API-key debits'
-          empty='Managed-credit API calls appear here.'
-          rows={
-            account?.debits.map(item => ({
-              id: item.id,
-              label: `${item.productName} - ${item.amountMusd.toFixed(2)} MUSD`,
-              detail: item.receiptId
-            })) ?? []
-          }
-        />
-      </div>
-
       {status ? (
         <p className='text-foreground/65 text-sm' role='status'>
           {status}
@@ -238,38 +215,6 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className='bg-muted rounded-lg p-4'>
       <p className='text-foreground/60 text-xs uppercase'>{label}</p>
       <p className='mt-1 font-semibold break-all'>{value}</p>
-    </div>
-  )
-}
-
-function HistoryList({
-  title,
-  empty,
-  rows
-}: {
-  title: string
-  empty: string
-  rows: Array<{ id: string; label: string; detail: string }>
-}) {
-  return (
-    <div className='border-foreground/10 rounded-lg border p-4'>
-      <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-        {title}
-      </p>
-      <div className='mt-3 space-y-3'>
-        {rows.length > 0 ? (
-          rows.map(row => (
-            <div key={row.id} className='text-sm'>
-              <p className='font-semibold'>{row.label}</p>
-              <p className='text-foreground/60 mt-1 font-mono text-xs break-all'>
-                {row.detail}
-              </p>
-            </div>
-          ))
-        ) : (
-          <p className='text-foreground/60 text-sm leading-6'>{empty}</p>
-        )}
-      </div>
     </div>
   )
 }

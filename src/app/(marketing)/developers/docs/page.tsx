@@ -63,7 +63,7 @@ The paid execution still belongs to Tollora:
 5. Tollora stores receipts, response hashes, and final deliverables.
 6. Tollora writes the Mezo proof when the run is attested.
 
-If \`AGENT_LLM_API_KEY\` is missing, the run is labeled as deterministic fallback. Use the fallback for offline development only; judged demos should set \`AGENT_LLM_API_KEY\` and either leave \`AGENT_LLM_MODEL\` empty for the default \`gpt-5.2\` or set a cheaper model for local testing.
+If \`AGENT_LLM_API_KEY\` is missing, the run is labeled as deterministic fallback. Configure \`AGENT_LLM_API_KEY\` for model-planned runs and either leave \`AGENT_LLM_MODEL\` empty for the default \`gpt-5.2\` or set a lower-cost model for development.
 `
   },
   {
@@ -124,7 +124,7 @@ Leave it blank when the OpenAPI spec already has the correct production server U
     body: `
 Upload a local \`.json\`, \`.yaml\`, or \`.yml\` OpenAPI file when the provider spec is not hosted yet.
 
-Use this for hackathon demos, private APIs, or local specs. Before production, prefer a hosted spec URL so future edits are easier to re-import.
+Use this for private APIs or local specs. Hosted spec URLs are easier to re-import when the provider API changes.
 `
   },
   {
@@ -160,7 +160,7 @@ The status endpoint should be cheap to call. Buyers should not pay again just to
     group: 'Product details',
     title: 'Product details',
     body: `
-Product details control how the listing appears in the marketplace and which upstream API Tollora calls after payment. These fields should describe a real API operation, not a placeholder.
+Product details control how the listing appears in the marketplace and which upstream API Tollora calls after payment. These fields should describe the exact API operation buyers will run.
 `
   },
   {
@@ -788,7 +788,7 @@ For async products, include job and status fields. For credit-metered products, 
     body: `
 Example request shown to buyers and used by agent runs as a starting payload.
 
-Use real-looking values that can succeed in demo mode. Do not include private provider API keys here.
+Use realistic values that can succeed for this operation. Do not include private provider API keys here.
 
 \`\`\`json
 {

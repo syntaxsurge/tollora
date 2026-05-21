@@ -25,18 +25,32 @@ export function resolveServerTableState(
     defaultSort: string
     defaultDir?: ServerTableDirection
     defaultPageSize?: number
+    paramPrefix?: string
   }
 ): ServerTableState {
-  const q = readParam(searchParams, 'q')?.trim() ?? ''
-  const sort = readParam(searchParams, 'sort') ?? options.defaultSort
-  const dir = readParam(searchParams, 'dir') === 'asc' ? 'asc' : 'desc'
-  const page = Math.max(1, Number(readParam(searchParams, 'page') ?? 1) || 1)
+  const q =
+    readParam(searchParams, prefixedKey(options.paramPrefix, 'q'))?.trim() ?? ''
+  const sort =
+    readParam(searchParams, prefixedKey(options.paramPrefix, 'sort')) ??
+    options.defaultSort
+  const dir =
+    readParam(searchParams, prefixedKey(options.paramPrefix, 'dir')) === 'asc'
+      ? 'asc'
+      : 'desc'
+  const page = Math.max(
+    1,
+    Number(
+      readParam(searchParams, prefixedKey(options.paramPrefix, 'page')) ?? 1
+    ) || 1
+  )
   const pageSize = Math.min(
     100,
     Math.max(
       5,
       Number(
-        readParam(searchParams, 'pageSize') ?? options.defaultPageSize ?? 10
+        readParam(searchParams, prefixedKey(options.paramPrefix, 'pageSize')) ??
+          options.defaultPageSize ??
+          10
       ) ||
         options.defaultPageSize ||
         10
@@ -47,12 +61,17 @@ export function resolveServerTableState(
     q,
     sort,
     dir:
-      options.defaultDir && !readParam(searchParams, 'dir')
+      options.defaultDir &&
+      !readParam(searchParams, prefixedKey(options.paramPrefix, 'dir'))
         ? options.defaultDir
         : dir,
     page,
     pageSize
   }
+}
+
+function prefixedKey(prefix: string | undefined, key: string) {
+  return prefix ? `${prefix}${key[0].toUpperCase()}${key.slice(1)}` : key
 }
 
 export function queryServerRows<T>(

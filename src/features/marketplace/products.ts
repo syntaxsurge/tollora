@@ -692,8 +692,8 @@ function persistProviderProducts(products: ApiProduct[]) {
       `${JSON.stringify(products, null, 2)}\n`
     )
   } catch {
-    // Runtime persistence is best-effort for local demos; the in-memory catalog
-    // remains available for the current process if the filesystem is read-only.
+    // Runtime persistence is best-effort; the in-memory catalog remains
+    // available for the current process if the filesystem is read-only.
   }
 }
 

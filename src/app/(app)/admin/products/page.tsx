@@ -147,7 +147,7 @@ export default async function AdminProductsPage({
             label: 'Delete selected',
             endpoint: '/api/admin/products/bulk-delete',
             confirmMessage:
-              'Delete selected provider-created products? Built-in public demo APIs are ignored.'
+              'Delete selected provider-created products? Built-in public data APIs are ignored.'
           }
         ]}
       />

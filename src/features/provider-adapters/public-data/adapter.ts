@@ -371,7 +371,7 @@ async function fetchJson(url: URL): Promise<FetchJsonResult> {
     const response = await fetch(url, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'Tollora public-data demo (https://tollora.local)'
+        'User-Agent': 'Tollora public-data gateway (https://tollora.com)'
       },
       signal: AbortSignal.timeout(PUBLIC_DATA_TIMEOUT_MS)
     })

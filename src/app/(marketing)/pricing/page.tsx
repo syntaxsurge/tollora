@@ -168,17 +168,23 @@ export default function PricingPage() {
                 <p className='text-muted-foreground text-xs tracking-[0.16em] uppercase'>
                   Excluded
                 </p>
-                <ul className='mt-3 space-y-3 text-sm'>
-                  {plan.excluded.map(feature => (
-                    <li key={feature} className='flex gap-3'>
-                      <XCircle
-                        className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0'
-                        aria-hidden
-                      />
-                      <span className='text-muted-foreground'>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                {plan.excluded.length > 0 ? (
+                  <ul className='mt-3 space-y-3 text-sm'>
+                    {plan.excluded.map(feature => (
+                      <li key={feature} className='flex gap-3'>
+                        <XCircle
+                          className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0'
+                          aria-hidden
+                        />
+                        <span className='text-muted-foreground'>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className='text-muted-foreground mt-3 text-sm leading-6'>
+                    All current provider features are included.
+                  </p>
+                )}
               </div>
             </div>
           </Card>

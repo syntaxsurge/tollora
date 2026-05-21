@@ -126,7 +126,7 @@ export const subscriptionPlans = [
       'Advanced payout and usage reporting',
       'Highest support priority for provider issues'
     ],
-    excluded: ['No material MVP exclusions']
+    excluded: []
   }
 ] as const
 

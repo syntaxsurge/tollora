@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto'
 
 import { getProductBySlug } from '@/features/marketplace/products'
+import {
+  readWorkspaceJsonArray,
+  writeWorkspaceJsonArray
+} from '@/lib/persistence/workspace-json-store'
 
 export type ManagedCreditTopUp = {
   id: string
@@ -35,9 +39,14 @@ const globalForManagedCredits = globalThis as typeof globalThis & {
 }
 
 export const managedCreditAccounts =
-  globalForManagedCredits.__tolloraManagedCreditAccounts ?? []
+  globalForManagedCredits.__tolloraManagedCreditAccounts ??
+  readWorkspaceJsonArray({
+    fileName: 'managed-credit-accounts.json',
+    isItem: isManagedCreditAccount
+  })
 
 globalForManagedCredits.__tolloraManagedCreditAccounts = managedCreditAccounts
+persistManagedCreditAccounts()
 
 export function getManagedCreditAccountByWallet(wallet: string) {
   return managedCreditAccounts.find(
@@ -68,6 +77,7 @@ export function getOrCreateManagedCreditAccount(wallet: string) {
   }
 
   managedCreditAccounts.unshift(account)
+  persistManagedCreditAccounts()
 
   return account
 }
@@ -92,6 +102,7 @@ export function recordManagedCreditTopUp({
   account.balanceMusd = Number((account.balanceMusd + amountMusd).toFixed(2))
   account.topUps.unshift(topUp)
   account.updatedAt = topUp.createdAt
+  persistManagedCreditAccounts()
 
   return { account, topUp }
 }
@@ -134,6 +145,7 @@ export function debitManagedCredits({
   account.balanceMusd = Number((account.balanceMusd - debitAmount).toFixed(2))
   account.debits.unshift(debit)
   account.updatedAt = debit.createdAt
+  persistManagedCreditAccounts()
 
   return { account, product, debit }
 }
@@ -165,6 +177,7 @@ export function refundManagedCreditDebit({
     (account.balanceMusd + debit.amountMusd).toFixed(6)
   )
   account.updatedAt = new Date().toISOString()
+  persistManagedCreditAccounts()
 
   return { account, debit }
 }
@@ -207,6 +220,7 @@ export function settleManagedCreditDebit({
 
   debit.note = note
   account.updatedAt = new Date().toISOString()
+  persistManagedCreditAccounts()
 
   return { account, debit, deltaMusd }
 }
@@ -221,4 +235,26 @@ export function toPublicManagedCreditAccount(account: ManagedCreditAccount) {
     createdAt: account.createdAt,
     updatedAt: account.updatedAt
   }
+}
+
+function persistManagedCreditAccounts() {
+  writeWorkspaceJsonArray('managed-credit-accounts.json', managedCreditAccounts)
+}
+
+function isManagedCreditAccount(value: unknown): value is ManagedCreditAccount {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const account = value as Partial<ManagedCreditAccount>
+
+  return (
+    typeof account.wallet === 'string' &&
+    typeof account.apiKey === 'string' &&
+    typeof account.balanceMusd === 'number' &&
+    Array.isArray(account.topUps) &&
+    Array.isArray(account.debits) &&
+    typeof account.createdAt === 'string' &&
+    typeof account.updatedAt === 'string'
+  )
 }

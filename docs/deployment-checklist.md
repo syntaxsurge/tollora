@@ -1,6 +1,6 @@
 # Tollora Deployment Checklist
 
-Use this checklist before submitting or presenting the app.
+Use this checklist before operating the app.
 
 ## Required Environment
 
@@ -11,7 +11,7 @@ Use this checklist before submitting or presenting the app.
 - `NEXT_PUBLIC_WALLET_PROVIDER=rainbowkit`
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
 - `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES` as one or more comma-separated admin
-  wallets. The seeded demo data APIs are owned by the first admin demo wallet.
+  wallets. Default public data APIs are owned by the first admin wallet.
 - `NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID=31611`
 - `NEXT_PUBLIC_MEZO_TESTNET_RPC_URL=https://rpc.test.mezo.org`
 - `NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL=https://explorer.test.mezo.org`

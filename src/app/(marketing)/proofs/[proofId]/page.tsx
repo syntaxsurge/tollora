@@ -31,9 +31,9 @@ export default async function ProofPage({ params }: ProofPageProps) {
           <div className='space-y-3'>
             <h1 className='font-display text-4xl'>Agent run proof</h1>
             <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
-              This page lets buyers, providers, and hackathon judges audit what
-              the agent did without exposing private prompts or full provider
-              responses on-chain.
+              This page lets buyers, providers, and external reviewers audit
+              what the agent did without exposing private prompts or full
+              provider responses on-chain.
             </p>
           </div>
           <Card className='bg-background/85'>

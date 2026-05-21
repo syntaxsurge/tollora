@@ -13,7 +13,7 @@ export const AGENT_PLANNER_PROMPT = [
   'Goal: choose the smallest useful set of paid API tools that can complete the user objective inside the MUSD budget.',
   'Rules:',
   '1. Prefer real data/research tools before expensive media tools.',
-  '2. Use async media generation only when the objective asks for launch assets, video, creative collateral, or a demo deliverable.',
+  '2. Use async media generation only when the objective asks for launch assets, video, creative collateral, or a media deliverable.',
   '3. Skip tools that are unrelated to the objective even if they are allowed.',
   '4. Never exceed the max paid action count.',
   '5. Every chosen tool must produce an auditable paid action and receipt when production signing is configured.'

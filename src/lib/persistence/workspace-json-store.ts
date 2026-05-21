@@ -34,8 +34,8 @@ export function writeWorkspaceJsonArray<T>(fileName: string, items: T[]) {
     mkdirSync(dirname(filePath), { recursive: true })
     writeFileSync(filePath, `${JSON.stringify(items, null, 2)}\n`)
   } catch {
-    // Runtime persistence is best-effort for local demos and self-hosted
-    // deployments; the in-memory store remains authoritative for this process.
+    // Runtime persistence is best-effort; the in-memory store remains
+    // authoritative for this process if the filesystem cannot be written.
   }
 }
 

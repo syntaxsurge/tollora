@@ -10,6 +10,7 @@ import type { ServerTableDirection } from '@/lib/table/server-table'
 export function ServerDataTableSearch({
   basePath,
   preserveParams,
+  paramPrefix,
   query,
   sort,
   dir,
@@ -18,6 +19,7 @@ export function ServerDataTableSearch({
 }: {
   basePath: string
   preserveParams: Record<string, string | undefined>
+  paramPrefix?: string
   query: string
   sort: string
   dir: ServerTableDirection
@@ -38,13 +40,13 @@ export function ServerDataTableSearch({
     })
 
     if (value.trim()) {
-      params.set('q', value.trim())
+      params.set(prefixedKey(paramPrefix, 'q'), value.trim())
     }
 
-    params.set('sort', sort)
-    params.set('dir', dir)
-    params.set('page', '1')
-    params.set('pageSize', String(pageSize))
+    params.set(prefixedKey(paramPrefix, 'sort'), sort)
+    params.set(prefixedKey(paramPrefix, 'dir'), dir)
+    params.set(prefixedKey(paramPrefix, 'page'), '1')
+    params.set(prefixedKey(paramPrefix, 'pageSize'), String(pageSize))
 
     router.push(`${basePath}?${params.toString()}`, { scroll: false })
   }
@@ -63,4 +65,8 @@ export function ServerDataTableSearch({
       </label>
     </form>
   )
+}
+
+function prefixedKey(prefix: string | undefined, key: string) {
+  return prefix ? `${prefix}${key[0].toUpperCase()}${key.slice(1)}` : key
 }

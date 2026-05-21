@@ -36,6 +36,7 @@ export function ServerDataTable<T>({
   totalRows,
   totalPages,
   preserveParams = {},
+  paramPrefix,
   emptyTitle,
   emptyDescription,
   searchPlaceholder = 'Search',
@@ -56,6 +57,7 @@ export function ServerDataTable<T>({
   totalRows: number
   totalPages: number
   preserveParams?: Record<string, string | undefined>
+  paramPrefix?: string
   emptyTitle: string
   emptyDescription: string
   searchPlaceholder?: string
@@ -71,6 +73,7 @@ export function ServerDataTable<T>({
             <ServerDataTableSearch
               basePath={basePath}
               preserveParams={preserveParams}
+              paramPrefix={paramPrefix}
               query={query}
               sort={sort}
               dir={dir}
@@ -117,6 +120,7 @@ export function ServerDataTable<T>({
                       href={buildHref({
                         basePath,
                         preserveParams,
+                        paramPrefix,
                         q: query,
                         sort: column.sortKey,
                         dir:
@@ -189,6 +193,7 @@ export function ServerDataTable<T>({
             href={buildHref({
               basePath,
               preserveParams,
+              paramPrefix,
               q: query,
               sort,
               dir,
@@ -209,6 +214,7 @@ export function ServerDataTable<T>({
             href={buildHref({
               basePath,
               preserveParams,
+              paramPrefix,
               q: query,
               sort,
               dir,
@@ -234,6 +240,7 @@ export function ServerDataTable<T>({
 function buildHref({
   basePath,
   preserveParams,
+  paramPrefix,
   q,
   sort,
   dir,
@@ -242,6 +249,7 @@ function buildHref({
 }: {
   basePath: string
   preserveParams: Record<string, string | undefined>
+  paramPrefix?: string
   q: string
   sort: string
   dir: ServerTableDirection
@@ -257,13 +265,17 @@ function buildHref({
   })
 
   if (q) {
-    params.set('q', q)
+    params.set(prefixedKey(paramPrefix, 'q'), q)
   }
 
-  params.set('sort', sort)
-  params.set('dir', dir)
-  params.set('page', String(page))
-  params.set('pageSize', String(pageSize))
+  params.set(prefixedKey(paramPrefix, 'sort'), sort)
+  params.set(prefixedKey(paramPrefix, 'dir'), dir)
+  params.set(prefixedKey(paramPrefix, 'page'), String(page))
+  params.set(prefixedKey(paramPrefix, 'pageSize'), String(pageSize))
 
   return `${basePath}?${params.toString()}`
+}
+
+function prefixedKey(prefix: string | undefined, key: string) {
+  return prefix ? `${prefix}${key[0].toUpperCase()}${key.slice(1)}` : key
 }
