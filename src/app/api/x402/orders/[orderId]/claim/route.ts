@@ -10,6 +10,7 @@ import {
   updateMarketplaceOrder
 } from '@/features/marketplace/orders'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { resolveProviderFeeSplit } from '@/features/marketplace/provider-fees'
 import {
   getMarketplaceReceiptById,
   recordMarketplaceReceipt
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
 
   const createdAt = new Date().toISOString()
   const deltaAmountUsd = parseMusdAmount(order.deltaAmountMusd)
+  const feeSplit = await resolveProviderFeeSplit(product)
   const receiptId = `rcpt_claim_${createHash('sha256')
     .update(order.id)
     .update(settlement.transaction ?? createdAt)
@@ -131,7 +133,10 @@ export async function POST(request: NextRequest, { params }: ClaimRouteProps) {
     buyerWallet: settlement.payer ?? order.buyerWallet,
     providerWallet: product.providerWallet,
     amountMusd: order.deltaAmountMusd ?? '0.00 MUSD',
-    ...buildReceiptAmounts(deltaAmountUsd),
+    ...buildReceiptAmounts(deltaAmountUsd, feeSplit.platformFeeBps),
+    providerPlan: feeSplit.planKey,
+    platformFeeBps: feeSplit.platformFeeBps,
+    providerShareBps: feeSplit.providerShareBps,
     network: x402Network as 'eip155:31611',
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),

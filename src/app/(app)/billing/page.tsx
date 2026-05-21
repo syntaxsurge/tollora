@@ -11,7 +11,7 @@ import { getAgentMetrics } from '@/features/agents/store'
 import { settlementReceipts } from '@/features/marketplace/receipt-store'
 import { getProjectSnapshot } from '@/lib/config/project'
 
-const checklist = ['x402 settlement', 'MUSD receipts', '95% provider share']
+const checklist = ['x402 settlement', 'MUSD receipts', '95-99% provider share']
 
 export default async function BillingPage() {
   const snapshot = await getProjectSnapshot()

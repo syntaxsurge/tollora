@@ -541,7 +541,9 @@ export function getMarketplaceMetrics() {
     totalCalls,
     totalRevenueMusd: totalRevenue.toFixed(2),
     platformFeeBps: 500,
-    providerShareBps: 9500
+    providerShareBps: 9500,
+    platformFeeRangeLabel: '1-5%',
+    providerShareRangeLabel: '95-99%'
   }
 }
 

@@ -62,6 +62,13 @@ export function ReceiptDetailClient({
           ['Order ID', receipt.orderId],
           ['Request ID', receipt.requestId],
           ['Provider', receipt.providerName],
+          ['Provider plan', receipt.providerPlan ?? 'free'],
+          [
+            'Provider share',
+            receipt.providerShareBps
+              ? `${receipt.providerShareBps / 100}%`
+              : '95%'
+          ],
           ['Buyer wallet', receipt.buyerWallet],
           ['Provider wallet', receipt.providerWallet],
           ['Platform fee', receipt.platformFeeMusd],

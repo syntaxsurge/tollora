@@ -18,6 +18,7 @@ import {
   resolveProductPrice
 } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { resolveProviderFeeSplit } from '@/features/marketplace/provider-fees'
 import { recordMarketplaceReceipt } from '@/features/marketplace/receipt-store'
 import {
   buildExplorerUrl,
@@ -256,6 +257,7 @@ async function handlePaidProductCall(
   }
 
   const settlement = settlementResponse
+  const feeSplit = await resolveProviderFeeSplit(product)
 
   const receipt = {
     id: receiptId,
@@ -267,7 +269,10 @@ async function handlePaidProductCall(
     buyerWallet: settlement.payer ?? '',
     providerWallet: product.providerWallet,
     amountMusd: resolvedPrice.amountLabel,
-    ...buildReceiptAmounts(resolvedPrice.amountUsd),
+    ...buildReceiptAmounts(resolvedPrice.amountUsd, feeSplit.platformFeeBps),
+    providerPlan: feeSplit.planKey,
+    platformFeeBps: feeSplit.platformFeeBps,
+    providerShareBps: feeSplit.providerShareBps,
     network: x402Network as 'eip155:31611',
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),
@@ -405,6 +410,7 @@ async function handlePrepaidAsyncProviderCall({
   }
 
   const settlement = settlementResponse
+  const feeSplit = await resolveProviderFeeSplit(product)
   const escrowContext = await reservePrepaidEscrow({
     product,
     orderId,
@@ -423,7 +429,10 @@ async function handlePrepaidAsyncProviderCall({
     buyerWallet: settlement.payer ?? '',
     providerWallet: product.providerWallet,
     amountMusd: resolvedPrice.amountLabel,
-    ...buildReceiptAmounts(resolvedPrice.amountUsd),
+    ...buildReceiptAmounts(resolvedPrice.amountUsd, feeSplit.platformFeeBps),
+    providerPlan: feeSplit.planKey,
+    platformFeeBps: feeSplit.platformFeeBps,
+    providerShareBps: feeSplit.providerShareBps,
     network: x402Network as 'eip155:31611',
     txHash: settlement.transaction,
     explorerUrl: buildExplorerUrl(settlement.transaction),

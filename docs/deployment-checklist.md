@@ -17,7 +17,6 @@ Use this checklist before submitting or presenting the app.
 - `NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL=https://explorer.test.mezo.org`
 - `NEXT_PUBLIC_X402_NETWORK=eip155:31611`
 - `X402_FACILITATOR_URL=https://facilitator.vativ.io/`
-- `TOLLORA_PLATFORM_FEE_BPS=500`
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`

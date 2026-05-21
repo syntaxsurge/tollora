@@ -29,7 +29,7 @@ import {
 import {
   UserSettings,
   defaultUserSettings,
-  writeUserSettings
+  saveUserSettings
 } from '@/lib/settings/user-settings'
 
 type EthereumProvider = {
@@ -128,7 +128,11 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
     }
   }, [address, contractAddress])
 
-  async function sendContractTransaction(data: `0x${string}`, value = 0n) {
+  async function sendContractTransaction(
+    data: `0x${string}`,
+    value = 0n,
+    planToPersist?: UserSettings['plan']
+  ) {
     if (!address || !isAddress(address)) {
       setStatus('Connect a valid wallet first.')
       return
@@ -177,6 +181,9 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
 
       const hash = String(txHash)
       setSubmittedTxHash(hash.startsWith('0x') ? hash : null)
+      if (planToPersist) {
+        await saveUserSettings({ ...settings, plan: planToPersist }, address)
+      }
       setStatus(`Transaction submitted: ${hash}`)
     } catch (error) {
       setStatus(
@@ -190,7 +197,14 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
   function updateSelectedPlan(plan: UserSettings['plan']) {
     const nextSettings = { ...settings, plan }
     setSettings(nextSettings)
-    writeUserSettings(nextSettings, address)
+
+    if (plan === 'free') {
+      void saveUserSettings(nextSettings, address).catch(error => {
+        setStatus(
+          error instanceof Error ? error.message : 'Could not save plan.'
+        )
+      })
+    }
   }
 
   const paidUntilDate =
@@ -299,7 +313,8 @@ function SubscriptionStatusContent({ address }: { address: string | null }) {
                 functionName: 'renewSubscription',
                 args: [selectedPlan.planKey]
               }),
-              BigInt(selectedPlan.priceWei)
+              BigInt(selectedPlan.priceWei),
+              selectedPlan.key
             )
           }
         >

@@ -9,7 +9,10 @@ import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import { useUserSettings } from '@/hooks/use-user-settings'
-import { subscriptionPlans } from '@/lib/contracts/subscription'
+import {
+  formatBpsPercent,
+  subscriptionPlans
+} from '@/lib/contracts/subscription'
 
 export function BillingOverview({
   subscriptionConfigured
@@ -75,6 +78,24 @@ function BillingOverviewContent({
             Contract price
           </p>
           <p className='mt-2 text-4xl font-semibold'>{plan.priceLabel}</p>
+        </div>
+        <div className='grid gap-3 sm:grid-cols-2'>
+          <div className='border-foreground/10 rounded-lg border p-4'>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Provider share
+            </p>
+            <p className='mt-2 text-2xl font-semibold'>
+              {formatBpsPercent(plan.providerShareBps)}
+            </p>
+          </div>
+          <div className='border-foreground/10 rounded-lg border p-4'>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Platform fee
+            </p>
+            <p className='mt-2 text-2xl font-semibold'>
+              {formatBpsPercent(plan.platformFeeBps)}
+            </p>
+          </div>
         </div>
         <div className='grid gap-3 text-sm'>
           <div className='border-foreground/10 rounded-lg border p-4'>

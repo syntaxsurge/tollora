@@ -172,7 +172,7 @@ export default async function MarketingPage({
         <div className='mt-10 grid gap-3 sm:grid-cols-3'>
           {[
             { label: 'Agent-ready APIs', value: metrics.productCount },
-            { label: 'Provider share', value: '95%' },
+            { label: 'Provider share', value: metrics.providerShareRangeLabel },
             { label: 'Settlement rail', value: 'MUSD' }
           ].map(item => (
             <div

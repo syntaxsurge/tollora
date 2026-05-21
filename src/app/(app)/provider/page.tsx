@@ -18,9 +18,9 @@ import { getAgentMetrics } from '@/features/agents/store'
 import {
   getProviderDashboardMetrics,
   getProviderOrders,
-  getMarketplaceMetrics,
   getProviderPublishedProducts
 } from '@/features/marketplace/products'
+import { resolveProviderFeeSplit } from '@/features/marketplace/provider-fees'
 import { orderStatusLabels } from '@/features/marketplace/status'
 import { WALLET_ADDRESS_COOKIE } from '@/lib/auth/wallet-session'
 
@@ -28,7 +28,10 @@ export default async function ProviderPage() {
   const cookieStore = await cookies()
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
   const products = getProviderPublishedProducts(ownerWallet)
-  const metrics = getMarketplaceMetrics()
+  const feeSplit = await resolveProviderFeeSplit({
+    ownerWallet,
+    providerWallet: ownerWallet ?? ''
+  })
   const providerMetrics = getProviderDashboardMetrics(ownerWallet)
   const agentMetrics = getAgentMetrics()
   const orders = getProviderOrders(ownerWallet)
@@ -206,7 +209,7 @@ export default async function ProviderPage() {
                 `${providerMetrics.providerRevenueMusd} MUSD`
               ],
               ['Platform fees', `${providerMetrics.platformFeeMusd} MUSD`],
-              ['Provider split', `${metrics.providerShareBps / 100}%`]
+              ['Current split', feeSplit.providerShareLabel]
             ].map(([label, value]) => (
               <div key={label} className='bg-muted rounded-lg p-4'>
                 <p className='text-foreground/60 text-xs uppercase'>{label}</p>

@@ -40,6 +40,8 @@ export function formatNativeAmount(priceWei: string | bigint) {
   return formatNativePrice(priceWei.toString())
 }
 
+export const defaultSubscriptionPlanKey = 'free'
+
 export const subscriptionPlans = [
   {
     key: 'free',
@@ -47,11 +49,27 @@ export const subscriptionPlans = [
     name: 'Free',
     priceLabel: '$0',
     priceWei: '0',
-    description: 'Explore Tollora, connect a wallet, and browse paid APIs.',
+    description: 'Start listing and testing paid APIs without a subscription.',
+    bestFor: 'New providers validating one or two paid APIs.',
+    providerShareBps: 9500,
+    platformFeeBps: 500,
     features: [
-      'Wallet-gated marketplace',
-      'Profile and settings pages',
-      'Admin allowlist support'
+      'Wallet profile and marketplace browsing',
+      'List paid APIs in the marketplace',
+      'Browser Run and Pay testing',
+      'Public receipts for successful calls'
+    ],
+    included: [
+      'Wallet profile and marketplace browsing',
+      'List paid APIs',
+      'Run and Pay testing',
+      'Public receipts'
+    ],
+    excluded: [
+      'Reduced platform fee',
+      'Advanced provider analytics',
+      'Priority agent-tool visibility',
+      'Premium support'
     ]
   },
   {
@@ -63,13 +81,24 @@ export const subscriptionPlans = [
     get priceLabel() {
       return formatNativePrice(this.priceWei)
     },
-    description:
-      'Activate a 30-day paid subscription through SubscriptionManager.',
+    description: 'Grow a paid API business with a lower platform fee.',
+    bestFor: 'Active providers growing recurring paid usage.',
+    providerShareBps: 9700,
+    platformFeeBps: 300,
     features: [
-      'Native-token checkout',
-      '30-day paid period',
-      'Server-side admin visibility'
-    ]
+      'Everything in Free',
+      'Lower 3% platform fee',
+      'Provider revenue analytics',
+      'Agent-ready listing support'
+    ],
+    included: [
+      'Everything in Free',
+      '97% provider share',
+      'Provider revenue analytics',
+      'Agent-ready listing support',
+      'More prominent provider positioning'
+    ],
+    excluded: ['99% provider share', 'Highest-priority provider support']
   },
   {
     key: 'plus',
@@ -80,17 +109,47 @@ export const subscriptionPlans = [
     get priceLabel() {
       return formatNativePrice(this.priceWei)
     },
-    description:
-      'Upgrade to the higher workspace tier through the same on-chain flow.',
+    description: 'Maximize payout and visibility for high-volume providers.',
+    bestFor: 'High-volume API sellers and agent-tool providers.',
+    providerShareBps: 9900,
+    platformFeeBps: 100,
     features: [
-      'Higher-tier subscription',
-      'Same contract interface',
-      'Deployment-ready env config'
-    ]
+      'Everything in Base',
+      'Lowest 1% platform fee',
+      'Highest provider payout',
+      'Advanced payout and usage reporting'
+    ],
+    included: [
+      'Everything in Base',
+      '99% provider share',
+      'Priority agent-tool visibility',
+      'Advanced payout and usage reporting',
+      'Highest support priority for provider issues'
+    ],
+    excluded: ['No material MVP exclusions']
   }
 ] as const
 
 export type SubscriptionPlanKey = (typeof subscriptionPlans)[number]['key']
+
+export function getSubscriptionPlan(planKey?: string | null) {
+  return (
+    subscriptionPlans.find(plan => plan.key === planKey) ??
+    subscriptionPlans.find(plan => plan.key === defaultSubscriptionPlanKey)!
+  )
+}
+
+export function getProviderShareBps(planKey?: string | null) {
+  return getSubscriptionPlan(planKey).providerShareBps
+}
+
+export function getPlatformFeeBps(planKey?: string | null) {
+  return getSubscriptionPlan(planKey).platformFeeBps
+}
+
+export function formatBpsPercent(bps: number) {
+  return `${bps / 100}%`
+}
 
 export function getSubscriptionManagerAddress() {
   return envClient.NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS

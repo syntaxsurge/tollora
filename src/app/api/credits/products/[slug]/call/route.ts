@@ -15,6 +15,7 @@ import {
   resolveProductPrice
 } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { resolveProviderFeeSplit } from '@/features/marketplace/provider-fees'
 import { recordMarketplaceReceipt } from '@/features/marketplace/receipt-store'
 import {
   buildExplorerUrl,
@@ -180,6 +181,7 @@ export async function POST(
           externalJobId: providerResult.externalJobId
         }
       : providerResult.responsePayload
+  const feeSplit = await resolveProviderFeeSplit(product)
   const receipt = {
     id: receiptId,
     orderId,
@@ -190,7 +192,10 @@ export async function POST(
     buyerWallet: account.wallet,
     providerWallet: product.providerWallet,
     amountMusd: resolvedPrice.amountLabel,
-    ...buildReceiptAmounts(resolvedPrice.amountUsd),
+    ...buildReceiptAmounts(resolvedPrice.amountUsd, feeSplit.platformFeeBps),
+    providerPlan: feeSplit.planKey,
+    platformFeeBps: feeSplit.platformFeeBps,
+    providerShareBps: feeSplit.providerShareBps,
     network: x402Network as 'eip155:31611',
     txHash: latestTopUp.settlementTxHash,
     explorerUrl: buildExplorerUrl(latestTopUp.settlementTxHash),

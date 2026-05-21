@@ -557,10 +557,17 @@ Before creating a new helper or service file:
   schemas, upstream auth metadata, async polling mappings, prices, x402 flags,
   and dashboard metrics live in `src/features/marketplace/products.ts`; reusable
   marketplace cards live in `src/features/marketplace/product-card.tsx`.
+  Subscription plan metadata and tier fee splits live in
+  `src/lib/contracts/subscription.ts`: Free providers keep 95%, Base providers
+  keep 97%, and Plus providers keep 99% of successful paid calls.
   Marketplace orders persist to `.tollora/marketplace-orders.json`, settlement
   receipts persist to `.tollora/settlement-receipts.json`, and provider call
   counts, success rates, gross volume, platform fees, and earnings are derived
   from those order and receipt ledgers instead of static product counters.
+  Receipt builders resolve the provider profile plan through
+  `src/features/marketplace/provider-fees.ts`, default to Free when no saved
+  plan exists, and store the provider plan, platform fee bps, provider share
+  bps, platform fee amount, and provider amount on successful receipts.
   Tollora Labs public data wrappers for Wikipedia search, Hacker News trend
   search, GitHub repository search, npm package search, OpenAlex research
   search, and GDELT news search use no upstream account or API key, stay
@@ -672,7 +679,7 @@ Before creating a new helper or service file:
   & Pay order page.
 - `/provider` shows the connected wallet's owned provider revenue, API call
   volume, success rate, top product, recent request activity, product listing
-  health, production narrative, and the 95% provider / 5% platform fee split.
+  health, production narrative, and tiered provider revenue split.
 - `/provider/products` lists provider API products in the shared server-fed
   table for the connected owner wallet with status context, price, call volume,
   gateway path, listing links, bulk deletion for owner-created rows, and

@@ -16,7 +16,7 @@ import {
 } from '@/lib/contracts/subscription'
 import {
   readUserSettings,
-  writeUserSettings
+  saveUserSettings
 } from '@/lib/settings/user-settings'
 
 type EthereumProvider = {
@@ -69,9 +69,13 @@ function SubscriptionCheckoutButton({
       return
     }
 
-    const settings = readUserSettings(address)
-    writeUserSettings({ ...settings, plan: 'free' }, address)
-    setStatus('Free plan selected.')
+    try {
+      const settings = readUserSettings(address)
+      await saveUserSettings({ ...settings, plan: 'free' }, address)
+      setStatus('Free plan selected.')
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not save plan.')
+    }
   }
 
   async function paySubscription() {
@@ -129,7 +133,7 @@ function SubscriptionCheckoutButton({
       })
 
       const settings = readUserSettings(address)
-      writeUserSettings({ ...settings, plan: plan.key }, address)
+      await saveUserSettings({ ...settings, plan: plan.key }, address)
       setStatus(`Transaction submitted: ${String(txHash)}`)
     } catch (error) {
       setStatus(

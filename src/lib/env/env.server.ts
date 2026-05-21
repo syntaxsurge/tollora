@@ -12,10 +12,6 @@ const optionalUrl = z.preprocess(
 
 const serverSchema = z.object({
   CONVEX_DEPLOYMENT: optionalString,
-  TOLLORA_PLATFORM_FEE_BPS: z.preprocess(
-    value => (value === '' ? undefined : value),
-    z.coerce.number().int().min(0).max(10000).optional()
-  ),
   X402_FACILITATOR_URL: optionalUrl,
   NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS: optionalString,
   AGENT_SPENDER_PRIVATE_KEY: optionalString,
@@ -29,7 +25,6 @@ const serverSchema = z.object({
 
 export const envServer = serverSchema.parse({
   CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
-  TOLLORA_PLATFORM_FEE_BPS: process.env.TOLLORA_PLATFORM_FEE_BPS,
   X402_FACILITATOR_URL: process.env.X402_FACILITATOR_URL,
   NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS:
     process.env.NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS,

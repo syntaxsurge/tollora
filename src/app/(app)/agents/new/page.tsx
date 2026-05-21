@@ -72,7 +72,7 @@ export default async function NewAgentRunPage({
   const steps: { icon: LucideIcon; title: string; detail: string }[] = [
     { icon: Sparkles, title: 'Plan', detail: 'Select tools' },
     { icon: WalletCards, title: 'Pay', detail: 'x402 MUSD' },
-    { icon: CircleDollarSign, title: 'Earn', detail: '95% provider split' }
+    { icon: CircleDollarSign, title: 'Earn', detail: '95-99% provider split' }
   ]
 
   return (

@@ -16,6 +16,9 @@ export type MarketplaceReceipt = {
   amountMusd: string
   platformFeeMusd: string
   providerAmountMusd: string
+  providerPlan?: string
+  platformFeeBps?: number
+  providerShareBps?: number
   network: 'eip155:31611'
   txHash: string
   explorerUrl: string | null
