@@ -454,7 +454,17 @@ function resolveBaseUrl({
   const serverUrl = baseUrl || document.servers?.[0]?.url || ''
 
   if (/^https?:\/\//i.test(serverUrl)) {
-    return serverUrl.replace(/\/$/, '')
+    const normalizedServerUrl = serverUrl.replace(/\/$/, '')
+
+    if (!baseUrl) {
+      return recoverVersionedApiBaseUrl({
+        document,
+        serverUrl: normalizedServerUrl,
+        sourceUrl
+      })
+    }
+
+    return normalizedServerUrl
   }
 
   if (sourceUrl && /^https?:\/\//i.test(sourceUrl)) {
@@ -464,6 +474,46 @@ function resolveBaseUrl({
   }
 
   return serverUrl.replace(/\/$/, '')
+}
+
+function recoverVersionedApiBaseUrl({
+  document,
+  serverUrl,
+  sourceUrl
+}: {
+  document: OpenApiDocument
+  serverUrl: string
+  sourceUrl?: string
+}) {
+  if (!sourceUrl || !/^https?:\/\//i.test(sourceUrl)) {
+    return serverUrl
+  }
+
+  const server = new URL(serverUrl)
+  const source = new URL(sourceUrl)
+
+  if (server.origin !== source.origin || server.pathname !== '/') {
+    return serverUrl
+  }
+
+  const inferredBasePath = source.pathname.replace(
+    /\/(?:openapi|swagger)(?:\.(?:json|ya?ml))?$/i,
+    ''
+  )
+
+  if (!inferredBasePath || inferredBasePath === source.pathname) {
+    return serverUrl
+  }
+
+  const hasRootPaths = Object.keys(document.paths ?? {}).some(path =>
+    path.startsWith(inferredBasePath)
+  )
+
+  if (hasRootPaths) {
+    return serverUrl
+  }
+
+  return `${source.origin}${inferredBasePath}`.replace(/\/$/, '')
 }
 
 function inferAuth(document: OpenApiDocument, operation: OpenApiOperation) {

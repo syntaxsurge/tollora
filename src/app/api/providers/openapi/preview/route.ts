@@ -69,8 +69,10 @@ async function fetchSpec(specUrl?: string) {
   }
 
   const response = await fetch(specUrl, {
+    cache: 'no-store',
     headers: {
-      Accept: 'application/json, application/yaml, text/yaml, text/plain'
+      Accept: 'application/json, application/yaml, text/yaml, text/plain',
+      'Cache-Control': 'no-cache'
     }
   })
 
