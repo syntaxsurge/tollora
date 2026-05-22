@@ -651,12 +651,14 @@ Before creating a new helper or service file:
   one available tool by default when opened and blocks run creation unless at
   least one tool remains selected; `/agents/[runId]` funds production runs
   through the agent budget vault, executes the ranked plan, shows planner
-  mode/model, selected and skipped tools, planner rationale, budget ledger,
-  receipt links, per-tool request and response diagnostics, extracted tool
-  output links, rendered media previews, Markdown-rendered deliverables, unused
-  refund controls, and writes Mezo proof attestations. The final output section
-  renders the agent deliverable as text, media, or result links depending on the
-  completed tool responses.
+  mode/model, budget state, lifecycle controls, selected tool calls, receipt
+  links, extracted tool output links, rendered media previews, Markdown-rendered
+  deliverables, unused refund controls, and writes Mezo proof attestations.
+  Request and response payloads, skipped tools, planner rationale, budget
+  ledger, and raw synthesis metadata are collapsed into diagnostics so the page
+  opens on the run outcome first. The final output section renders the agent
+  deliverable as text, media, or result links depending on the completed tool
+  responses.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, budget funding and refund metadata, total
   MUSD spend, attestation transaction, and Mezo explorer link.

@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Bot,
   CheckCircle2,
-  CircleDollarSign,
   Clock,
   ExternalLink,
   FileCheck2,
@@ -15,9 +14,7 @@ import {
   History,
   ImageIcon,
   LinkIcon,
-  type LucideIcon,
   Play,
-  ReceiptText,
   Route,
   ShieldCheck,
   Sparkles,
@@ -307,250 +304,221 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
     ['failed', 'completed', 'attested'].includes(run.status) &&
     run.fundingStatus === 'refund_available' &&
     run.availableAmountMusd !== '0.00 MUSD'
+  const RunStatusIcon = statusIcon(run.status)
 
   return (
-    <div className='space-y-6'>
-      <section className='grid gap-4 xl:grid-cols-[1fr_360px]'>
-        <Card className='space-y-5 overflow-hidden'>
-          <div className='flex flex-wrap items-start justify-between gap-4'>
-            <div className='space-y-2'>
-              <div className='text-primary flex items-center gap-2'>
-                <Bot className='h-5 w-5' aria-hidden />
-                <span className='text-xs font-semibold tracking-[0.18em] uppercase'>
+    <div className='space-y-5'>
+      <Card className='overflow-hidden p-0'>
+        <div className='from-primary/10 via-card to-brand-purple/10 border-border/70 border-b bg-gradient-to-br p-5 sm:p-6'>
+          <div className='flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between'>
+            <div className='min-w-0 space-y-3'>
+              <div className='flex flex-wrap items-center gap-2'>
+                <span className='bg-primary/10 text-primary inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold tracking-[0.14em] uppercase'>
+                  <Bot className='h-3.5 w-3.5' aria-hidden />
                   Agent run
                 </span>
+                <StatusPill status={run.status} />
               </div>
-              <h2 className='font-display text-3xl leading-tight'>
-                {run.title}
-              </h2>
-              <p className='text-foreground/65 max-w-3xl text-sm leading-6'>
-                {run.objective}
-              </p>
+              <div>
+                <h2 className='font-display text-3xl leading-tight sm:text-4xl'>
+                  {run.title}
+                </h2>
+                <p className='text-foreground/70 mt-2 max-w-4xl text-sm leading-6 sm:text-base'>
+                  {run.objective}
+                </p>
+              </div>
             </div>
-            <StatusPill status={run.status} />
-          </div>
 
-          <div className='grid gap-3 md:grid-cols-4'>
-            <MetricCard
-              icon={WalletCards}
-              label='Funded'
-              value={run.fundedAmountMusd}
-            />
-            <MetricCard
-              icon={CircleDollarSign}
-              label='Spent'
-              value={run.spentAmountMusd}
-            />
-            <MetricCard
-              icon={Undo2}
-              label='Available'
-              value={run.availableAmountMusd}
-            />
-            <MetricCard
-              icon={Sparkles}
-              label='Planner'
-              value={formatPlanner(run)}
-            />
+            <div className='grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[34rem]'>
+              <CompactMetric label='Funded' value={run.fundedAmountMusd} />
+              <CompactMetric label='Spent' value={run.spentAmountMusd} />
+              <CompactMetric
+                label='Available'
+                value={run.availableAmountMusd}
+              />
+              <CompactMetric label='Planner' value={formatPlanner(run)} />
+            </div>
           </div>
+        </div>
 
-          <div className='border-border/80 bg-muted/25 rounded-lg border p-4'>
-            <p className='font-semibold'>{agentRunStatusLabels[run.status]}</p>
-            <p className='text-foreground/65 mt-1 text-sm leading-6'>
-              {agentRunStatusDetails[run.status]}
-            </p>
+        <div className='grid gap-4 p-5 sm:p-6 xl:grid-cols-[1fr_22rem]'>
+          <div className='space-y-3'>
+            <div className='flex items-start gap-3'>
+              <span className='bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full'>
+                <RunStatusIcon className='h-5 w-5' aria-hidden />
+              </span>
+              <div className='min-w-0'>
+                <p className='font-semibold'>
+                  {agentRunStatusLabels[run.status]}
+                </p>
+                <p className='text-foreground/65 mt-1 text-sm leading-6'>
+                  {agentRunStatusDetails[run.status]}
+                </p>
+              </div>
+            </div>
             {run.status === 'failed' && completedPaidActions === 0 ? (
-              <p className='mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm leading-6 text-red-600 dark:text-red-300'>
-                No paid tool completed with a receipt, so Tollora is showing
-                diagnostics instead of treating the generated copy as verified
-                launch output.
+              <p className='rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm leading-6 text-red-600 dark:text-red-300'>
+                No paid tool completed with a receipt. Review the failed action
+                diagnostics below, then retry after funding and provider health
+                are confirmed.
+              </p>
+            ) : null}
+            {status ? (
+              <p
+                className='border-border bg-muted/40 rounded-xl border p-3 text-sm leading-6 break-words'
+                role='status'
+              >
+                {status}
               </p>
             ) : null}
           </div>
-        </Card>
 
-        <Card className='space-y-4 xl:sticky xl:top-28 xl:self-start'>
-          <div>
-            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-              Controls
-            </p>
-            <p className='mt-1 text-lg font-semibold'>Budget and lifecycle</p>
-          </div>
-          <Button
-            className='w-full'
-            onClick={fundRun}
-            disabled={
-              isFunding ||
-              !['unfunded', 'funding_pending'].includes(run.fundingStatus)
-            }
-          >
-            <WalletCards className='h-4 w-4' aria-hidden />
-            {isFunding ? 'Funding' : 'Fund agent'}
-          </Button>
-          <Button
-            className='w-full'
-            onClick={executeRun}
-            disabled={isRunning || !canRun}
-          >
-            <Play className='h-4 w-4' aria-hidden />
-            {isRunning
-              ? 'Running'
-              : run.status === 'failed'
-                ? 'Retry actions'
-                : 'Run actions'}
-          </Button>
-          <Button
-            className='w-full'
-            variant='outline'
-            onClick={refundUnusedBudget}
-            disabled={isRefunding || !canRefund}
-          >
-            <Undo2 className='h-4 w-4' aria-hidden />
-            {isRefunding ? 'Refunding' : 'Refund unused'}
-          </Button>
-          <Button
-            className='w-full'
-            variant='outline'
-            onClick={attestRun}
-            disabled={
-              isAttesting || !['completed', 'attesting'].includes(run.status)
-            }
-          >
-            <FileCheck2 className='h-4 w-4' aria-hidden />
-            {isAttesting ? 'Writing proof' : 'Attest proof'}
-          </Button>
-          {run.proof ? (
-            <Link
-              href={`/proofs/${run.proof.id}`}
-              className={buttonClasses({
-                variant: 'primary',
-                size: 'md',
-                className: 'w-full'
-              })}
-            >
-              <ExternalLink className='h-4 w-4' aria-hidden />
-              Open proof
-            </Link>
-          ) : null}
-          {status ? (
-            <p
-              className='border-border bg-muted/40 rounded-lg border p-3 text-sm leading-6 break-words'
-              role='status'
-            >
-              {status}
-            </p>
-          ) : null}
-          <div className='border-border rounded-lg border p-3 text-sm'>
-            <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
-              Connected wallet
-            </p>
-            <p className='mt-1 font-semibold break-all'>
-              {address ?? 'Not connected'}
-            </p>
-          </div>
-        </Card>
-      </section>
-
-      <section className='grid gap-4 xl:grid-cols-[0.85fr_1.15fr]'>
-        <Card className='space-y-4'>
-          <div className='flex items-center gap-2'>
-            <ShieldCheck className='text-primary h-5 w-5' aria-hidden />
-            <h3 className='text-lg font-semibold'>Funding ledger</h3>
-          </div>
-          <div className='grid gap-3 md:grid-cols-2'>
-            <DetailLink
-              label='Vault'
-              value={run.vaultAddress}
-              href={run.vaultExplorerUrl}
-            />
-            <DetailLink
-              label='Funding tx'
-              value={run.fundingTxHash}
-              href={run.fundingExplorerUrl}
-            />
-            <DetailLink
-              label='Approval tx'
-              value={run.approvalTxHash}
-              href={run.approvalExplorerUrl}
-            />
-            <DetailLink
-              label='Refund tx'
-              value={run.refundTxHash}
-              href={run.refundExplorerUrl}
-            />
-          </div>
-          <LedgerTimeline events={run.ledgerEvents} />
-        </Card>
-
-        <Card className='space-y-4'>
-          <div className='flex items-center gap-2'>
-            <Route className='text-primary h-5 w-5' aria-hidden />
-            <h3 className='text-lg font-semibold'>Paid actions</h3>
-          </div>
-          {run.actions.length === 0 ? (
-            <p className='text-foreground/65 text-sm leading-6'>
-              Actions appear here after the planner chooses tools.
-            </p>
-          ) : (
-            <div className='grid gap-3'>
-              {run.actions.map(action => (
-                <ActionCard key={action.id} action={action} />
-              ))}
-            </div>
-          )}
-        </Card>
-      </section>
-
-      {run.deliverables.skippedTools?.length ? (
-        <Card className='space-y-3'>
-          <div className='flex items-center gap-2'>
-            <Route className='text-primary h-4 w-4' aria-hidden />
-            <p className='font-semibold'>Skipped tools</p>
-          </div>
-          <div className='grid gap-3 md:grid-cols-2'>
-            {run.deliverables.skippedTools.map(tool => (
-              <div
-                key={tool.slug}
-                className='border-border bg-muted/20 rounded-lg border p-3 text-sm'
+          <div className='space-y-3'>
+            <div className='grid grid-cols-2 gap-2'>
+              <Button
+                onClick={fundRun}
+                disabled={
+                  isFunding ||
+                  !['unfunded', 'funding_pending'].includes(run.fundingStatus)
+                }
               >
-                <p className='font-semibold'>{tool.productName ?? tool.slug}</p>
-                <p className='text-foreground/65 mt-1 leading-6'>
-                  {tool.reason}
-                </p>
-              </div>
-            ))}
+                <WalletCards className='h-4 w-4' aria-hidden />
+                {isFunding ? 'Funding' : 'Fund'}
+              </Button>
+              <Button onClick={executeRun} disabled={isRunning || !canRun}>
+                <Play className='h-4 w-4' aria-hidden />
+                {isRunning
+                  ? 'Running'
+                  : run.status === 'failed'
+                    ? 'Retry'
+                    : 'Run'}
+              </Button>
+            </div>
+            <div className='grid grid-cols-2 gap-2'>
+              <Button
+                variant='outline'
+                onClick={refundUnusedBudget}
+                disabled={isRefunding || !canRefund}
+              >
+                <Undo2 className='h-4 w-4' aria-hidden />
+                {isRefunding ? 'Refunding' : 'Refund'}
+              </Button>
+              <Button
+                variant='outline'
+                onClick={attestRun}
+                disabled={
+                  isAttesting ||
+                  !['completed', 'attesting'].includes(run.status)
+                }
+              >
+                <FileCheck2 className='h-4 w-4' aria-hidden />
+                {isAttesting ? 'Writing' : 'Attest'}
+              </Button>
+            </div>
+            {run.proof ? (
+              <Link
+                href={`/proofs/${run.proof.id}`}
+                className={buttonClasses({
+                  variant: 'primary',
+                  size: 'md',
+                  className: 'w-full'
+                })}
+              >
+                <ExternalLink className='h-4 w-4' aria-hidden />
+                Open proof
+              </Link>
+            ) : null}
+            <p className='text-foreground/55 text-xs leading-5 break-all'>
+              Connected wallet: {address ?? 'Not connected'}
+            </p>
           </div>
-        </Card>
-      ) : null}
-
-      {hasDeliverableSummary(run) ? (
-        <section className='grid gap-4 xl:grid-cols-[1.2fr_0.8fr]'>
-          <DeliverableCard
-            title='Launch brief'
-            value={run.deliverables.launchBrief}
-          />
-          <div className='grid gap-4'>
-            <DeliverableCard
-              title='Developer copy'
-              value={run.deliverables.developerCopy}
-            />
-            <DeliverableCard
-              title='Market signal'
-              value={run.deliverables.marketSignal}
-            />
-          </div>
-        </section>
-      ) : null}
+        </div>
+      </Card>
 
       <FinalOutputSection run={run} outputs={finalOutputs} />
 
-      <Card>
-        <JsonViewer
-          title='Planner, receipts, and deliverable diagnostics'
-          value={run.deliverables}
-          defaultOpen={false}
-          copyLabel='Copy diagnostics'
-        />
+      <Card className='space-y-4'>
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
+          <div>
+            <div className='text-primary flex items-center gap-2'>
+              <Route className='h-5 w-5' aria-hidden />
+              <span className='text-xs font-semibold tracking-[0.18em] uppercase'>
+                Tool calls
+              </span>
+            </div>
+            <h3 className='mt-2 text-2xl font-semibold'>Execution timeline</h3>
+          </div>
+          <p className='text-foreground/55 text-sm'>
+            {run.actions.length} selected, {completedPaidActions} completed with
+            receipts
+          </p>
+        </div>
+        {run.actions.length === 0 ? (
+          <p className='text-foreground/65 rounded-xl border border-dashed p-5 text-sm leading-6'>
+            Actions appear here after the planner chooses tools.
+          </p>
+        ) : (
+          <div className='space-y-3'>
+            {run.actions.map(action => (
+              <ActionCard key={action.id} action={action} />
+            ))}
+          </div>
+        )}
       </Card>
+
+      <details className='group border-border/80 bg-card/80 overflow-hidden rounded-xl border'>
+        <summary className='flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden'>
+          <span className='flex items-center gap-2 font-semibold'>
+            <ShieldCheck className='text-primary h-4 w-4' aria-hidden />
+            Run ledger and diagnostics
+          </span>
+          <span className='text-foreground/50 text-sm group-open:hidden'>
+            Expand
+          </span>
+          <span className='text-foreground/50 hidden text-sm group-open:inline'>
+            Collapse
+          </span>
+        </summary>
+        <div className='border-border/70 grid gap-4 border-t p-5 lg:grid-cols-[0.9fr_1.1fr]'>
+          <div className='space-y-4'>
+            <div className='grid gap-3 sm:grid-cols-2'>
+              <DetailLink
+                label='Vault'
+                value={run.vaultAddress}
+                href={run.vaultExplorerUrl}
+              />
+              <DetailLink
+                label='Funding tx'
+                value={run.fundingTxHash}
+                href={run.fundingExplorerUrl}
+              />
+              <DetailLink
+                label='Approval tx'
+                value={run.approvalTxHash}
+                href={run.approvalExplorerUrl}
+              />
+              <DetailLink
+                label='Refund tx'
+                value={run.refundTxHash}
+                href={run.refundExplorerUrl}
+              />
+            </div>
+            <LedgerTimeline events={run.ledgerEvents} />
+          </div>
+
+          <div className='space-y-4'>
+            {run.deliverables.skippedTools?.length ? (
+              <SkippedTools tools={run.deliverables.skippedTools} />
+            ) : null}
+            <JsonViewer
+              title='Planner and deliverable diagnostics'
+              value={run.deliverables}
+              defaultOpen={false}
+              copyLabel='Copy diagnostics'
+            />
+          </div>
+        </div>
+      </details>
     </div>
   )
 }
@@ -566,22 +534,15 @@ function StatusPill({ status }: { status: AgentRun['status'] }) {
   )
 }
 
-function MetricCard({
-  icon: Icon,
-  label,
-  value
-}: {
-  icon: LucideIcon
-  label: string
-  value: string
-}) {
+function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className='border-border bg-background/60 rounded-lg border p-4'>
-      <Icon className='text-primary h-4 w-4' aria-hidden />
-      <p className='text-foreground/60 mt-3 text-xs tracking-[0.14em] uppercase'>
+    <div className='border-border/70 bg-background/60 min-w-0 rounded-xl border p-3'>
+      <p className='text-foreground/55 text-[0.68rem] font-semibold tracking-[0.14em] uppercase'>
         {label}
       </p>
-      <p className='mt-1 font-semibold break-words'>{value}</p>
+      <p className='mt-1 truncate text-sm font-semibold sm:text-base'>
+        {value}
+      </p>
     </div>
   )
 }
@@ -661,6 +622,37 @@ function LedgerTimeline({ events }: { events: AgentLedgerEvent[] }) {
   )
 }
 
+function SkippedTools({
+  tools
+}: {
+  tools: NonNullable<AgentRun['deliverables']['skippedTools']>
+}) {
+  return (
+    <details className='border-border/80 bg-card/75 overflow-hidden rounded-xl border'>
+      <summary className='flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 [&::-webkit-details-marker]:hidden'>
+        <span className='flex items-center gap-2 text-sm font-semibold'>
+          <Route className='text-primary h-4 w-4' aria-hidden />
+          Skipped tools
+        </span>
+        <span className='bg-muted rounded-full px-2 py-1 text-xs font-semibold'>
+          {tools.length}
+        </span>
+      </summary>
+      <div className='border-border/70 grid gap-3 border-t p-4'>
+        {tools.map(tool => (
+          <div
+            key={tool.slug}
+            className='border-border bg-muted/20 rounded-lg border p-3 text-sm'
+          >
+            <p className='font-semibold'>{tool.productName ?? tool.slug}</p>
+            <p className='text-foreground/65 mt-1 leading-6'>{tool.reason}</p>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
 function ActionCard({ action }: { action: AgentRun['actions'][number] }) {
   const Icon =
     action.status === 'completed'
@@ -675,100 +667,132 @@ function ActionCard({ action }: { action: AgentRun['actions'][number] }) {
   const responseValue = action.toolResponsePayload ?? action.responsePayload
 
   return (
-    <div className='border-border bg-background/60 rounded-lg border p-4'>
-      <div className='flex flex-wrap items-start justify-between gap-3'>
-        <div className='min-w-0'>
+    <div className='border-border/80 bg-background/55 rounded-xl border p-4'>
+      <div className='grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start'>
+        <div className='min-w-0 space-y-2'>
           <div className='flex items-center gap-2'>
             <Icon className='text-primary h-4 w-4' aria-hidden />
             <p className='font-semibold'>{action.productName}</p>
           </div>
-          <p className='text-foreground/60 mt-1 text-sm'>
-            {action.providerName} - {action.amountMusd}
-          </p>
+          <div className='text-foreground/60 flex flex-wrap gap-x-3 gap-y-1 text-sm'>
+            <span>{action.providerName}</span>
+            <span>{action.amountMusd}</span>
+            {action.requestId ? <span>{shorten(action.requestId)}</span> : null}
+          </div>
         </div>
-        <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
-          {agentActionStatusLabels[action.status]}
-        </span>
+        <div className='flex flex-wrap gap-2 lg:justify-end'>
+          <span className='bg-muted rounded-full px-3 py-1 text-xs font-semibold'>
+            {agentActionStatusLabels[action.status]}
+          </span>
+          {action.receipt ? (
+            <Link
+              href={`/receipts/${action.receipt.id}`}
+              className='border-border text-primary rounded-full border px-3 py-1 text-xs font-semibold underline-offset-4 hover:underline'
+            >
+              Receipt
+            </Link>
+          ) : null}
+          {action.receipt?.explorerUrl ? (
+            <a
+              href={action.receipt.explorerUrl}
+              target='_blank'
+              rel='noreferrer'
+              className='border-border text-primary rounded-full border px-3 py-1 text-xs font-semibold underline-offset-4 hover:underline'
+            >
+              Settlement
+            </a>
+          ) : null}
+        </div>
       </div>
+
+      {outputItems.length ? (
+        <div className='mt-3 flex flex-wrap gap-2'>
+          {outputItems.map(item => (
+            <OutputChip key={item.id} item={item} />
+          ))}
+        </div>
+      ) : null}
+
       {action.errorMessage ? (
         <p className='mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm leading-6 text-red-600 dark:text-red-300'>
           {action.errorMessage}
         </p>
       ) : null}
-      {action.planningRationale ? (
-        <details className='border-border bg-muted/30 mt-3 rounded-lg border p-3 text-sm'>
-          <summary className='cursor-pointer font-semibold'>
-            Planner rationale
-          </summary>
-          <p className='text-foreground/65 mt-2 leading-6'>
-            {action.planningRationale}
-          </p>
-        </details>
-      ) : null}
-      {action.receipt ? (
-        <div className='mt-3 grid gap-3 text-sm md:grid-cols-3'>
-          <Link
-            href={`/receipts/${action.receipt.id}`}
-            className='border-border rounded-lg border p-3 font-semibold underline-offset-4 hover:underline'
-          >
-            <ReceiptText className='text-primary mb-2 h-4 w-4' aria-hidden />
-            {action.receipt.id}
-          </Link>
-          <span className='border-border rounded-lg border p-3'>
-            {action.receipt.network}
-          </span>
-          {action.receipt.explorerUrl ? (
-            <a
-              href={action.receipt.explorerUrl}
-              target='_blank'
-              rel='noreferrer'
-              className='border-border text-primary rounded-lg border p-3 font-semibold underline-offset-4 hover:underline'
-            >
-              View settlement
-            </a>
+
+      <details className='border-border/70 bg-muted/20 mt-3 overflow-hidden rounded-lg border'>
+        <summary className='flex cursor-pointer list-none items-center justify-between gap-4 px-3 py-2 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
+          Request, response, and planner notes
+          <span className='text-foreground/45 text-xs'>Diagnostics</span>
+        </summary>
+        <div className='border-border/70 grid gap-3 border-t p-3'>
+          {action.planningRationale ? (
+            <div className='text-sm'>
+              <p className='font-semibold'>Planner rationale</p>
+              <p className='text-foreground/65 mt-1 leading-6'>
+                {action.planningRationale}
+              </p>
+            </div>
           ) : null}
-        </div>
-      ) : null}
-      {outputItems.length ? (
-        <div className='mt-4 space-y-3'>
-          <p className='text-foreground/60 text-xs font-semibold tracking-[0.14em] uppercase'>
-            Tool output
-          </p>
-          <div className='grid gap-3 md:grid-cols-2'>
-            {outputItems.map(item => (
-              <OutputPreview key={item.id} item={item} compact />
-            ))}
-          </div>
-        </div>
-      ) : null}
-      <div className='mt-4 grid gap-3'>
-        <JsonViewer
-          title='Tool request'
-          value={{
-            method: requestMethod,
-            url: requestUrl,
-            body: action.requestPayload
-          }}
-          defaultOpen={false}
-          copyLabel='Copy request'
-        />
-        {responseValue ? (
           <JsonViewer
-            title='Tool response'
-            value={responseValue}
+            title='Tool request'
+            value={{
+              method: requestMethod,
+              url: requestUrl,
+              body: action.requestPayload
+            }}
             defaultOpen={false}
-            copyLabel='Copy response'
+            copyLabel='Copy request'
           />
-        ) : (
-          <div className='border-border/80 bg-card/75 rounded-xl border p-4 text-sm'>
-            <p className='font-semibold'>Tool response</p>
-            <p className='text-foreground/60 mt-1 leading-6'>
-              No response body was recorded for this action yet.
-            </p>
-          </div>
-        )}
-      </div>
+          {responseValue ? (
+            <JsonViewer
+              title='Tool response'
+              value={responseValue}
+              defaultOpen={false}
+              copyLabel='Copy response'
+            />
+          ) : (
+            <div className='border-border/80 bg-card/75 rounded-xl border p-4 text-sm'>
+              <p className='font-semibold'>Tool response</p>
+              <p className='text-foreground/60 mt-1 leading-6'>
+                No response body was recorded for this action yet.
+              </p>
+            </div>
+          )}
+        </div>
+      </details>
     </div>
+  )
+}
+
+function OutputChip({ item }: { item: AgentOutputItem }) {
+  const Icon =
+    item.kind === 'video'
+      ? Video
+      : item.kind === 'image'
+        ? ImageIcon
+        : item.kind === 'text'
+          ? FileText
+          : LinkIcon
+
+  if (!item.url) {
+    return (
+      <span className='border-border bg-card inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold'>
+        <Icon className='text-primary h-3.5 w-3.5' aria-hidden />
+        {item.title}
+      </span>
+    )
+  }
+
+  return (
+    <a
+      href={item.url}
+      target='_blank'
+      rel='noreferrer'
+      className='border-border bg-card text-primary inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold underline-offset-4 hover:underline'
+    >
+      <Icon className='h-3.5 w-3.5' aria-hidden />
+      {item.title}
+    </a>
   )
 }
 
@@ -954,14 +978,6 @@ function statusIcon(status: AgentRun['status']) {
   }
 
   return Bot
-}
-
-function hasDeliverableSummary(run: AgentRun) {
-  return Boolean(
-    run.deliverables.launchBrief ||
-      run.deliverables.developerCopy ||
-      run.deliverables.marketSignal
-  )
 }
 
 function getFinalOutputItems(run: AgentRun): AgentOutputItem[] {
@@ -1224,24 +1240,6 @@ function buildTextFinalOutput(run: AgentRun) {
   ]
     .filter(Boolean)
     .join('\n\n')
-}
-
-function DeliverableCard({ title, value }: { title: string; value?: string }) {
-  if (!value) {
-    return null
-  }
-
-  return (
-    <Card className='space-y-3 overflow-hidden'>
-      <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-        {title}
-      </p>
-      <MarkdownViewer
-        value={value}
-        className='max-h-[34rem] overflow-auto pr-2'
-      />
-    </Card>
-  )
 }
 
 function shorten(value: string) {
