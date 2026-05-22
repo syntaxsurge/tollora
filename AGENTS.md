@@ -545,6 +545,9 @@ Before creating a new helper or service file:
   plus controlled selection state for custom workflows. Server-side query
   helpers live in `src/lib/table/server-table.ts` and are used by agent
   templates/runs, marketplace products, orders, and provider product management.
+- Shared client auto-refresh behavior lives in `src/hooks/use-auto-refresh.ts`
+  and drives long-running marketplace orders and autonomous agent runs without
+  requiring users to manually reload protected pages.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with Tollora logo branding, public navigation, theme controls,
   a server-verified admin shortcut for allowlisted active wallets, and an avatar
@@ -652,14 +655,15 @@ Before creating a new helper or service file:
   least one tool remains selected; `/agents/[runId]` funds production runs
   through the agent budget vault, executes the ranked plan, polls asynchronous
   provider orders until terminal provider status before marking an action
-  completed, shows planner mode/model, budget state, lifecycle controls,
-  selected tool calls, receipt links, extracted tool output links, rendered
-  media previews, Markdown-rendered deliverables, unused refund controls, and
-  writes Mezo proof attestations. Request and response payloads, skipped tools,
-  planner rationale, budget ledger, and raw synthesis metadata are collapsed
-  into diagnostics. The bottom final output section renders the agent
-  deliverable as text, media, or result links depending on the completed tool
-  responses.
+  completed, and auto-refreshes the run page every eight seconds while the run
+  is active. The page shows planner mode/model, budget state, lifecycle
+  controls, selected tool calls, receipt links, extracted tool output links,
+  rendered media previews, Markdown-rendered deliverables, unused refund
+  controls, and writes Mezo proof attestations. Request and response payloads,
+  skipped tools, planner rationale, budget ledger, and raw synthesis metadata
+  are collapsed into diagnostics. The bottom final output section renders the
+  agent deliverable as text, media, or result links depending on the completed
+  tool responses.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, budget funding and refund metadata, total
   MUSD spend, attestation transaction, and Mezo explorer link.

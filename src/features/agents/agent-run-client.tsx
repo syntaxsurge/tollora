@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   AlertTriangle,
@@ -14,7 +14,9 @@ import {
   History,
   ImageIcon,
   LinkIcon,
+  Loader2,
   Play,
+  RefreshCw,
   Route,
   ShieldCheck,
   Sparkles,
@@ -35,6 +37,7 @@ import {
   agentRunStatusLabels
 } from '@/features/agents/status'
 import type { AgentLedgerEvent, AgentRun } from '@/features/agents/types'
+import { useAutoRefresh } from '@/hooks/use-auto-refresh'
 import { defaultAppChain } from '@/lib/config/chains'
 import {
   agentRunVaultAbi,
@@ -64,6 +67,7 @@ const publicClient = createPublicClient({
   chain: defaultAppChain.viemChain,
   transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
 })
+const AGENT_RUN_REFRESH_INTERVAL_MS = 8000
 
 export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
   const { address } = useAccount()
@@ -74,6 +78,8 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
   const [isRunning, setIsRunning] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [isAttesting, setIsAttesting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const refreshInFlightRef = useRef(false)
 
   useEffect(() => {
     if (run) {
@@ -98,6 +104,55 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
     () => (run ? getFinalOutputItems(run) : []),
     [run]
   )
+  const shouldAutoRefreshRun = Boolean(
+    run && (run.status === 'running' || isRunning)
+  )
+
+  useAutoRefresh({
+    enabled: shouldAutoRefreshRun,
+    intervalMs: AGENT_RUN_REFRESH_INTERVAL_MS,
+    onRefresh: refreshRun,
+    refreshKey: [run?.id, run?.status, isRunning].join(':')
+  })
+
+  async function refreshRun() {
+    if (refreshInFlightRef.current) {
+      return
+    }
+
+    refreshInFlightRef.current = true
+    setIsRefreshing(true)
+
+    try {
+      const response = await fetch(`/api/agents/runs/${runId}`, {
+        headers: { Accept: 'application/json' }
+      })
+      const body = (await response.json()) as AgentRun & { error?: string }
+
+      if (!response.ok) {
+        throw new Error(body.error ?? 'Unable to refresh agent status.')
+      }
+
+      persistRun(body)
+
+      if (body.status === 'running') {
+        setStatus('Agent is still running. Status refreshes automatically.')
+      } else if (body.status === 'completed') {
+        setStatus('Agent run completed and final output is ready.')
+      } else if (body.status === 'failed') {
+        setStatus(body.summary)
+      }
+    } catch (caughtError) {
+      setStatus(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Unable to refresh agent status.'
+      )
+    } finally {
+      refreshInFlightRef.current = false
+      setIsRefreshing(false)
+    }
+  }
 
   async function fundRun() {
     if (!walletClient?.account) {
@@ -178,6 +233,17 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
   async function executeRun() {
     setIsRunning(true)
     setStatus('')
+    setRun(currentRun =>
+      currentRun
+        ? {
+            ...currentRun,
+            status: 'running',
+            summary:
+              'The agent is executing paid tool calls and polling async provider results.',
+            updatedAt: new Date().toISOString()
+          }
+        : currentRun
+    )
 
     try {
       const response = await fetch(`/api/agents/runs/${runId}/execute`, {
@@ -371,6 +437,17 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
                 {status}
               </p>
             ) : null}
+            {shouldAutoRefreshRun ? (
+              <p className='text-foreground/55 inline-flex items-center gap-2 text-sm'>
+                {isRefreshing ? (
+                  <Loader2 className='text-primary h-4 w-4 animate-spin' />
+                ) : (
+                  <RefreshCw className='text-primary h-4 w-4' />
+                )}
+                Auto-refreshes every {AGENT_RUN_REFRESH_INTERVAL_MS / 1000}s
+                until the run finishes.
+              </p>
+            ) : null}
           </div>
 
           <div className='space-y-3'>
@@ -397,12 +474,26 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
             <div className='grid grid-cols-2 gap-2'>
               <Button
                 variant='outline'
+                onClick={refreshRun}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? (
+                  <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
+                ) : (
+                  <RefreshCw className='h-4 w-4' aria-hidden />
+                )}
+                Refresh
+              </Button>
+              <Button
+                variant='outline'
                 onClick={refundUnusedBudget}
                 disabled={isRefunding || !canRefund}
               >
                 <Undo2 className='h-4 w-4' aria-hidden />
                 {isRefunding ? 'Refunding' : 'Refund'}
               </Button>
+            </div>
+            <div className='grid grid-cols-1 gap-2'>
               <Button
                 variant='outline'
                 onClick={attestRun}

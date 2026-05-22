@@ -46,6 +46,7 @@ import {
   orderStatusLabels
 } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
+import { useAutoRefresh } from '@/hooks/use-auto-refresh'
 import { defaultAppChain, getExplorerTransactionUrl } from '@/lib/config/chains'
 import { walletProvider } from '@/lib/config/wallet'
 import { cn } from '@/lib/utils/cn'
@@ -284,34 +285,28 @@ function OrderStatusContent({
     }
   }, [order, orderId])
 
-  useEffect(() => {
-    const providerRetrying = order?.resultReleaseStatus === 'provider_retrying'
-    if (
-      (!order?.externalJobId && !providerRetrying) ||
-      asyncJobTerminalStatuses.has(order.status)
-    ) {
-      return
-    }
-
-    void pollProviderStatus()
-    const pollIntervalMs = providerRetrying
+  const providerRetrying = order?.resultReleaseStatus === 'provider_retrying'
+  useAutoRefresh({
+    enabled: Boolean(
+      order &&
+        (order.externalJobId || providerRetrying) &&
+        !asyncJobTerminalStatuses.has(order.status)
+    ),
+    intervalMs: providerRetrying
       ? Math.max(
           ASYNC_JOB_POLL_INTERVAL_MS,
-          (order.providerRetry?.retryAfterSeconds ?? 60) * 1000
+          (order?.providerRetry?.retryAfterSeconds ?? 60) * 1000
         )
-      : ASYNC_JOB_POLL_INTERVAL_MS
-    const interval = window.setInterval(() => {
-      void pollProviderStatus()
-    }, pollIntervalMs)
-
-    return () => window.clearInterval(interval)
-  }, [
-    order?.externalJobId,
-    order?.id,
-    order?.providerRetry?.retryAfterSeconds,
-    order?.resultReleaseStatus,
-    order?.status
-  ])
+      : ASYNC_JOB_POLL_INTERVAL_MS,
+    onRefresh: pollProviderStatus,
+    refreshKey: [
+      order?.externalJobId,
+      order?.id,
+      order?.providerRetry?.retryAfterSeconds,
+      order?.resultReleaseStatus,
+      order?.status
+    ].join(':')
+  })
 
   async function inspectPaymentRequirement() {
     if (!order) {
