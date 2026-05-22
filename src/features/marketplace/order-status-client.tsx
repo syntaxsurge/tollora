@@ -148,6 +148,8 @@ const musdBalanceAbi = parseAbi([
 ])
 const MUSD_DECIMALS = 18
 const ASYNC_JOB_POLL_INTERVAL_MS = 8000
+const TRANSIENT_RETRY_ATTEMPTS = 3
+const TRANSIENT_RETRY_BASE_DELAY_MS = 900
 const asyncJobTerminalStatuses = new Set<MarketplaceOrder['status']>([
   'completed',
   'failed',
@@ -323,23 +325,38 @@ function OrderStatusContent({
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      Accept: 'application/json'
+      Accept: 'application/json',
+      'X-Tollora-Order-Id': order.id
     }
 
     try {
-      const response = await fetch(
-        `/api/x402/products/${order.productSlug}/call`,
+      const { response, body } = await withTransientRetries(
+        async () => {
+          const nextResponse = await fetch(
+            `/api/x402/products/${order.productSlug}/call`,
+            {
+              method: 'POST',
+              headers,
+              body: order.requestPayloadJson ?? '{}'
+            }
+          )
+          const nextBody = (await readResponseBody(nextResponse)) as {
+            error?: string
+            order?: Partial<MarketplaceOrder>
+            receipt?: MarketplaceReceipt
+          }
+
+          return { response: nextResponse, body: nextBody }
+        },
         {
-          method: 'POST',
-          headers,
-          body: order.requestPayloadJson ?? '{}'
+          shouldRetryResult: ({ response, body }) =>
+            shouldRetryUnsettledHttpResult({ response, body }),
+          onRetry: ({ nextAttempt, maxAttempts }) =>
+            setStatus(
+              `Temporary quote inspection error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            )
         }
       )
-      const body = (await readResponseBody(response)) as {
-        error?: string
-        order?: Partial<MarketplaceOrder>
-        receipt?: MarketplaceReceipt
-      }
 
       if (response.status === 402) {
         setPaymentRequirements({
@@ -438,7 +455,20 @@ function OrderStatusContent({
     setPaymentRequirements(null)
 
     try {
-      const initialRequirement = await requestPaymentRequirement(order)
+      const initialRequirement = await withTransientRetries(
+        () => requestPaymentRequirement(order),
+        {
+          onRetry: ({ nextAttempt, maxAttempts }) => {
+            updateWalletStep('requirement', {
+              status: 'active',
+              detail: `Temporary quote error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            })
+            setStatus(
+              `Temporary quote error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            )
+          }
+        }
+      )
 
       if (initialRequirement) {
         updateWalletStep('requirement', {
@@ -474,58 +504,101 @@ function OrderStatusContent({
       let paymentResult: x402PaymentResult | null = null
       let body: PaidProductCallBody | null = null
 
-      for (let attempt = 0; attempt < 2; attempt += 1) {
+      let permit2AllowanceRefreshUsed = false
+
+      for (let attempt = 0; attempt < TRANSIENT_RETRY_ATTEMPTS; attempt += 1) {
         updateWalletStep('signature', {
           status: 'active',
           detail:
             attempt === 0
               ? 'Confirm the x402 MUSD payment signature in your wallet.'
-              : 'Retrying after approval confirmation.'
+              : `Retrying wallet signature and settlement ${attempt + 1} of ${TRANSIENT_RETRY_ATTEMPTS}.`
         })
 
-        response = await fetchWithPayment(
-          `/api/x402/products/${order.productSlug}/call`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-              'X-Tollora-Order-Id': order.id
-            },
-            body: order.requestPayloadJson ?? '{}'
-          }
-        )
-        paymentResult = await httpClient
-          .processResponse(response.clone())
-          .catch(() => null)
-        body = (await readResponseBody(response)) as PaidProductCallBody
-
-        if (
-          attempt === 0 &&
-          isPermit2AllowanceError(response, body, paymentResult)
-        ) {
-          const refreshedRequirement =
-            decodePaymentRequiredHeader(response) ??
-            initialRequirement?.paymentRequired
-
-          if (!refreshedRequirement) {
-            break
-          }
-
-          setStatus(
-            'MUSD approval is confirmed, but the payment retry still needs a refreshed allowance check.'
+        try {
+          response = await fetchWithPayment(
+            `/api/x402/products/${order.productSlug}/call`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-Tollora-Order-Id': order.id
+              },
+              body: order.requestPayloadJson ?? '{}'
+            }
           )
-          await sleep(2500)
-          await ensurePermit2Allowance(
-            refreshedRequirement,
-            walletControls,
-            message => setStatus(message),
-            updateWalletStep
-          )
-          continue
+          paymentResult = await httpClient
+            .processResponse(response.clone())
+            .catch(() => null)
+          body = (await readResponseBody(response)) as PaidProductCallBody
+
+          if (
+            !permit2AllowanceRefreshUsed &&
+            isPermit2AllowanceError(response, body, paymentResult)
+          ) {
+            const refreshedRequirement =
+              decodePaymentRequiredHeader(response) ??
+              initialRequirement?.paymentRequired
+
+            if (!refreshedRequirement) {
+              break
+            }
+
+            permit2AllowanceRefreshUsed = true
+            setStatus(
+              'MUSD approval is confirmed, but the payment retry still needs a refreshed allowance check.'
+            )
+            await sleep(calculateRetryDelay(attempt))
+            await ensurePermit2Allowance(
+              refreshedRequirement,
+              walletControls,
+              message => setStatus(message),
+              updateWalletStep
+            )
+            continue
+          }
+
+          if (
+            attempt < TRANSIENT_RETRY_ATTEMPTS - 1 &&
+            shouldRetryUnsettledHttpResult({
+              response,
+              body,
+              paymentResult
+            })
+          ) {
+            const nextAttempt = attempt + 2
+            updateWalletStep('signature', {
+              status: 'active',
+              detail: `Temporary payment error. Retrying ${nextAttempt} of ${TRANSIENT_RETRY_ATTEMPTS}.`
+            })
+            setStatus(
+              `Temporary payment error. Retrying ${nextAttempt} of ${TRANSIENT_RETRY_ATTEMPTS}.`
+            )
+            await sleep(calculateRetryDelay(attempt))
+            continue
+          }
+
+          break
+        } catch (caughtError) {
+          if (
+            attempt < TRANSIENT_RETRY_ATTEMPTS - 1 &&
+            shouldRetryTransientError(caughtError)
+          ) {
+            const nextAttempt = attempt + 2
+            updateWalletStep('signature', {
+              status: 'active',
+              detail: `Temporary wallet or payment error. Retrying ${nextAttempt} of ${TRANSIENT_RETRY_ATTEMPTS}.`
+            })
+            setStatus(
+              `Temporary wallet or payment error. Retrying ${nextAttempt} of ${TRANSIENT_RETRY_ATTEMPTS}.`
+            )
+            await sleep(calculateRetryDelay(attempt))
+            continue
+          }
+
+          throw caughtError
         }
-
-        break
       }
 
       if (!response || !body) {
@@ -679,15 +752,32 @@ function OrderStatusContent({
     setStatus('Checking provider job status.')
 
     try {
-      const response = await fetch(`/api/orders/${order.id}/provider-status`, {
-        headers: {
-          Accept: 'application/json'
+      const { response, body } = await withTransientRetries(
+        async () => {
+          const nextResponse = await fetch(
+            `/api/orders/${order.id}/provider-status`,
+            {
+              headers: {
+                Accept: 'application/json'
+              }
+            }
+          )
+          const nextBody = (await readResponseBody(nextResponse)) as {
+            error?: string
+            order?: MarketplaceOrder
+          }
+
+          return { response: nextResponse, body: nextBody }
+        },
+        {
+          shouldRetryResult: ({ response }) =>
+            isRetryableHttpStatus(response.status),
+          onRetry: ({ nextAttempt, maxAttempts }) =>
+            setStatus(
+              `Temporary provider status error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            )
         }
-      })
-      const body = (await readResponseBody(response)) as {
-        error?: string
-        order?: MarketplaceOrder
-      }
+      )
 
       if (!response.ok || !body.order) {
         throw new Error(body.error ?? 'Unable to refresh provider job status.')
@@ -724,17 +814,34 @@ function OrderStatusContent({
     setStatus('Retrying the provider with the existing paid order.')
 
     try {
-      const response = await fetch(`/api/orders/${order.id}/provider-status`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json'
+      const { response, body } = await withTransientRetries(
+        async () => {
+          const nextResponse = await fetch(
+            `/api/orders/${order.id}/provider-status`,
+            {
+              method: 'POST',
+              headers: {
+                Accept: 'application/json'
+              }
+            }
+          )
+          const nextBody = (await readResponseBody(nextResponse)) as {
+            error?: string
+            order?: MarketplaceOrder
+            provider?: { errorMessage?: string }
+          }
+
+          return { response: nextResponse, body: nextBody }
+        },
+        {
+          shouldRetryResult: ({ response }) =>
+            isRetryableHttpStatus(response.status),
+          onRetry: ({ nextAttempt, maxAttempts }) =>
+            setStatus(
+              `Temporary provider retry error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            )
         }
-      })
-      const body = (await readResponseBody(response)) as {
-        error?: string
-        order?: MarketplaceOrder
-        provider?: { errorMessage?: string }
-      }
+      )
 
       if (!response.ok || !body.order) {
         throw new Error(
@@ -787,7 +894,15 @@ function OrderStatusContent({
     setStatus('Reading the metered delta payment requirement.')
 
     try {
-      const initialRequirement = await requestClaimPaymentRequirement(order)
+      const initialRequirement = await withTransientRetries(
+        () => requestClaimPaymentRequirement(order),
+        {
+          onRetry: ({ nextAttempt, maxAttempts }) =>
+            setStatus(
+              `Temporary claim quote error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            )
+        }
+      )
 
       if (initialRequirement) {
         setPaymentRequirements({
@@ -809,28 +924,50 @@ function OrderStatusContent({
       })
       const httpClient = new x402HTTPClient(client)
       const fetchWithPayment = wrapFetchWithPayment(fetch, httpClient)
-      const response = await fetchWithPayment(
-        `/api/x402/orders/${order.id}/claim`,
-        {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json'
+      const { response, body, paymentResult } = await withTransientRetries(
+        async () => {
+          const nextResponse = await fetchWithPayment(
+            `/api/x402/orders/${order.id}/claim`,
+            {
+              method: 'POST',
+              headers: {
+                Accept: 'application/json'
+              }
+            }
+          )
+          const nextPaymentResult = await httpClient
+            .processResponse(nextResponse.clone())
+            .catch(() => null)
+          const nextBody = (await readResponseBody(nextResponse)) as {
+            error?: string
+            order?: Partial<MarketplaceOrder>
+            receipt?: MarketplaceReceipt
+            data?: unknown
+            x402?: {
+              transaction?: string
+              network?: string
+            }
           }
+
+          return {
+            response: nextResponse,
+            body: nextBody,
+            paymentResult: nextPaymentResult
+          }
+        },
+        {
+          shouldRetryResult: ({ response, body, paymentResult }) =>
+            shouldRetryUnsettledHttpResult({
+              response,
+              body,
+              paymentResult
+            }),
+          onRetry: ({ nextAttempt, maxAttempts }) =>
+            setStatus(
+              `Temporary claim payment error. Retrying ${nextAttempt} of ${maxAttempts}.`
+            )
         }
       )
-      const paymentResult = await httpClient
-        .processResponse(response.clone())
-        .catch(() => null)
-      const body = (await readResponseBody(response)) as {
-        error?: string
-        order?: Partial<MarketplaceOrder>
-        receipt?: MarketplaceReceipt
-        data?: unknown
-        x402?: {
-          transaction?: string
-          network?: string
-        }
-      }
 
       if (!response.ok) {
         throw new Error(buildPaidRequestError(response, body, paymentResult))
@@ -1897,6 +2034,136 @@ function sleep(milliseconds: number) {
   return new Promise(resolve => window.setTimeout(resolve, milliseconds))
 }
 
+type RetryContext = {
+  attempt: number
+  nextAttempt: number
+  maxAttempts: number
+  delayMs: number
+  reason: string
+}
+
+async function withTransientRetries<T>(
+  operation: () => Promise<T>,
+  options: {
+    shouldRetryResult?: (result: T) => boolean
+    shouldRetryError?: (error: unknown) => boolean
+    onRetry?: (context: RetryContext) => void | Promise<void>
+  } = {}
+) {
+  const shouldRetryError = options.shouldRetryError ?? shouldRetryTransientError
+
+  for (let attempt = 0; attempt < TRANSIENT_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      const result = await operation()
+
+      if (
+        attempt < TRANSIENT_RETRY_ATTEMPTS - 1 &&
+        options.shouldRetryResult?.(result)
+      ) {
+        const delayMs = calculateRetryDelay(attempt)
+
+        await options.onRetry?.({
+          attempt: attempt + 1,
+          nextAttempt: attempt + 2,
+          maxAttempts: TRANSIENT_RETRY_ATTEMPTS,
+          delayMs,
+          reason: 'retryable_response'
+        })
+        await sleep(delayMs)
+        continue
+      }
+
+      return result
+    } catch (error) {
+      if (attempt < TRANSIENT_RETRY_ATTEMPTS - 1 && shouldRetryError(error)) {
+        const delayMs = calculateRetryDelay(attempt)
+
+        await options.onRetry?.({
+          attempt: attempt + 1,
+          nextAttempt: attempt + 2,
+          maxAttempts: TRANSIENT_RETRY_ATTEMPTS,
+          delayMs,
+          reason: error instanceof Error ? error.message : 'retryable_exception'
+        })
+        await sleep(delayMs)
+        continue
+      }
+
+      throw error
+    }
+  }
+
+  throw new Error('Retry attempts were exhausted.')
+}
+
+function calculateRetryDelay(attempt: number) {
+  return TRANSIENT_RETRY_BASE_DELAY_MS * 2 ** attempt
+}
+
+function shouldRetryUnsettledHttpResult({
+  response,
+  body,
+  paymentResult
+}: {
+  response: Response
+  body?: unknown
+  paymentResult?: x402PaymentResult | null
+}) {
+  if (!isRetryableHttpStatus(response.status)) {
+    return false
+  }
+
+  return !hasSettledPaymentArtifact(body, paymentResult)
+}
+
+function isRetryableHttpStatus(status: number) {
+  return [408, 429, 500, 502, 503, 504].includes(status)
+}
+
+function hasSettledPaymentArtifact(
+  body: unknown,
+  paymentResult?: x402PaymentResult | null
+) {
+  if (paymentResult?.kind === 'success') {
+    return true
+  }
+
+  if (!body || typeof body !== 'object') {
+    return false
+  }
+
+  const record = body as Record<string, unknown>
+
+  return Boolean(record.receipt || record.x402)
+}
+
+function shouldRetryTransientError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? `${error.name} ${error.message}`.toLowerCase()
+      : String(error).toLowerCase()
+
+  if (
+    /user rejected|user denied|rejected by user|denied transaction|4001/.test(
+      message
+    )
+  ) {
+    return false
+  }
+
+  if (
+    /insufficient|invalid request|bad request|unauthorized|forbidden|not found|not available|missing|already used with a different request/.test(
+      message
+    )
+  ) {
+    return false
+  }
+
+  return /500|502|503|504|408|429|timeout|timed out|network|failed to fetch|gateway|rate limit|temporar|internal|socket|connection|rpc/.test(
+    message
+  )
+}
+
 async function requestPaymentRequirement(order: MarketplaceOrder) {
   const response = await fetch(`/api/x402/products/${order.productSlug}/call`, {
     method: 'POST',
@@ -1945,12 +2212,22 @@ async function requestClaimPaymentRequirement(order: MarketplaceOrder) {
       Accept: 'application/json'
     }
   })
+  const body = await readResponseBody(response)
 
   if (response.status !== 402) {
+    if (!response.ok) {
+      throw new Error(
+        buildPaidRequestError(
+          response,
+          isPaidApiErrorBody(body) ? body : {},
+          null
+        )
+      )
+    }
+
     return null
   }
 
-  const body = await readResponseBody(response)
   const paymentRequired = decodePaymentRequiredHeader(response)
 
   if (!paymentRequired) {
@@ -2007,20 +2284,29 @@ async function ensurePermit2Allowance(
 
   onStatus('Checking MUSD Permit2 allowance on Mezo Testnet.')
 
-  const [balance, allowance] = await Promise.all([
-    mezoPublicClient.readContract({
-      address: tokenAddress,
-      abi: musdBalanceAbi,
-      functionName: 'balanceOf',
-      args: [walletControls.signer.address]
-    }),
-    mezoPublicClient.readContract(
-      getPermit2AllowanceReadParams({
-        tokenAddress,
-        ownerAddress: walletControls.signer.address
-      })
-    )
-  ])
+  const [balance, allowance] = await withTransientRetries(
+    () =>
+      Promise.all([
+        mezoPublicClient.readContract({
+          address: tokenAddress,
+          abi: musdBalanceAbi,
+          functionName: 'balanceOf',
+          args: [walletControls.signer.address]
+        }),
+        mezoPublicClient.readContract(
+          getPermit2AllowanceReadParams({
+            tokenAddress,
+            ownerAddress: walletControls.signer.address
+          })
+        )
+      ]),
+    {
+      onRetry: ({ nextAttempt, maxAttempts }) =>
+        onStatus(
+          `Temporary allowance lookup error. Retrying ${nextAttempt} of ${maxAttempts}.`
+        )
+    }
+  )
 
   if (balance < requiredAmount) {
     throw new Error(
@@ -2045,8 +2331,15 @@ async function ensurePermit2Allowance(
   )
 
   const approvalTransaction = createPermit2ApprovalTx(tokenAddress)
-  const transactionHash =
-    await walletControls.sendTransaction(approvalTransaction)
+  const transactionHash = await withTransientRetries(
+    () => walletControls.sendTransaction(approvalTransaction),
+    {
+      onRetry: ({ nextAttempt, maxAttempts }) =>
+        onStatus(
+          `Temporary approval submission error. Retrying ${nextAttempt} of ${maxAttempts}.`
+        )
+    }
+  )
 
   onStep('allowance', {
     status: 'active',
@@ -2055,9 +2348,18 @@ async function ensurePermit2Allowance(
   })
   onStatus(`Waiting for MUSD Permit2 approval to confirm: ${transactionHash}`)
 
-  const receipt = await mezoPublicClient.waitForTransactionReceipt({
-    hash: transactionHash
-  })
+  const receipt = await withTransientRetries(
+    () =>
+      mezoPublicClient.waitForTransactionReceipt({
+        hash: transactionHash
+      }),
+    {
+      onRetry: ({ nextAttempt, maxAttempts }) =>
+        onStatus(
+          `Temporary approval confirmation error. Retrying ${nextAttempt} of ${maxAttempts}.`
+        )
+    }
+  )
 
   if (receipt.status !== 'success') {
     throw new Error('MUSD Permit2 approval transaction did not succeed.')

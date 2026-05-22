@@ -737,9 +737,11 @@ Before creating a new helper or service file:
   sign x402 MUSD payments with the connected browser wallet, check and submit
   the required Mezo MUSD Permit2 allowance transaction when needed, verify MUSD
   balance before asking for payment signatures, wait for the approval receipt
-  and readable allowance, retry once when x402 still reports an allowance
-  precondition, retry the product call, display step-by-step wallet progress as
-  a compact icon timeline with explorer links for submitted transactions,
+  and readable allowance, retry transient quote, allowance, signature,
+  settlement, claim, and provider status errors with bounded exponential
+  backoff while avoiding retries after receipt or payment artifacts are
+  returned, display step-by-step wallet progress as a compact icon timeline
+  with explorer links for submitted transactions,
   surface settlement failure guidance from the x402 facilitator, show payment
   failures as dedicated alert cards with copyable error text, keep long
   explanations inside collapsible details, separate direct API responses from
