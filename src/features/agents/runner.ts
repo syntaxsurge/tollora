@@ -25,11 +25,17 @@ import {
 } from '@/features/agents/planner'
 import type { AgentAction, AgentRun } from '@/features/agents/types'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
-import { getProductBySlug } from '@/features/marketplace/products'
+import {
+  getProductBySlug,
+  type ApiProduct
+} from '@/features/marketplace/products'
 import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
 import { defaultAppChain, mezoMusdTokenAddress } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
+
+const ASYNC_PROVIDER_POLL_INTERVAL_MS = 8000
+const ASYNC_PROVIDER_POLL_ATTEMPTS = 75
 
 export async function executeAgentRunActions(
   run: AgentRun,
@@ -170,15 +176,20 @@ async function executeAgentAction(
       started,
       appUrl
     )
+    const finalPaidResult = await resolvePaidProductResult({
+      product,
+      paidResult,
+      appUrl
+    })
 
     return {
       ...started,
       status: 'completed',
-      responsePayload: paidResult.data,
-      toolResponsePayload: paidResult,
-      receipt: paidResult.receipt,
-      orderId: paidResult.order?.id,
-      requestId: paidResult.order?.requestId,
+      responsePayload: finalPaidResult.data,
+      toolResponsePayload: finalPaidResult,
+      receipt: finalPaidResult.receipt,
+      orderId: finalPaidResult.order?.id,
+      requestId: finalPaidResult.order?.requestId,
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   } catch (caughtError) {
@@ -208,7 +219,7 @@ async function callPaidProductWithAgentWallet(
   runId: string,
   action: AgentAction,
   appUrl: string
-) {
+): Promise<PaidProductResult> {
   const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
 
   if (!privateKey) {
@@ -242,11 +253,246 @@ async function callPaidProductWithAgentWallet(
     })
   }
 
-  return body as {
-    order?: { id?: string; requestId?: string }
-    receipt: MarketplaceReceipt
-    data: Record<string, unknown>
+  return body as PaidProductResult
+}
+
+type PaidProductResult = {
+  order?: {
+    id?: string
+    requestId?: string
+    status?: string
+    resultUrl?: string
+    externalJobId?: string
   }
+  receipt: MarketplaceReceipt
+  data: Record<string, unknown>
+  providerStatus?: Record<string, unknown>
+}
+
+async function resolvePaidProductResult({
+  product,
+  paidResult,
+  appUrl
+}: {
+  product: ApiProduct
+  paidResult: PaidProductResult
+  appUrl: string
+}): Promise<PaidProductResult> {
+  if (!shouldPollProviderResult({ product, paidResult })) {
+    return paidResult
+  }
+
+  const orderId = paidResult.order?.id
+
+  if (!orderId) {
+    throw new Error(
+      'The provider accepted an async job, but Tollora did not return an order ID to poll.'
+    )
+  }
+
+  let latestBody: Record<string, unknown> | null = null
+
+  for (let attempt = 0; attempt < ASYNC_PROVIDER_POLL_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) {
+      await sleep(ASYNC_PROVIDER_POLL_INTERVAL_MS)
+    }
+
+    const response = await fetch(
+      `${appUrl}/api/orders/${encodeURIComponent(orderId)}/provider-status`,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' }
+      }
+    )
+    const body = await readJsonResponse(response)
+    latestBody = body
+
+    if (!response.ok) {
+      throw new PaidProductCallError(
+        describePaidCallFailure(response, body),
+        body
+      )
+    }
+
+    const terminal = normalizeProviderPollResult(body, paidResult)
+
+    if (terminal.status === 'completed') {
+      return terminal.result
+    }
+
+    if (terminal.status === 'failed') {
+      throw new PaidProductCallError(
+        terminal.errorMessage ?? 'The async provider job failed.',
+        body
+      )
+    }
+  }
+
+  throw new PaidProductCallError(
+    `The async provider job did not finish after ${Math.round(
+      (ASYNC_PROVIDER_POLL_ATTEMPTS * ASYNC_PROVIDER_POLL_INTERVAL_MS) / 60000
+    )} minutes. Retry this agent run to continue polling the existing order.`,
+    latestBody ?? paidResult
+  )
+}
+
+function shouldPollProviderResult({
+  product,
+  paidResult
+}: {
+  product: ApiProduct
+  paidResult: PaidProductResult
+}) {
+  if (product.executionMode !== 'asynchronous') {
+    return false
+  }
+
+  if (!paidResult.order?.id) {
+    return false
+  }
+
+  const status = String(
+    paidResult.order.status ?? paidResult.data?.status ?? ''
+  ).toLowerCase()
+
+  if (hasResultUrl(paidResult.data) || hasResultUrl(paidResult.order)) {
+    return false
+  }
+
+  return (
+    status === 'processing' ||
+    status === 'queued' ||
+    status === 'paid' ||
+    status === 'reserved' ||
+    Boolean(paidResult.order.externalJobId)
+  )
+}
+
+function normalizeProviderPollResult(
+  body: Record<string, unknown>,
+  paidResult: PaidProductResult
+):
+  | { status: 'processing' }
+  | { status: 'failed'; errorMessage?: string }
+  | { status: 'completed'; result: PaidProductResult } {
+  const order = asRecord(body.order)
+  const provider = asRecord(body.provider)
+  const providerResponse = asRecord(provider.responsePayload)
+  const orderResponse = asRecord(order.responsePayload)
+  const status = String(
+    provider.status ?? order.status ?? orderResponse.status ?? ''
+  ).toLowerCase()
+
+  if (status === 'failed' || status === 'error' || status === 'cancelled') {
+    return {
+      status: 'failed',
+      errorMessage: String(
+        provider.errorMessage ??
+          provider.error ??
+          orderResponse.errorMessage ??
+          'The async provider job failed.'
+      )
+    }
+  }
+
+  const resultUrl =
+    readString(order, 'resultUrl') ??
+    readResultUrl(provider) ??
+    readResultUrl(orderResponse) ??
+    readResultUrl(providerResponse)
+  const completed =
+    status === 'completed' ||
+    status === 'success' ||
+    status === 'succeeded' ||
+    Boolean(resultUrl)
+
+  if (!completed) {
+    return { status: 'processing' }
+  }
+
+  const data =
+    Object.keys(orderResponse).length > 0
+      ? orderResponse
+      : Object.keys(providerResponse).length > 0
+        ? providerResponse
+        : provider
+  const nextReceipt = {
+    ...paidResult.receipt,
+    resultUrl: resultUrl ?? paidResult.receipt.resultUrl,
+    escrowStatus:
+      readString(order, 'escrowStatus') === 'released'
+        ? 'released'
+        : paidResult.receipt.escrowStatus,
+    escrowReleaseTxHash:
+      readString(order, 'escrowReleaseTxHash') ??
+      paidResult.receipt.escrowReleaseTxHash,
+    escrowReleaseExplorerUrl:
+      readString(order, 'escrowReleaseExplorerUrl') ??
+      paidResult.receipt.escrowReleaseExplorerUrl
+  } satisfies MarketplaceReceipt
+
+  return {
+    status: 'completed',
+    result: {
+      ...paidResult,
+      order: {
+        ...paidResult.order,
+        id: readString(order, 'id') ?? paidResult.order?.id,
+        requestId:
+          readString(order, 'requestId') ?? paidResult.order?.requestId,
+        status: 'completed',
+        resultUrl
+      },
+      receipt: nextReceipt,
+      data: {
+        ...data,
+        ...(resultUrl ? { resultUrl } : {})
+      },
+      providerStatus: body
+    }
+  }
+}
+
+function hasResultUrl(value: unknown) {
+  return Boolean(readResultUrl(value))
+}
+
+function readResultUrl(value: unknown) {
+  return (
+    readString(value, 'result.publicProjectUrl') ??
+    readString(value, 'publicProjectUrl') ??
+    readString(value, 'result.cloneUrl') ??
+    readString(value, 'cloneUrl') ??
+    readString(value, 'previewUrl') ??
+    readString(value, 'renderUrl') ??
+    readString(value, 'resultUrl') ??
+    readString(value, 'url') ??
+    readString(value, 'outputUrl')
+  )
+}
+
+function readString(value: unknown, path: string) {
+  const result = path.split('.').reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== 'object') {
+      return undefined
+    }
+
+    return (current as Record<string, unknown>)[segment]
+  }, value)
+
+  return typeof result === 'string' && result.trim().length > 0
+    ? result.trim()
+    : undefined
+}
+
+function asRecord(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 class PaidProductCallError extends Error {
@@ -437,7 +683,11 @@ async function buildDeliverables(
     })
 
     if (synthesized) {
-      return synthesized
+      return {
+        ...synthesized,
+        videoResultUrl:
+          synthesized.videoResultUrl || getCompletedActionResultUrl(actions)
+      }
     }
   }
 
@@ -514,6 +764,22 @@ function getActionResultUrl(action?: AgentAction) {
       action.receipt?.resultUrl ??
       ''
   )
+}
+
+function getCompletedActionResultUrl(actions: AgentAction[]) {
+  for (const action of actions) {
+    if (action.status !== 'completed') {
+      continue
+    }
+
+    const resultUrl = getActionResultUrl(action)
+
+    if (resultUrl) {
+      return resultUrl
+    }
+  }
+
+  return ''
 }
 
 type OpenAiSynthesisResponse = {

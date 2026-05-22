@@ -435,8 +435,6 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
         </div>
       </Card>
 
-      <FinalOutputSection run={run} outputs={finalOutputs} />
-
       <Card className='space-y-4'>
         <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
           <div>
@@ -519,6 +517,8 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
           </div>
         </div>
       </details>
+
+      <FinalOutputSection run={run} outputs={finalOutputs} />
     </div>
   )
 }

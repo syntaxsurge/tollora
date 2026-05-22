@@ -116,16 +116,16 @@ export const agentTemplates: AgentTemplate[] = [
     summary:
       'Combines developer/news/package signals with an async video-generation job for a richer launch asset.',
     objective:
-      'Create a video-first launch campaign for my API product, including research-backed positioning, a short video project, social copy, and developer launch notes.',
+      'Create a video-first launch campaign for my API product, including research-backed positioning, social copy, developer launch notes, and a final ClipLore project handoff link.',
     sourceText:
-      'Use public developer, package, repository, and news signals before deciding the video prompt. The final output should include a cloneable video project handoff when a media tool is available.',
+      'Use public developer, package, repository, and news signals before deciding the video prompt. When a media tool is available, the final deliverable must include the completed cloneable ClipLore project URL or public project handoff URL, not only a text summary.',
     recommendedBudgetMusd: 1.35,
     maxPaidActions: 4,
     toolStrategy:
       'Let OpenAI select a compact research set first, then spend on async video generation only if the quote fits the remaining funded budget.',
     deliverables: [
       'Research-backed angle',
-      'Video handoff',
+      'ClipLore project handoff URL',
       'Social launch copy'
     ],
     icon: Clapperboard

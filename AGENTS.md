@@ -650,13 +650,14 @@ Before creating a new helper or service file:
   tool table with the shared current-page master checkbox. Manual mode selects
   one available tool by default when opened and blocks run creation unless at
   least one tool remains selected; `/agents/[runId]` funds production runs
-  through the agent budget vault, executes the ranked plan, shows planner
-  mode/model, budget state, lifecycle controls, selected tool calls, receipt
-  links, extracted tool output links, rendered media previews, Markdown-rendered
-  deliverables, unused refund controls, and writes Mezo proof attestations.
-  Request and response payloads, skipped tools, planner rationale, budget
-  ledger, and raw synthesis metadata are collapsed into diagnostics so the page
-  opens on the run outcome first. The final output section renders the agent
+  through the agent budget vault, executes the ranked plan, polls asynchronous
+  provider orders until terminal provider status before marking an action
+  completed, shows planner mode/model, budget state, lifecycle controls,
+  selected tool calls, receipt links, extracted tool output links, rendered
+  media previews, Markdown-rendered deliverables, unused refund controls, and
+  writes Mezo proof attestations. Request and response payloads, skipped tools,
+  planner rationale, budget ledger, and raw synthesis metadata are collapsed
+  into diagnostics. The bottom final output section renders the agent
   deliverable as text, media, or result links depending on the completed tool
   responses.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
