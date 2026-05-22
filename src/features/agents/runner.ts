@@ -1,10 +1,9 @@
-import { x402Client } from '@x402/core/client'
 import {
   createPermit2ApprovalTx,
   getPermit2AllowanceReadParams
 } from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
-import { wrapFetchWithPayment } from '@x402/fetch'
+import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
 import {
   createPublicClient,
   createWalletClient,
@@ -49,7 +48,7 @@ export async function executeAgentRunActions(
           metadata: buildPlannerSummary(run, run.actions)
         }
       : await buildAgentPlan(run)
-  const actions = plan.actions
+  const actions = prioritizeRequiredDeliverables(plan.actions, run)
   const completedActions: AgentAction[] = []
   let spendUsd = 0
 
@@ -230,7 +229,8 @@ async function callPaidProductWithAgentWallet(
     (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
   const client = registerExactEvmScheme(new x402Client(), { signer: account })
-  const paidFetch = wrapFetchWithPayment(fetch, client)
+  const httpClient = new x402HTTPClient(client)
+  const paidFetch = wrapFetchWithPayment(fetch, httpClient)
   const response = await paidFetch(
     `${appUrl}/api/x402/products/${action.productSlug}/call`,
     {
@@ -333,6 +333,39 @@ async function resolvePaidProductResult({
       (ASYNC_PROVIDER_POLL_ATTEMPTS * ASYNC_PROVIDER_POLL_INTERVAL_MS) / 60000
     )} minutes. Retry this agent run to continue polling the existing order.`,
     latestBody ?? paidResult
+  )
+}
+
+function prioritizeRequiredDeliverables(actions: AgentAction[], run: AgentRun) {
+  if (!requiresMediaDeliverable(run)) {
+    return actions
+  }
+
+  return [...actions].sort((a, b) => {
+    const aRequiredMedia = isMediaAction(a) ? 0 : 1
+    const bRequiredMedia = isMediaAction(b) ? 0 : 1
+
+    return aRequiredMedia - bRequiredMedia
+  })
+}
+
+function requiresMediaDeliverable(run: AgentRun) {
+  const text = `${run.objective} ${run.sourceText ?? ''}`.toLowerCase()
+
+  return (
+    /\b(video|clip|media|creative|project handoff|cliplore|launch asset)\b/.test(
+      text
+    ) && /\b(final|deliverable|handoff|output|project)\b/.test(text)
+  )
+}
+
+function isMediaAction(action: AgentAction) {
+  const text = `${action.productSlug} ${action.productName}`.toLowerCase()
+
+  return (
+    text.includes('video') ||
+    text.includes('cliplore') ||
+    text.includes('media')
   )
 }
 
@@ -531,7 +564,8 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
     (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
   const tokenAddress = mezoMusdTokenAddress as Address
-  const [balance, allowance] = await Promise.all([
+  const [nativeBalance, balance, allowance] = await Promise.all([
+    agentPublicClient.getBalance({ address: account.address }),
     agentPublicClient.readContract({
       address: tokenAddress,
       abi: musdBalanceAbi,
@@ -545,6 +579,12 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
       })
     )
   ])
+
+  if (nativeBalance <= 0n) {
+    throw new Error(
+      'Agent signer has no native BTC gas on Mezo Testnet. Fund the production agent signer with Mezo Testnet BTC before running paid actions.'
+    )
+  }
 
   if (balance < requiredAmount) {
     throw new Error(

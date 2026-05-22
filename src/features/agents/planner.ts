@@ -12,8 +12,8 @@ export const AGENT_PLANNER_PROMPT = [
   'You are Tollora Launch Pack Agent.',
   'Goal: choose the smallest useful set of paid API tools that can complete the user objective inside the MUSD budget.',
   'Rules:',
-  '1. Prefer real data/research tools before expensive media tools.',
-  '2. Use async media generation only when the objective asks for launch assets, video, creative collateral, or a media deliverable.',
+  '1. Prefer real data/research tools before expensive media tools only when the objective does not require a final media deliverable.',
+  '2. If the objective asks for video, launch assets, creative collateral, or a project handoff, select the media tool first or explicitly reserve enough budget for it before choosing research tools.',
   '3. Skip tools that are unrelated to the objective even if they are allowed.',
   '4. Never exceed the max paid action count.',
   '5. Every chosen tool must produce an auditable paid action and receipt when production signing is configured.'
@@ -139,7 +139,10 @@ export async function buildDeterministicAgentPlan(
     objective: `Fallback planner chose ${product.name}: ${rationale}`,
     planningRationale: rationale,
     plannerScore: score,
-    requestPayload: buildPayloadForProduct(product, product.slug, run),
+    requestPayload: normalizeAgentRequestPayload(
+      product,
+      buildPayloadForProduct(product, product.slug, run)
+    ),
     startedAt: now
   })) satisfies AgentAction[]
 
@@ -342,14 +345,56 @@ function buildActionsFromOpenAiPlan({
         objective: `OpenAI ${model} chose ${product.name}: ${tool.rationale}`,
         planningRationale: tool.rationale,
         plannerScore: Math.max(1, 100 - index),
-        requestPayload:
+        requestPayload: normalizeAgentRequestPayload(
+          product,
           parsePayloadJson(tool.requestPayloadJson) ??
-          buildPayloadForProduct(product, product.slug, run),
+            buildPayloadForProduct(product, product.slug, run)
+        ),
         startedAt: now
       })
 
       return actions
     }, [])
+}
+
+function normalizeAgentRequestPayload(
+  product: ApiProduct,
+  payload: Record<string, unknown>
+) {
+  if (!isVideoGenerationProduct(product)) {
+    return payload
+  }
+
+  const sourceFamilies = Array.isArray(payload.sourceFamilies)
+    ? payload.sourceFamilies
+        .filter((family): family is string => typeof family === 'string')
+        .filter(family => ['stock', 'aiImage', 'webImage'].includes(family))
+    : ['stock', 'aiImage']
+
+  return {
+    ...payload,
+    durationSeconds: Math.min(Number(payload.durationSeconds) || 30, 30),
+    sourceFamilies: sourceFamilies.length > 0 ? sourceFamilies : ['stock'],
+    finalizationMode: 'auto_project',
+    workflowMode: payload.workflowMode ?? 'automatic',
+    contentFormat: payload.contentFormat ?? 'social',
+    format: payload.format ?? 'portrait',
+    supportingElements:
+      typeof payload.supportingElements === 'boolean'
+        ? payload.supportingElements
+        : true
+  }
+}
+
+function isVideoGenerationProduct(product: ApiProduct) {
+  const text =
+    `${product.slug} ${product.name} ${product.category}`.toLowerCase()
+
+  return (
+    product.category === 'media' ||
+    text.includes('video') ||
+    text.includes('cliplore')
+  )
 }
 
 function buildOpenAiPlannerPrompt() {
@@ -360,6 +405,8 @@ function buildOpenAiPlannerPrompt() {
     'Choose only from the provided tool slugs. Do not invent tools.',
     'Generate each requestPayloadJson as a valid JSON object string suitable for the selected tool request schema.',
     'Prefer useful public data tools before expensive or async media tools unless the objective clearly needs a media deliverable.',
+    'For video/media objectives, use a budget-conscious media payload: keep durationSeconds at or below 30, avoid aiVideo unless explicitly requested, and keep sourceFamilies compact.',
+    'Do not spend low-cost research budget if doing so would prevent a required final media or project-handoff deliverable.',
     'If a tool is irrelevant, skip it and explain why.',
     'The platform will quote and pay the selected tools after your plan, so your plan must respect the budget and max action count.'
   ].join('\n')

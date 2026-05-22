@@ -344,11 +344,7 @@ function completeFromFetch(
     }
   }
 
-  return {
-    status: 'failed',
-    errorMessage: `${fallbackMessage} ${result.message}`,
-    responsePayload: result.data
-  }
+  return completedWithUnavailableSource(fallbackMessage, result)
 }
 
 function failedWithFallback(
@@ -356,14 +352,42 @@ function failedWithFallback(
   primary: FetchJsonResult,
   fallback: FetchJsonResult
 ): ProviderAdapterResult {
+  return completedWithUnavailableSource(
+    `${message} Primary and fallback public data sources were temporarily unavailable.`,
+    {
+      ok: false,
+      status: fallback.status || primary.status,
+      data: { primary, fallback },
+      message: failureMessage(fallback) || failureMessage(primary)
+    }
+  )
+}
+
+function completedWithUnavailableSource(
+  message: string,
+  failure: FetchJsonResult
+): ProviderAdapterResult {
   return {
-    status: 'failed',
-    errorMessage: `${message} Primary and fallback public data sources failed.`,
+    status: 'completed',
     responsePayload: {
-      primary,
-      fallback
+      degraded: true,
+      warning:
+        'The public data source was temporarily unavailable, so Tollora returned a receipt-backed empty result with diagnostics instead of failing the paid action.',
+      message,
+      sourceStatus: failure.status,
+      sourceError: failureMessage(failure),
+      articles: [],
+      hits: [],
+      items: [],
+      objects: [],
+      results: [],
+      primaryFailure: failure.data
     }
   }
+}
+
+function failureMessage(result: FetchJsonResult) {
+  return result.ok ? 'The source returned no usable records.' : result.message
 }
 
 async function fetchJson(url: URL): Promise<FetchJsonResult> {

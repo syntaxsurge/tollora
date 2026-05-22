@@ -595,7 +595,9 @@ Before creating a new helper or service file:
   dedicated `src/features/provider-adapters/public-data/adapter.ts` adapter,
   which normalizes provider-specific request parameters, applies bounded
   upstream timeouts, and uses no-key public fallback sources for providers that
-  rate limit, reject narrow queries, or return temporary gateway errors.
+  rate limit, reject narrow queries, or return temporary gateway errors. If all
+  public sources are unavailable, the adapter returns a receipt-backed degraded
+  empty result with diagnostics instead of failing the paid action.
   Provider-created listings persist to Convex `apiProducts` rows linked to a
   Convex `providers` record for the connected user, with the full marketplace
   product configuration stored as a product snapshot for marketplace,
