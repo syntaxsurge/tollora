@@ -65,8 +65,11 @@ export type AgentAction = {
   objective: string
   planningRationale?: string
   plannerScore?: number
+  requestMethod?: 'GET' | 'POST'
+  requestUrl?: string
   requestPayload: Record<string, unknown>
   responsePayload?: Record<string, unknown>
+  toolResponsePayload?: Record<string, unknown>
   receipt?: MarketplaceReceipt
   orderId?: string
   requestId?: string

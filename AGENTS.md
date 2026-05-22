@@ -436,10 +436,10 @@ Before creating a new helper or service file:
 - `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
   long-running job status, compares final credit-metered usage with the prepaid
   quote, locks results that require a metered delta, and returns the latest
-  provider payload plus the sanitized upstream request trace. `POST
-  /api/orders/[orderId]/provider-status` retries the provider call for paid
-  failed orders that still have a retryable/refundable settled request, without
-  creating a second buyer payment.
+  provider payload plus the sanitized upstream request trace.
+  `POST /api/orders/[orderId]/provider-status` retries the provider call for
+  paid failed orders that still have a retryable/refundable settled request,
+  without creating a second buyer payment.
 - `GET /api/receipts/[receiptId]` — returns a MUSD settlement receipt record.
 - `POST /api/credits/accounts` — creates or returns a managed credit account and
   Tollora API key for a wallet.
@@ -632,8 +632,9 @@ Before creating a new helper or service file:
   output. When the key is absent, the deterministic fallback ranks the allowed
   marketplace tools from the objective and source context. Both planner modes
   record the prompt, model or fallback label, rationale, skipped tools, selected
-  tools, funding ledger, and synthesis metadata in run deliverables, action
-  cards, and proof payloads.
+  tools, funding ledger, request and response payloads, extracted result links,
+  media outputs, and synthesis metadata in run deliverables, action cards, final
+  output panels, and proof payloads.
 - `/agents` is a tabbed command center that opens on recent runs and also
   exposes a templates tab. Both tabs use separate server-fed tables with search,
   sorting, and pagination; recent runs support current-page row selection and
@@ -651,8 +652,11 @@ Before creating a new helper or service file:
   least one tool remains selected; `/agents/[runId]` funds production runs
   through the agent budget vault, executes the ranked plan, shows planner
   mode/model, selected and skipped tools, planner rationale, budget ledger,
-  receipt links, Markdown-rendered deliverables, unused refund controls, and
-  writes Mezo proof attestations.
+  receipt links, per-tool request and response diagnostics, extracted tool
+  output links, rendered media previews, Markdown-rendered deliverables, unused
+  refund controls, and writes Mezo proof attestations. The final output section
+  renders the agent deliverable as text, media, or result links depending on the
+  completed tool responses.
 - `/proofs/[proofId]` publicly displays non-sensitive autonomous run proof
   metadata, proof hash, receipt IDs, budget funding and refund metadata, total
   MUSD spend, attestation transaction, and Mezo explorer link.
@@ -662,15 +666,14 @@ Before creating a new helper or service file:
   applies bearer, API-key, query-key, or basic auth server-side, removes empty
   optional request fields from listing schema-generated payloads before quoting
   or forwarding, extracts external job IDs, result URLs, public project handoff
-  URLs, and clone URLs through configured and conventional JSON paths, and
-  polls provider status endpoints for async products. Credit-metered async
-  providers always receive
-  `billingMode: "external_prepaid"` plus generic external prepaid metadata with
-  order, receipt, buyer, requested billing mode, and settlement references so
-  provider APIs can report estimated, charged, and refunded usage without
-  importing Tollora settlement logic. Provider listings with server-side auth
-  requirements must have their upstream secret configured before Tollora creates
-  payable orders or x402 payment requirements.
+  URLs, and clone URLs through configured and conventional JSON paths, and polls
+  provider status endpoints for async products. Credit-metered async providers
+  always receive `billingMode: "external_prepaid"` plus generic external prepaid
+  metadata with order, receipt, buyer, requested billing mode, and settlement
+  references so provider APIs can report estimated, charged, and refunded usage
+  without importing Tollora settlement logic. Provider listings with server-side
+  auth requirements must have their upstream secret configured before Tollora
+  creates payable orders or x402 payment requirements.
 - `/marketplace` lists published provider-created MUSD-paid API products in the
   shared server-fed table with category filters, price badges, provider names,
   execution/result delivery context, agent-ready badges, and entry points for
@@ -694,10 +697,10 @@ Before creating a new helper or service file:
   success status, stores the order in browser session storage, and redirects to
   the Run & Pay order page.
 - `/orders/[orderId]` shows payment, escrow, provider job, result, receipt, and
-  metered usage state. Provider responses include a collapsed sanitized
-  upstream request trace with method, URL, query/body, redacted headers,
-  response status, selected response headers, and provider response body so
-  provider integrations can be debugged without exposing API secrets.
+  metered usage state. Provider responses include a collapsed sanitized upstream
+  request trace with method, URL, query/body, redacted headers, response status,
+  selected response headers, and provider response body so provider integrations
+  can be debugged without exposing API secrets.
 - `/provider` shows the connected wallet's owned provider revenue, API call
   volume, success rate, top product, recent request activity, product listing
   health, production narrative, and tiered provider revenue split.
@@ -719,10 +722,10 @@ Before creating a new helper or service file:
   submission, and the API route uses the same schema as the server guard. The
   OpenAPI importer detects operation-level or document-level security schemes,
   credit fields such as `estimatedCredits`, and 202 Accepted job operations,
-  links async job-creation operations to matching
-  status endpoints from the imported spec, marks required provider auth and
-  polling fields accurately, and preserves OpenAPI request-body
-  required/optional field metadata and descriptions for provider test runs.
+  links async job-creation operations to matching status endpoints from the
+  imported spec, marks required provider auth and polling fields accurately, and
+  preserves OpenAPI request-body required/optional field metadata and
+  descriptions for provider test runs.
 - `/provider/products/[productId]` is the provider API management workspace. It
   shows lifecycle controls for publishing, pausing, and returning products to
   draft, a launch checklist, payable schema-driven test runs, gateway endpoint
@@ -738,31 +741,31 @@ Before creating a new helper or service file:
   the required Mezo MUSD Permit2 allowance transaction when needed, verify MUSD
   balance before asking for payment signatures, wait for the approval receipt
   and readable allowance, retry transient quote, allowance, signature,
-  settlement, claim, and provider status errors with bounded exponential
-  backoff while avoiding retries after receipt or payment artifacts are
-  returned, display step-by-step wallet progress as a compact icon timeline
-  with explorer links for submitted transactions,
-  surface settlement failure guidance from the x402 facilitator, show payment
-  failures as dedicated alert cards with copyable error text, keep long
-  explanations inside collapsible details, separate direct API responses from
-  async provider jobs, automatically poll provider status when an order has an
-  external job ID or a retryable provider outage, keep escrow reserved for
-  retryable provider failures such as temporary 5xx, Cloudflare, timeout,
-  rate-limit, or provider-marked retryable responses until the 24-hour retry
-  window expires, complete async orders when a provider returns a completed
-  status or cloneable handoff URL, keep manual polling available, keep 402
-  inspection as a diagnostic action, persist receipt metadata in browser session
-  storage, show quote/reservation/final usage amounts for credit-metered calls,
-  claim metered deltas through x402 before revealing locked results, show escrow
-  reserve/release/refund transaction links when a credit-metered async payment
-  uses escrow, and link to the settlement receipt and Mezo explorer transaction.
-  Draft products stay hidden from public marketplace usage but can be tested
-  through provider management by creating provider-test order records; locally
-  persisted draft listings created before owner metadata exists can still be
-  tested through matching order records. Browser session order snapshots use
-  compact session-safe storage so large provider payloads cannot block the
-  visible order state, and provider payload normalization removes malformed
-  indexed-character maps while preserving handoff URLs and billing metadata.
+  settlement, claim, and provider status errors with bounded exponential backoff
+  while avoiding retries after receipt or payment artifacts are returned,
+  display step-by-step wallet progress as a compact icon timeline with explorer
+  links for submitted transactions, surface settlement failure guidance from the
+  x402 facilitator, show payment failures as dedicated alert cards with copyable
+  error text, keep long explanations inside collapsible details, separate direct
+  API responses from async provider jobs, automatically poll provider status
+  when an order has an external job ID or a retryable provider outage, keep
+  escrow reserved for retryable provider failures such as temporary 5xx,
+  Cloudflare, timeout, rate-limit, or provider-marked retryable responses until
+  the 24-hour retry window expires, complete async orders when a provider
+  returns a completed status or cloneable handoff URL, keep manual polling
+  available, keep 402 inspection as a diagnostic action, persist receipt
+  metadata in browser session storage, show quote/reservation/final usage
+  amounts for credit-metered calls, claim metered deltas through x402 before
+  revealing locked results, show escrow reserve/release/refund transaction links
+  when a credit-metered async payment uses escrow, and link to the settlement
+  receipt and Mezo explorer transaction. Draft products stay hidden from public
+  marketplace usage but can be tested through provider management by creating
+  provider-test order records; locally persisted draft listings created before
+  owner metadata exists can still be tested through matching order records.
+  Browser session order snapshots use compact session-safe storage so large
+  provider payloads cannot block the visible order state, and provider payload
+  normalization removes malformed indexed-character maps while preserving
+  handoff URLs and billing metadata.
 - Marketplace products declare whether they are synchronous or asynchronous,
   whether settlement happens after a successful response, after job acceptance,
   or when a completed result is claimed, and whether results are returned

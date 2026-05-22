@@ -147,6 +147,8 @@ async function executeAgentAction(
     ...action,
     status: 'quoted',
     amountMusd: quotedPrice.amountLabel,
+    requestMethod: 'POST',
+    requestUrl: `${appUrl}/api/x402/products/${action.productSlug}/call`,
     requestPayload,
     startedAt: action.startedAt ?? new Date().toISOString()
   } satisfies AgentAction
@@ -173,12 +175,16 @@ async function executeAgentAction(
       ...started,
       status: 'completed',
       responsePayload: paidResult.data,
+      toolResponsePayload: paidResult,
       receipt: paidResult.receipt,
       orderId: paidResult.order?.id,
       requestId: paidResult.order?.requestId,
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   } catch (caughtError) {
+    const paidCallError =
+      caughtError instanceof PaidProductCallError ? caughtError : null
+
     return {
       ...started,
       status: 'failed',
@@ -186,6 +192,7 @@ async function executeAgentAction(
         caughtError instanceof Error
           ? caughtError.message
           : 'The paid x402 request failed.',
+      toolResponsePayload: paidCallError?.responsePayload,
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   }
@@ -228,13 +235,27 @@ async function callPaidProductWithAgentWallet(
   const body = await readJsonResponse(response)
 
   if (!response.ok) {
-    throw new Error(describePaidCallFailure(response, body))
+    throw new PaidProductCallError(describePaidCallFailure(response, body), {
+      status: response.status,
+      statusText: response.statusText,
+      body
+    })
   }
 
   return body as {
     order?: { id?: string; requestId?: string }
     receipt: MarketplaceReceipt
     data: Record<string, unknown>
+  }
+}
+
+class PaidProductCallError extends Error {
+  responsePayload: Record<string, unknown>
+
+  constructor(message: string, responsePayload: Record<string, unknown>) {
+    super(message)
+    this.name = 'PaidProductCallError'
+    this.responsePayload = responsePayload
   }
 }
 
@@ -456,7 +477,12 @@ function buildFallbackDeliverables(
   )
   const asyncAction = completedActions.find(
     action =>
+      Boolean(action.responsePayload?.previewUrl) ||
+      Boolean(action.responsePayload?.renderUrl) ||
+      Boolean(action.responsePayload?.publicProjectUrl) ||
+      Boolean(action.responsePayload?.cloneUrl) ||
       Boolean(action.responsePayload?.resultUrl) ||
+      Boolean(action.receipt?.resultUrl) ||
       Boolean(action.responsePayload?.externalJobId)
   )
 
@@ -470,8 +496,24 @@ function buildFallbackDeliverables(
       completedActions.length > 0
         ? `${completedActions.length} paid tool result(s) are attached to this run.`
         : undefined,
-    videoResultUrl: String(asyncAction?.responsePayload?.resultUrl ?? '')
+    videoResultUrl: getActionResultUrl(asyncAction)
   }
+}
+
+function getActionResultUrl(action?: AgentAction) {
+  if (!action) {
+    return ''
+  }
+
+  return String(
+    action.responsePayload?.resultUrl ??
+      action.responsePayload?.previewUrl ??
+      action.responsePayload?.renderUrl ??
+      action.responsePayload?.publicProjectUrl ??
+      action.responsePayload?.cloneUrl ??
+      action.receipt?.resultUrl ??
+      ''
+  )
 }
 
 type OpenAiSynthesisResponse = {
