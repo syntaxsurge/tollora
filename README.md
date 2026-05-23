@@ -126,6 +126,17 @@ async polling, and result-path fields before publishing a paid listing.
 - OpenAPI JSON: `/api/openapi.json`
 - Operations health: `/api/health`
 
+Deploy manually with the Vercel CLI:
+
+```bash
+vercel login
+pnpm exec vercel --prod
+```
+
+Run `vercel login` only when the CLI is not authenticated. The current Vercel
+CLI login flow uses browser-based OAuth device authorization; do not pass an
+email address or deprecated provider flags to the login command.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` and configure the values for your local
