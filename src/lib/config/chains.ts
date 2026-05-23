@@ -19,8 +19,7 @@ export type AppChain = {
 }
 
 const appChainId = envClient.NEXT_PUBLIC_EVM_CHAIN_ID ?? 31611
-const appChainName =
-  envClient.NEXT_PUBLIC_EVM_CHAIN_NAME ?? 'Mezo Testnet'
+const appChainName = envClient.NEXT_PUBLIC_EVM_CHAIN_NAME ?? 'Mezo Testnet'
 const appChainShortName =
   envClient.NEXT_PUBLIC_EVM_CHAIN_SHORT_NAME ?? 'Mezo Testnet'
 const appChainRpcUrl =
@@ -28,8 +27,7 @@ const appChainRpcUrl =
 const appChainExplorerName =
   envClient.NEXT_PUBLIC_EVM_EXPLORER_NAME ?? 'Mezo Testnet Explorer'
 const appChainExplorerUrl =
-  envClient.NEXT_PUBLIC_EVM_EXPLORER_URL ??
-  'https://explorer.test.mezo.org'
+  envClient.NEXT_PUBLIC_EVM_EXPLORER_URL ?? 'https://explorer.test.mezo.org'
 const appChainNativeCurrency = {
   name: envClient.NEXT_PUBLIC_EVM_NATIVE_CURRENCY_NAME ?? 'Bitcoin',
   symbol: envClient.NEXT_PUBLIC_EVM_NATIVE_CURRENCY_SYMBOL ?? 'BTC',
@@ -72,8 +70,7 @@ export const supportedViemChains = [appChains.app.viemChain] as const
 export const defaultAppChain = appChains.app
 export const x402Network =
   envClient.NEXT_PUBLIC_X402_NETWORK ?? `eip155:${defaultAppChain.id}`
-export const defaultX402FacilitatorUrl =
-  'https://facilitator.vativ.io/'
+export const defaultX402FacilitatorUrl = 'https://facilitator.vativ.io/'
 const defaultPaymentTokenAddress = '0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'
 const defaultPaymentTokenDomainName = 'MUSD'
 export const paymentTokenAddress =

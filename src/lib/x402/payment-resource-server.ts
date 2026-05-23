@@ -96,7 +96,8 @@ const paidCallRoute: RouteConfig = {
     },
     maxTimeoutSeconds: x402MaxTimeoutSeconds
   },
-  description: 'MUSD-settled Tollora API call on Mezo through the x402 protocol.',
+  description:
+    'MUSD-settled Tollora API call on Mezo through the x402 protocol.',
   mimeType: 'application/json',
   unpaidResponseBody: async context => {
     const product = await requireProductFromContext(context)
