@@ -153,6 +153,49 @@ Use `vercel env add <name> production --force` to create or update a production
 variable. Redeploy with `pnpm exec vercel --prod` after environment changes so
 the new values are available to the build and runtime.
 
+To replace Vercel production environment variables with the values currently in
+`.env.local`, remove the matching production keys, re-add them from the local
+file, then redeploy:
+
+```bash
+pnpm exec vercel link
+
+node - production <<'NODE'
+const fs = require('node:fs')
+const cp = require('node:child_process')
+const dotenv = require('dotenv')
+
+const target = process.argv[2]
+const parsed = dotenv.parse(fs.readFileSync('.env.local'))
+
+for (const key of Object.keys(parsed)) {
+  cp.spawnSync('pnpm', ['exec', 'vercel', 'env', 'rm', key, target, '--yes'], {
+    stdio: 'inherit'
+  })
+}
+
+for (const [key, value] of Object.entries(parsed)) {
+  const result = cp.spawnSync(
+    'pnpm',
+    ['exec', 'vercel', 'env', 'add', key, target, '--yes'],
+    {
+      input: value,
+      stdio: ['pipe', 'inherit', 'inherit']
+    }
+  )
+
+  if (result.status !== 0) process.exit(result.status ?? 1)
+}
+NODE
+
+pnpm exec vercel --prod
+```
+
+Replace `production` with `preview` or `development` in the Node command when
+you want to reset that Vercel environment instead. The command only touches keys
+present in `.env.local`; remove extra Vercel-only keys manually with
+`pnpm exec vercel env rm <KEY> production --yes`.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` and configure the values for your local
@@ -174,6 +217,7 @@ Key values:
 - `NEXT_PUBLIC_PAYMENT_TOKEN_DECIMALS`
 - `NEXT_PUBLIC_PAYMENT_TOKEN_TRANSFER_METHOD=permit2`
 - `X402_FACILITATOR_URL=https://facilitator.vativ.io/`
+- `X402_FACILITATOR_PRIVATE_KEY`
 - `AGENT_SPENDER_PRIVATE_KEY`
 - `AGENT_ATTESTER_PRIVATE_KEY`
 - `AGENT_LLM_API_KEY`
@@ -192,11 +236,10 @@ Key values:
 6. For x402 settlement, fund the agent run vault from the browser wallet and set
    `NEXT_PUBLIC_APP_URL` to the deployed app URL. The agent spender signs
    payments and only needs native gas for Permit2 or refund-return transactions.
-   Use `NEXT_PUBLIC_PAYMENT_TOKEN_SYMBOL` and
-   `NEXT_PUBLIC_PAYMENT_TOKEN_LABEL` to change UI copy for MUSD or another
-   settlement token. Tollora's Mezo configuration uses
-   `NEXT_PUBLIC_PAYMENT_TOKEN_TRANSFER_METHOD=permit2` for standard ERC-20
-   approval flows.
+   Use `NEXT_PUBLIC_PAYMENT_TOKEN_SYMBOL` and `NEXT_PUBLIC_PAYMENT_TOKEN_LABEL`
+   to change UI copy for MUSD or another settlement token. Tollora's Mezo
+   configuration uses `NEXT_PUBLIC_PAYMENT_TOKEN_TRANSFER_METHOD=permit2` for
+   standard ERC-20 approval flows.
 
 ## Core Commands
 

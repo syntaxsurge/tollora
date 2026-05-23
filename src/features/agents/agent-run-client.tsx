@@ -1832,14 +1832,15 @@ function buildActionErrorNotice(
 
   if (
     lower.includes('gas limit below eip-7623 floor') ||
-    lower.includes('failed to verify the fees')
+    lower.includes('failed to verify the fees') ||
+    lower.includes('invalid_exact_evm_transaction_failed')
   ) {
     return {
-      title: 'Network gas estimate was too low',
+      title: 'Settlement gas estimate was too low',
       message:
-        'The Mezo RPC rejected the vault transaction before execution because the submitted gas limit was below the network calldata floor.',
+        'The Mezo RPC rejected the payment settlement before execution because the submitted gas limit was below the network calldata floor.',
       detail:
-        'No provider result is lost. Retry the action after the gateway submits the vault write with a floor-safe gas limit.',
+        'No provider result is lost before the provider accepts the paid request. Retry after the gateway uses the local floor-safe x402 facilitator.',
       raw
     }
   }
@@ -1885,6 +1886,7 @@ function buildRunErrorNotice(
     lower.includes('reverted') ||
     lower.includes('exception') ||
     lower.includes('over budget') ||
+    lower.includes('invalid_exact_evm_transaction_failed') ||
     lower.includes('agentrunvault')
 
   if (!looksLikeError) {
@@ -1906,14 +1908,15 @@ function buildRunErrorNotice(
 
   if (
     lower.includes('gas limit below eip-7623 floor') ||
-    lower.includes('failed to verify the fees')
+    lower.includes('failed to verify the fees') ||
+    lower.includes('invalid_exact_evm_transaction_failed')
   ) {
     return {
-      title: 'Network gas estimate was too low',
+      title: 'Settlement gas estimate was too low',
       message:
-        'The Mezo RPC rejected a vault transaction before execution because the submitted gas limit was below the calldata floor.',
+        'The Mezo RPC rejected a payment transaction before execution because the submitted gas limit was below the calldata floor.',
       detail:
-        'Retry the run after the gateway submits contract writes with the required gas buffer.',
+        'Retry after the gateway uses the local floor-safe x402 facilitator and floor-safe contract writes.',
       raw: status
     }
   }

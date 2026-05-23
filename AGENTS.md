@@ -915,8 +915,12 @@ Before creating a new helper or service file:
 - x402 network configuration uses the CAIP-2 identifier in
   `NEXT_PUBLIC_X402_NETWORK`; the resource server in
   `src/lib/x402/payment-resource-server.ts` registers the EVM `exact` scheme,
-  uses `X402_FACILITATOR_URL`, protects product call routes, and resolves
-  dollar-denominated prices to the configured payment token.
+  protects product call routes, and resolves dollar-denominated prices to the
+  configured payment token. When `X402_FACILITATOR_PRIVATE_KEY` or a compatible
+  server settlement key is configured, the resource server uses an in-process
+  facilitator signer with EIP-7623 floor-safe gas and retryable pre-broadcast
+  settlement retries; otherwise it delegates settlement to
+  `X402_FACILITATOR_URL`.
 - Walkthrough and deployment documentation lives in `docs/demo-script.md` and
   `docs/deployment-checklist.md`.
 - The admin subscriptions page reads SubscriptionManager balance, plan prices,
