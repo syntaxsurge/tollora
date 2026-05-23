@@ -72,6 +72,8 @@ const agentPaymentTransactionMaxAttempts = 3
 const agentPaidToolCallMaxRetries = 3
 const agentPaidToolCallMaxAttempts = agentPaidToolCallMaxRetries + 1
 const agentPaymentTransactionBaseRetryDelayMs = 750
+const agentSignerBalancePollAttempts = 10
+const agentSignerBalancePollDelayMs = 1_200
 
 type AgentRunProgress = {
   actions: AgentAction[]
@@ -1472,23 +1474,16 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
     (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
   const tokenAddress = paymentTokenAddress as Address
-  const [balance, allowance] = await Promise.all([
-    readAgentSignerMusdBalance(account.address),
-    agentPublicClient.readContract(
-      getPermit2AllowanceReadParams({
-        tokenAddress,
-        ownerAddress: account.address
-      })
-    )
-  ])
-
-  if (balance < requiredAmount) {
-    throw new Error(
-      `Agent signer did not receive enough MUSD from AgentRunVault. Required ${formatMusdAmount(
-        requiredAmount
-      )}, available ${formatMusdAmount(balance)}. Confirm the run vault is funded and AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY can call recordSpend.`
-    )
-  }
+  await waitForAgentSignerMusdBalance({
+    ownerAddress: account.address,
+    requiredAmount
+  })
+  const allowance = await agentPublicClient.readContract(
+    getPermit2AllowanceReadParams({
+      tokenAddress,
+      ownerAddress: account.address
+    })
+  )
 
   if (allowance >= requiredAmount) {
     return []
@@ -1527,6 +1522,40 @@ async function readAgentSignerMusdBalance(ownerAddress: Address) {
     functionName: 'balanceOf',
     args: [ownerAddress]
   })
+}
+
+async function waitForAgentSignerMusdBalance({
+  ownerAddress,
+  requiredAmount
+}: {
+  ownerAddress: Address
+  requiredAmount: bigint
+}) {
+  let lastBalance = 0n
+
+  for (
+    let attempt = 1;
+    attempt <= agentSignerBalancePollAttempts;
+    attempt += 1
+  ) {
+    lastBalance = await readAgentSignerMusdBalance(ownerAddress)
+
+    if (lastBalance >= requiredAmount) {
+      return lastBalance
+    }
+
+    if (attempt < agentSignerBalancePollAttempts) {
+      await delay(agentSignerBalancePollDelayMs)
+    }
+  }
+
+  throw new Error(
+    `Agent signer did not receive enough MUSD from AgentRunVault after waiting for the recordSpend transfer to become readable. Required ${formatMusdAmount(
+      requiredAmount
+    )}, available ${formatMusdAmount(
+      lastBalance
+    )}. Confirm the run vault is funded and AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY can call recordSpend.`
+  )
 }
 
 async function waitForAgentPermit2Allowance({

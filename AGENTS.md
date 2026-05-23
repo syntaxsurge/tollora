@@ -644,26 +644,27 @@ Before creating a new helper or service file:
   vault reset to an unfunded state instead of attempting `recordSpend`. Before
   each paid action, the gateway advances the quoted settlement-token amount from
   the vault to the agent signer with `recordSpend`, verifies the signer's
-  balance, submits the required Permit2 approval when the allowance is
-  insufficient, waits until the allowance is readable, and then executes the
-  hosted x402 call from the same origin that triggered the run. If a
-  pre-settlement failure occurs after the vault advance, or if an escrowed
-  provider failure refunds the x402 payment back to the signer, the gateway
-  returns the settlement token to the vault and records `recordSpendRefund`; if
-  x402 settlement already moved funds from the signer to async escrow but escrow
-  accounting cannot be recorded, the gateway does not attempt a signer return
-  and instead keeps the action spent with escrow handoff diagnostics.
-  Unrecovered settlement or refund failures stay counted as spent and remain
-  visible in diagnostics. Running executions persist planner and per-action
-  progress as tools move from quoted to paid to terminal states, and the run
-  detail client auto-polls `GET /api/agents/runs/[runId]` while the run is
-  executing or attesting so users can watch async progress without a manual
-  refresh. Paid action failures preserve the response body, settlement guidance,
-  and provider details in action diagnostics. Async provider actions use the
-  same `/api/orders/[orderId]/provider-status` polling path as marketplace
-  orders; queued and processing media jobs remain incomplete until the provider
-  returns a terminal result, refund state, or completed project URL. Agent-paid
-  x402 calls include the agent run ID in gateway order and receipt records so
+  balance with bounded polling after the `recordSpend` receipt is confirmed,
+  submits the required Permit2 approval when the allowance is insufficient,
+  waits until the allowance is readable, and then executes the hosted x402 call
+  from the same origin that triggered the run. If a pre-settlement failure
+  occurs after the vault advance, or if an escrowed provider failure refunds the
+  x402 payment back to the signer, the gateway returns the settlement token to
+  the vault and records `recordSpendRefund`; if x402 settlement already moved
+  funds from the signer to async escrow but escrow accounting cannot be
+  recorded, the gateway does not attempt a signer return and instead keeps the
+  action spent with escrow handoff diagnostics. Unrecovered settlement or refund
+  failures stay counted as spent and remain visible in diagnostics. Running
+  executions persist planner and per-action progress as tools move from quoted
+  to paid to terminal states, and the run detail client auto-polls
+  `GET /api/agents/runs/[runId]` while the run is executing or attesting so
+  users can watch async progress without a manual refresh. Paid action failures
+  preserve the response body, settlement guidance, and provider details in
+  action diagnostics. Async provider actions use the same
+  `/api/orders/[orderId]/provider-status` polling path as marketplace orders;
+  queued and processing media jobs remain incomplete until the provider returns
+  a terminal result, refund state, or completed project URL. Agent-paid x402
+  calls include the agent run ID in gateway order and receipt records so
   provider dashboards and usage pages count autonomous tool calls in the same
   revenue ledger as browser and developer API calls. x402 payment requirements
   use the settlement token's EIP-712 domain metadata in
