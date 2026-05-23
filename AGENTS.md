@@ -963,9 +963,10 @@ Before creating a new helper or service file:
   same-origin form submits and browser-level unload navigations so redirects
   outside `next/link` still show progress.
 - Vercel deployment settings live in `vercel.json` with Next.js framework
-  detection, `pnpm install --frozen-lockfile`, `pnpm build`, and `pnpm dev`.
-  Git-connected Vercel projects deploy from repository pushes unless the Vercel
-  project dashboard disables Git deployments for a branch.
+  detection, `pnpm install --frozen-lockfile`, `pnpm build`, and `pnpm dev`. Git
+  deployments are explicitly enabled for Git-connected Vercel projects so
+  repository pushes can create deployments unless the Vercel project dashboard
+  disables deployments for a branch.
 - Theme switching using `next-themes` with class-based dark mode.
 
 ## Core Commands
