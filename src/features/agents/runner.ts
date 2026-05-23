@@ -645,7 +645,7 @@ async function callPaidProductWithAgentWallet(
 
       break
     } catch (error) {
-      const message = describeTransactionError(error)
+      const message = await describeAgentPaidCallError(error, action)
       const shouldRetry =
         attempt < agentPaidToolCallMaxAttempts &&
         isRetryableAgentPaymentTransactionError(message)
@@ -1127,6 +1127,18 @@ async function returnAgentSignerMusdToVault(amount: bigint) {
   const account = privateKeyToAccount(
     (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
+  const signerBalance = await readAgentSignerMusdBalance(account.address)
+
+  if (signerBalance < amount) {
+    throw new Error(
+      `Agent signer cannot return unused MUSD to the vault because it only has ${formatMusdAmount(
+        signerBalance
+      )} available and ${formatMusdAmount(
+        amount
+      )} was expected. This is a backend agent signer settlement-token balance issue, not the owner's ${defaultAppChain.nativeCurrency.symbol} gas balance.`
+    )
+  }
+
   const walletClient = createWalletClient({
     account,
     chain: defaultAppChain.viemChain,
@@ -1145,7 +1157,11 @@ async function returnAgentSignerMusdToVault(amount: bigint) {
     data,
     confirmedMessage:
       'Agent signer returned unused MUSD to the agent run vault.',
-    failureMessage: `Agent signer could not return unused MUSD to the vault. The signer may need ${defaultAppChain.nativeCurrency.symbol} gas on ${defaultAppChain.shortName}.`
+    failureMessage: `Agent signer could not return unused MUSD to the vault. Expected ${formatMusdAmount(
+      amount
+    )} and available before return was ${formatMusdAmount(
+      signerBalance
+    )}. This is usually a settlement-token balance or token-transfer issue, not the owner's ${defaultAppChain.nativeCurrency.symbol} gas balance.`
   })
 
   return {
@@ -1358,6 +1374,37 @@ function describeTransactionError(error: unknown) {
   return typeof error === 'string' ? error : 'Transaction failed.'
 }
 
+async function describeAgentPaidCallError(error: unknown, action: AgentAction) {
+  const message = describeTransactionError(error)
+  const lower = message.toLowerCase()
+
+  if (!lower.includes('permit2_insufficient_balance')) {
+    return message
+  }
+
+  const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
+  const requiredAmount = parsePaymentAmountToAtomic(
+    parseMusdLabel(action.amountMusd)
+  )
+
+  if (!privateKey || requiredAmount <= 0n) {
+    return `Agent signer does not have enough MUSD for x402 settlement. This is the backend agent signer's settlement-token balance, not the owner's ${defaultAppChain.nativeCurrency.symbol} gas balance. ${message}`
+  }
+
+  const account = privateKeyToAccount(
+    (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
+  )
+  const balance = await readAgentSignerMusdBalance(account.address).catch(
+    () => null
+  )
+  const balanceText =
+    balance === null ? 'unreadable' : formatMusdAmount(balance)
+
+  return `Agent signer does not have enough MUSD for x402 settlement. Required at least ${formatMusdAmount(
+    requiredAmount
+  )}; available on the backend agent signer is ${balanceText}. This is not the owner's ${defaultAppChain.nativeCurrency.symbol} gas balance. ${message}`
+}
+
 async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
 
@@ -1379,12 +1426,7 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   )
   const tokenAddress = paymentTokenAddress as Address
   const [balance, allowance] = await Promise.all([
-    agentPublicClient.readContract({
-      address: tokenAddress,
-      abi: musdAgentAbi,
-      functionName: 'balanceOf',
-      args: [account.address]
-    }),
+    readAgentSignerMusdBalance(account.address),
     agentPublicClient.readContract(
       getPermit2AllowanceReadParams({
         tokenAddress,
@@ -1429,6 +1471,15 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   })
 
   return result.attempts
+}
+
+async function readAgentSignerMusdBalance(ownerAddress: Address) {
+  return await agentPublicClient.readContract({
+    address: paymentTokenAddress as Address,
+    abi: musdAgentAbi,
+    functionName: 'balanceOf',
+    args: [ownerAddress]
+  })
 }
 
 async function waitForAgentPermit2Allowance({

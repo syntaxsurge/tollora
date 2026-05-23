@@ -1831,6 +1831,22 @@ function buildActionErrorNotice(
   }
 
   if (
+    lower.includes('permit2_insufficient_balance') ||
+    lower.includes('agent signer does not have enough musd') ||
+    lower.includes('agent signer cannot return unused musd') ||
+    lower.includes('agent signer could not return unused musd') ||
+    lower.includes('signermusdreturn')
+  ) {
+    return {
+      title: 'Agent signer needs MUSD, not wallet gas',
+      message:
+        'The vault advanced this tool budget to the backend agent signer, but the signer did not have enough MUSD available for settlement or refund recovery.',
+      detail: `This is separate from your connected wallet's ${defaultAppChain.nativeCurrency.symbol} balance. Check AGENT_SPENDER_PRIVATE_KEY, the signer MUSD balance, Permit2 allowance, and whether another failed or concurrent run consumed the signer funds before retrying.`,
+      raw
+    }
+  }
+
+  if (
     lower.includes('gas limit below eip-7623 floor') ||
     lower.includes('failed to verify the fees') ||
     lower.includes('invalid_exact_evm_transaction_failed')
