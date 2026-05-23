@@ -1109,35 +1109,35 @@ function RunStatusMessage({ run, status }: { run: AgentRun; status: string }) {
   }
 
   return (
-    <details
-      className='group overflow-hidden rounded-lg border border-red-500/30 bg-red-500/10'
+    <div
+      className='max-w-full min-w-0 overflow-hidden rounded-lg border border-red-500/30 bg-red-500/10'
       role='status'
     >
-      <summary className='flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden'>
-        <span className='min-w-0'>
-          <span className='block font-semibold text-red-700 dark:text-red-200'>
+      <div className='p-3'>
+        <div className='min-w-0'>
+          <p className='font-semibold text-red-700 dark:text-red-200'>
             {notice.title}
-          </span>
-          <span className='mt-1 block text-sm leading-6 break-words text-red-700/85 dark:text-red-200/85'>
+          </p>
+          <p className='mt-1 text-sm leading-6 break-words text-red-700/85 dark:text-red-200/85'>
             {notice.message}
-          </span>
+          </p>
           {notice.detail ? (
-            <span className='mt-2 block text-xs leading-5 break-words text-red-700/75 dark:text-red-200/75'>
+            <p className='mt-2 text-xs leading-5 break-words text-red-700/75 dark:text-red-200/75'>
               {notice.detail}
-            </span>
+            </p>
           ) : null}
-        </span>
-        <span className='shrink-0 text-xs font-semibold text-red-700/70 group-open:hidden dark:text-red-200/70'>
-          Details
-        </span>
-        <span className='hidden shrink-0 text-xs font-semibold text-red-700/70 group-open:inline dark:text-red-200/70'>
-          Hide
-        </span>
-      </summary>
-      <pre className='bg-background/80 text-foreground border-t border-red-500/25 p-3 text-xs leading-6 [overflow-wrap:anywhere] break-words whitespace-pre-wrap'>
-        {notice.raw}
-      </pre>
-    </details>
+        </div>
+      </div>
+      <JsonViewer
+        title='Full error message'
+        value={notice.raw}
+        defaultOpen={false}
+        copyLabel='Copy error'
+        tone='error'
+        className='rounded-none border-x-0 border-b-0 shadow-none'
+        maxHeightClassName='max-h-72'
+      />
+    </div>
   )
 }
 
@@ -1234,6 +1234,7 @@ function ToolCallSnapshot({
 }) {
   const displayStatus = getActionDisplayStatus(action)
   const latestPoll = getLatestAsyncPoll(action)
+  const attempts = collectVaultAttempts(action)
 
   return (
     <div className='border-border/70 bg-background/45 rounded-lg border p-3'>
@@ -1267,6 +1268,12 @@ function ToolCallSnapshot({
             {action.orderId ? (
               <span className='border-border/70 rounded-md border px-2 py-1 text-xs'>
                 Order {shorten(action.orderId)}
+              </span>
+            ) : null}
+            {attempts.length ? (
+              <span className='border-border/70 rounded-md border px-2 py-1 text-xs'>
+                {attempts.length} vault attempt
+                {attempts.length === 1 ? '' : 's'}
               </span>
             ) : null}
           </div>
@@ -1508,6 +1515,7 @@ function ActionCard({
       {action.errorMessage ? (
         <ActionErrorPanel action={action} run={run} />
       ) : null}
+      <VaultAttemptPanel action={action} />
       <div className='mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
         <ActionMetric label='Quote' value={action.amountMusd} />
         <ActionMetric label='Phase' value={getActionPhaseLabel(action)} />
@@ -1588,8 +1596,8 @@ function ActionErrorPanel({
   const notice = buildActionErrorNotice(action, run)
 
   return (
-    <details className='group mt-3 overflow-hidden rounded-lg border border-red-500/30 bg-red-500/10'>
-      <summary className='flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden'>
+    <div className='mt-3 max-w-full min-w-0 overflow-hidden rounded-lg border border-red-500/30 bg-red-500/10'>
+      <div className='flex items-start justify-between gap-3 p-3'>
         <span className='flex min-w-0 items-start gap-3'>
           <AlertTriangle
             className='mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-300'
@@ -1609,20 +1617,102 @@ function ActionErrorPanel({
             ) : null}
           </span>
         </span>
-        <span className='shrink-0 text-xs font-semibold text-red-700/70 group-open:hidden dark:text-red-200/70'>
-          Details
+      </div>
+      <JsonViewer
+        title='Full error message'
+        value={notice.raw}
+        defaultOpen={false}
+        copyLabel='Copy error'
+        tone='error'
+        className='rounded-none border-x-0 border-b-0 shadow-none'
+        maxHeightClassName='max-h-72'
+      />
+    </div>
+  )
+}
+
+function VaultAttemptPanel({
+  action
+}: {
+  action: AgentRun['actions'][number]
+}) {
+  const attempts = collectVaultAttempts(action)
+
+  if (!attempts.length) {
+    return null
+  }
+
+  const failedAttempts = attempts.filter(attempt => attempt.status === 'failed')
+
+  return (
+    <details className='group border-border/80 bg-card/45 mt-3 overflow-hidden rounded-lg border'>
+      <summary className='flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden'>
+        <span className='flex min-w-0 items-center gap-2'>
+          <RefreshCw className='text-primary h-4 w-4 shrink-0' aria-hidden />
+          <span className='font-semibold'>Vault transaction attempts</span>
+          <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
+            {attempts.length} total
+          </span>
+          {failedAttempts.length ? (
+            <span className='rounded-md bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600 dark:text-red-300'>
+              {failedAttempts.length} retried
+            </span>
+          ) : null}
         </span>
-        <span className='hidden shrink-0 text-xs font-semibold text-red-700/70 group-open:inline dark:text-red-200/70'>
-          Hide
+        <span className='text-foreground/50 text-xs group-open:hidden'>
+          Expand
+        </span>
+        <span className='text-foreground/50 hidden text-xs group-open:inline'>
+          Collapse
         </span>
       </summary>
-      <div className='border-t border-red-500/25 p-3'>
-        <p className='text-xs font-semibold tracking-[0.14em] text-red-700/80 uppercase dark:text-red-200/80'>
-          Full error message
-        </p>
-        <pre className='bg-background/80 text-foreground mt-2 max-h-64 max-w-full overflow-auto rounded-lg p-3 text-xs leading-6 [overflow-wrap:anywhere] break-words whitespace-pre-wrap'>
-          {notice.raw}
-        </pre>
+      <div className='border-border/70 grid gap-2 border-t p-3'>
+        {attempts.map(attempt => (
+          <div
+            key={`${attempt.functionName}-${attempt.attempt}-${attempt.createdAt}`}
+            className='border-border/70 bg-background/45 rounded-lg border p-3'
+          >
+            <div className='flex flex-wrap items-start justify-between gap-3'>
+              <div className='min-w-0'>
+                <p className='text-sm font-semibold'>
+                  Attempt {attempt.attempt} -{' '}
+                  {humanizePath(attempt.functionName)}
+                </p>
+                <p className='text-foreground/55 mt-1 text-xs'>
+                  {new Date(attempt.createdAt).toLocaleString()}
+                  {attempt.gasLimit ? ` - gas ${attempt.gasLimit}` : ''}
+                  {attempt.retryDelayMs
+                    ? ` - retry after ${formatRetryDelay(attempt.retryDelayMs)}`
+                    : ''}
+                </p>
+              </div>
+              <span
+                className={[
+                  'rounded-md px-2 py-1 text-xs font-semibold',
+                  attempt.status === 'succeeded'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+                    : 'bg-red-500/10 text-red-600 dark:text-red-300'
+                ].join(' ')}
+              >
+                {attempt.status}
+              </span>
+            </div>
+            <p className='text-foreground/65 mt-2 text-sm leading-6 [overflow-wrap:anywhere] break-words'>
+              {attempt.message}
+            </p>
+            {attempt.explorerUrl && attempt.txHash ? (
+              <a
+                href={attempt.explorerUrl}
+                target='_blank'
+                rel='noreferrer'
+                className='text-primary mt-2 inline-flex items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline'
+              >
+                {shorten(attempt.txHash)}
+                <ExternalLink className='h-3.5 w-3.5' aria-hidden />
+              </a>
+            ) : null}
+          </div>
+        ))}
       </div>
     </details>
   )
@@ -1639,6 +1729,21 @@ function ActionMetric({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   )
+}
+
+function collectVaultAttempts(action: AgentRun['actions'][number]) {
+  return [
+    ...(action.vaultSpendAttempts ?? []),
+    ...(action.vaultRefundAttempts ?? [])
+  ]
+}
+
+function formatRetryDelay(delayMs: number) {
+  if (delayMs < 1000) {
+    return `${delayMs}ms`
+  }
+
+  return `${(delayMs / 1000).toFixed(delayMs % 1000 === 0 ? 0 : 1)}s`
 }
 
 function getActionDisplayStatus(action: AgentRun['actions'][number]) {

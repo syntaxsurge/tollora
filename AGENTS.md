@@ -536,9 +536,10 @@ Before creating a new helper or service file:
 - Shared UI primitives in `src/components/ui` and layout shells in
   `src/components/layout`.
 - Shared JSON rendering lives in `src/components/data-display/json-viewer.tsx`
-  with default copy support, collapsible diagnostics, and nested JSON string
-  normalization for provider responses, sanitized provider request traces,
-  request previews, agent deliverables, and public proof payloads.
+  with default copy support, collapsible diagnostics, error-tone rendering for
+  raw failure text, and nested JSON string normalization for provider responses,
+  sanitized provider request traces, request previews, agent deliverables, and
+  public proof payloads.
 - Shared server-fed table rendering lives in
   `src/components/data-display/server-data-table.tsx` with URL-driven search,
   sorting, pagination, optional current-page row selection, and optional bulk
@@ -673,36 +674,41 @@ Before creating a new helper or service file:
   funding, and escrow reserves must use that token metadata for facilitator
   verification and settlement. Server-submitted vault and escrow writes apply an
   explicit EIP-7623 floor-safe gas limit with a buffer before broadcasting to
-  the configured Mezo RPC. Vault spend and refund writes wait for successful
-  transaction receipts, and refund recovery reads the vault's live spent amount
-  before calling `recordSpendRefund` so retries and partially recovered failures
-  do not request a larger refund than the current vault state can accept. Direct
-  run reads refresh from Convex by run ID before using the in-memory run cache
-  so polling clients see the latest persisted progress across server runtimes.
-  Agent action progress records the settled x402 order/receipt and the
-  provider's initial response as soon as the paid request is accepted, then
-  keeps async media actions in `paid` state while polling for the terminal
-  provider output. The latest async provider-status poll is stored on the action
-  with attempt number, timestamp, polling URL, request method, headers, path
-  parameters, HTTP status, order state, result-release state, external job ID,
-  result URL when present, and compact response metadata; each new backend poll
-  replaces the prior visible snapshot instead of growing an unbounded history.
-  The run page refreshes running, attesting, and active paid async runs every
-  eight seconds, reconciles stale paid actions through the provider-status
-  endpoint using the configured public app origin, auto-resumes remaining
-  planned tools after an async action reaches a terminal state, renders the
-  latest async poll as a compact live-status disclosure without poll-number
-  timeline rows, summarizes each tool's quote, phase, vault spend, order, and
-  status in the execution map, and keeps compact request/response JSON inside
-  expandable diagnostics. Receipt, settlement, and vault transaction links
-  render as icon actions on each tool card. Long provider, gateway, and contract
-  failure text stays inside expandable diagnostics with user-facing summaries
-  for budget, contract, refund, and tool failures; AgentRunVault over-budget
-  errors show funded, spent, available, and attempted tool-spend context before
-  the raw error. Public provider result links render as compact host/path
-  previews instead of full-width raw URLs. Agent and marketplace snapshots
-  persisted to Convex keep result URLs, job IDs, statuses, pricing, and escrow
-  metadata, but compact provider response bodies before saving. When
+  the configured Mezo RPC. Vault spend and refund writes retry retryable
+  pre-broadcast RPC failures with exponential backoff, record each attempt on
+  the action, wait for successful transaction receipts, and avoid retrying after
+  a transaction hash is accepted so vault spends are not duplicated. Refund
+  recovery reads the vault's live spent amount before calling
+  `recordSpendRefund` so retries and partially recovered failures do not request
+  a larger refund than the current vault state can accept. Direct run reads
+  refresh from Convex by run ID before using the in-memory run cache so polling
+  clients see the latest persisted progress across server runtimes. Agent action
+  progress records the settled x402 order/receipt and the provider's initial
+  response as soon as the paid request is accepted, then keeps async media
+  actions in `paid` state while polling for the terminal provider output. The
+  latest async provider-status poll is stored on the action with attempt number,
+  timestamp, polling URL, request method, headers, path parameters, HTTP status,
+  order state, result-release state, external job ID, result URL when present,
+  and compact response metadata; each new backend poll replaces the prior
+  visible snapshot instead of growing an unbounded history. The run page
+  refreshes running, attesting, and active paid async runs every eight seconds,
+  reconciles stale paid actions through the provider-status endpoint using the
+  configured public app origin, auto-resumes remaining planned tools after an
+  async action reaches a terminal state, renders the latest async poll as a
+  compact live-status disclosure without poll-number timeline rows, summarizes
+  each tool's quote, phase, vault spend, order, and status in the execution map,
+  and keeps compact request/response JSON inside expandable diagnostics.
+  Receipt, settlement, and vault transaction links render as icon actions on
+  each tool card. Vault transaction attempts render in expandable per-action
+  diagnostics with attempt status, gas limit, retry delay, message, and
+  transaction link when available. Long provider, gateway, and contract failure
+  text stays inside expandable copyable diagnostics with user-facing summaries
+  for budget, gas-floor, contract, refund, and tool failures; AgentRunVault
+  over-budget errors show funded, spent, available, and attempted tool-spend
+  context before the raw error. Public provider result links render as compact
+  host/path previews instead of full-width raw URLs. Agent and marketplace
+  snapshots persisted to Convex keep result URLs, job IDs, statuses, pricing,
+  and escrow metadata, but compact provider response bodies before saving. When
   `AGENT_LLM_API_KEY` is configured, the agent uses the OpenAI Responses API
   with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools, generate request
   payloads, skip unrelated tools, reserve one affordable media tool when the

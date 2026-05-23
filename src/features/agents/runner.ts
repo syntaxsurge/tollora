@@ -48,6 +48,7 @@ import {
   getAgentRunBytes32,
   getAgentRunVaultBudget,
   getAgentRunVaultAddress,
+  getAgentRunVaultWriteAttempts,
   getAgentVaultPaymentId,
   parsePaymentAmountToAtomic,
   type AgentVaultWriteResult,
@@ -296,7 +297,8 @@ async function executeAgentAction(
             error:
               error instanceof Error
                 ? error.message
-                : 'Unable to return the refunded x402 payment to the agent vault.'
+                : 'Unable to return the refunded x402 payment to the agent vault.',
+            attempts: getAgentRunVaultWriteAttempts(error)
           }))
         : null
     const refundError =
@@ -305,10 +307,17 @@ async function executeAgentAction(
         : undefined
     const refundFields =
       refundedAdvance && !('error' in refundedAdvance) ? refundedAdvance : {}
+    const refundErrorFields =
+      refundedAdvance && 'error' in refundedAdvance
+        ? {
+            vaultRefundAttempts: refundedAdvance.attempts
+          }
+        : {}
 
     return {
       ...paidProgress,
       ...refundFields,
+      ...refundErrorFields,
       status: resultStatus,
       responsePayload: buildPaidProductResponsePayload(paidResult),
       latestAsyncPollingResponse: paidProgress.latestAsyncPollingResponse,
@@ -340,7 +349,8 @@ async function executeAgentAction(
           error:
             error instanceof Error
               ? error.message
-              : 'Unable to return the advanced vault spend.'
+              : 'Unable to return the advanced vault spend.',
+          attempts: getAgentRunVaultWriteAttempts(error)
         }))
       : null
     const refundError =
@@ -349,11 +359,23 @@ async function executeAgentAction(
         : undefined
     const refundFields =
       refundedAdvance && !('error' in refundedAdvance) ? refundedAdvance : {}
+    const refundErrorFields =
+      refundedAdvance && 'error' in refundedAdvance
+        ? {
+            vaultRefundAttempts: refundedAdvance.attempts
+          }
+        : {}
+    const failedAction = advanced ?? started
 
     return {
-      ...(advanced ?? started),
+      ...failedAction,
       ...refundFields,
+      ...refundErrorFields,
       status: 'failed',
+      vaultSpendAttempts: mergeVaultAttempts(
+        failedAction.vaultSpendAttempts,
+        getAgentRunVaultWriteAttempts(caughtError)
+      ),
       errorMessage: [
         caughtError instanceof Error
           ? caughtError.message
@@ -454,7 +476,8 @@ async function advanceAgentVaultSpend({
     vaultPaymentId: paymentId,
     vaultAdvancedAmountMusd: amountLabel,
     vaultSpendTxHash: result.txHash,
-    vaultSpendExplorerUrl: result.explorerUrl
+    vaultSpendExplorerUrl: result.explorerUrl,
+    vaultSpendAttempts: result.attempts
   } satisfies AgentAction
 }
 
@@ -509,9 +532,21 @@ async function refundAgentVaultAdvance({
         : formatMusdAmount(refundableAmount),
     vaultRefundTxHash: refund.txHash,
     vaultRefundExplorerUrl: refund.explorerUrl,
+    vaultRefundAttempts: refund.attempts,
     vaultReturnTxHash: returnTx.txHash,
     vaultReturnExplorerUrl: returnTx.explorerUrl
   } satisfies Partial<AgentAction>
+}
+
+function mergeVaultAttempts(
+  current: AgentAction['vaultSpendAttempts'],
+  next: AgentAction['vaultSpendAttempts']
+) {
+  if (!next?.length) {
+    return current
+  }
+
+  return [...(current ?? []), ...next]
 }
 
 async function callPaidProductWithAgentWallet(
@@ -1031,7 +1066,8 @@ async function returnAgentSignerMusdToVault(amount: bigint) {
 
   return {
     txHash,
-    explorerUrl: buildExplorerUrl(txHash)
+    explorerUrl: buildExplorerUrl(txHash),
+    attempts: []
   } satisfies AgentVaultWriteResult
 }
 
