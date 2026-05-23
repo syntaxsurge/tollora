@@ -1725,6 +1725,20 @@ function buildActionErrorNotice(
     }
   }
 
+  if (
+    lower.includes('gas limit below eip-7623 floor') ||
+    lower.includes('failed to verify the fees')
+  ) {
+    return {
+      title: 'Network gas estimate was too low',
+      message:
+        'The Mezo RPC rejected the vault transaction before execution because the submitted gas limit was below the network calldata floor.',
+      detail:
+        'No provider result is lost. Retry the action after the gateway submits the vault write with a floor-safe gas limit.',
+      raw
+    }
+  }
+
   if (lower.includes('contract function') || lower.includes('reverted')) {
     return {
       title: 'Contract transaction failed',
@@ -1781,6 +1795,20 @@ function buildRunErrorNotice(
       message:
         'The vault rejected a spend because the remaining funded budget is lower than the next paid tool quote.',
       detail: `Funded: ${run.fundedAmountMusd}. Spent: ${run.spentAmountMusd}. Available: ${run.availableAmountMusd}.`,
+      raw: status
+    }
+  }
+
+  if (
+    lower.includes('gas limit below eip-7623 floor') ||
+    lower.includes('failed to verify the fees')
+  ) {
+    return {
+      title: 'Network gas estimate was too low',
+      message:
+        'The Mezo RPC rejected a vault transaction before execution because the submitted gas limit was below the calldata floor.',
+      detail:
+        'Retry the run after the gateway submits contract writes with the required gas buffer.',
       raw: status
     }
   }

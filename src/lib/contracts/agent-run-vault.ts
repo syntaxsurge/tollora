@@ -19,6 +19,7 @@ import {
   paymentTokenDecimals,
   paymentTokenAddress
 } from '@/lib/config/chains'
+import { getBufferedContractWriteGasLimit } from '@/lib/contracts/gas'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
@@ -299,7 +300,17 @@ export async function writeAgentRunVault({
     args,
     account
   })
-  const txHash = await walletClient.writeContract(request)
+  const gasRequest = request as typeof request & {
+    data?: Hex
+    gas?: bigint
+  }
+  const txHash = await walletClient.writeContract({
+    ...request,
+    gas: getBufferedContractWriteGasLimit({
+      data: gasRequest.data,
+      estimatedGas: gasRequest.gas
+    })
+  })
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
 
   if (receipt.status !== 'success') {

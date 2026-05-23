@@ -13,6 +13,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 
 import { buildExplorerUrl } from '@/features/marketplace/receipts'
 import { defaultAppChain, paymentTokenDecimals } from '@/lib/config/chains'
+import { getBufferedContractWriteGasLimit } from '@/lib/contracts/gas'
 import { envServer } from '@/lib/env/env.server'
 
 type EscrowableProduct = {
@@ -244,7 +245,17 @@ async function writeEscrow({
     args,
     account
   })
-  const txHash = await walletClient.writeContract(request)
+  const gasRequest = request as typeof request & {
+    data?: Hex
+    gas?: bigint
+  }
+  const txHash = await walletClient.writeContract({
+    ...request,
+    gas: getBufferedContractWriteGasLimit({
+      data: gasRequest.data,
+      estimatedGas: gasRequest.gas
+    })
+  })
 
   const receipt = await publicClient.waitForTransactionReceipt({
     hash: txHash

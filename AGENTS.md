@@ -671,7 +671,9 @@ Before creating a new helper or service file:
   transfer mode used in payment requirements for standard ERC-20 approval and
   Permit2 signature flows. Signed x402 payloads, Permit2 checks, agent vault
   funding, and escrow reserves must use that token metadata for facilitator
-  verification and settlement. Vault spend and refund writes wait for successful
+  verification and settlement. Server-submitted vault and escrow writes apply an
+  explicit EIP-7623 floor-safe gas limit with a buffer before broadcasting to
+  the configured Mezo RPC. Vault spend and refund writes wait for successful
   transaction receipts, and refund recovery reads the vault's live spent amount
   before calling `recordSpendRefund` so retries and partially recovered failures
   do not request a larger refund than the current vault state can accept. Direct
