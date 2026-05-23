@@ -129,13 +129,15 @@ async polling, and result-path fields before publishing a paid listing.
 Deploy manually with the Vercel CLI:
 
 ```bash
-vercel login
+pnpm add -D vercel@latest
+pnpm exec vercel login
 pnpm exec vercel --prod
 ```
 
-Run `vercel login` only when the CLI is not authenticated. The current Vercel
-CLI login flow uses browser-based OAuth device authorization; do not pass an
-email address or deprecated provider flags to the login command.
+Run `pnpm exec vercel login` only when the CLI is not authenticated. The current
+Vercel CLI login flow uses browser-based OAuth device authorization; do not pass
+an email address or deprecated provider flags to the login command. If using the
+global `vercel` command directly, update it with `npm i -g vercel@latest`.
 
 ## Environment
 
