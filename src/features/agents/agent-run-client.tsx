@@ -1234,7 +1234,7 @@ function ToolCallSnapshot({
 }) {
   const displayStatus = getActionDisplayStatus(action)
   const latestPoll = getLatestAsyncPoll(action)
-  const attempts = collectVaultAttempts(action)
+  const attempts = collectPaymentAttempts(action)
 
   return (
     <div className='border-border/70 bg-background/45 rounded-lg border p-3'>
@@ -1272,7 +1272,7 @@ function ToolCallSnapshot({
             ) : null}
             {attempts.length ? (
               <span className='border-border/70 rounded-md border px-2 py-1 text-xs'>
-                {attempts.length} vault attempt
+                {attempts.length} payment attempt
                 {attempts.length === 1 ? '' : 's'}
               </span>
             ) : null}
@@ -1515,7 +1515,7 @@ function ActionCard({
       {action.errorMessage ? (
         <ActionErrorPanel action={action} run={run} />
       ) : null}
-      <VaultAttemptPanel action={action} />
+      <PaymentAttemptPanel action={action} />
       <div className='mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
         <ActionMetric label='Quote' value={action.amountMusd} />
         <ActionMetric label='Phase' value={getActionPhaseLabel(action)} />
@@ -1631,12 +1631,12 @@ function ActionErrorPanel({
   )
 }
 
-function VaultAttemptPanel({
+function PaymentAttemptPanel({
   action
 }: {
   action: AgentRun['actions'][number]
 }) {
-  const attempts = collectVaultAttempts(action)
+  const attempts = collectPaymentAttempts(action)
 
   if (!attempts.length) {
     return null
@@ -1649,7 +1649,7 @@ function VaultAttemptPanel({
       <summary className='flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden'>
         <span className='flex min-w-0 items-center gap-2'>
           <RefreshCw className='text-primary h-4 w-4 shrink-0' aria-hidden />
-          <span className='font-semibold'>Vault transaction attempts</span>
+          <span className='font-semibold'>Payment transaction attempts</span>
           <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
             {attempts.length} total
           </span>
@@ -1731,7 +1731,7 @@ function ActionMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
-function collectVaultAttempts(action: AgentRun['actions'][number]) {
+function collectPaymentAttempts(action: AgentRun['actions'][number]) {
   return [
     ...(action.vaultSpendAttempts ?? []),
     ...(action.vaultRefundAttempts ?? [])

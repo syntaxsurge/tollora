@@ -1,7 +1,8 @@
 import { x402Client } from '@x402/core/client'
 import {
   createPermit2ApprovalTx,
-  getPermit2AllowanceReadParams
+  getPermit2AllowanceReadParams,
+  type ClientEvmSigner
 } from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
 import {
@@ -12,6 +13,7 @@ import {
 import {
   createPublicClient,
   createWalletClient,
+  encodeFunctionData,
   formatUnits,
   http,
   parseAbi,
@@ -19,7 +21,7 @@ import {
   type Address,
   type Hex
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
 
 import {
   type AgentPlanMetadata,
@@ -51,9 +53,9 @@ import {
   getAgentRunVaultWriteAttempts,
   getAgentVaultPaymentId,
   parsePaymentAmountToAtomic,
-  type AgentVaultWriteResult,
   writeAgentRunVault
 } from '@/lib/contracts/agent-run-vault'
+import { getBufferedContractWriteGasLimit } from '@/lib/contracts/gas'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 import {
@@ -63,6 +65,8 @@ import {
 
 const asyncProviderPollIntervalMs = 5_000
 const asyncProviderPollAttempts = 72
+const agentPaymentTransactionMaxAttempts = 3
+const agentPaymentTransactionBaseRetryDelayMs = 750
 
 type AgentRunProgress = {
   actions: AgentAction[]
@@ -256,9 +260,23 @@ async function executeAgentAction(
       status: 'paid'
     } satisfies AgentAction
     await onProgress?.(advanced)
-    await ensureAgentCanPayWithPermit2(quotedPrice.amountUsd)
+    const permit2Attempts = await ensureAgentCanPayWithPermit2(
+      quotedPrice.amountUsd
+    )
+
+    if (permit2Attempts.length > 0) {
+      advanced = {
+        ...advanced,
+        vaultSpendAttempts: mergeVaultAttempts(
+          advanced.vaultSpendAttempts,
+          permit2Attempts
+        )
+      } satisfies AgentAction
+      await onProgress?.(advanced)
+    }
+
     let paidProgress = advanced
-    const paidResult = await callPaidProductWithAgentWallet(
+    const paidCall = await callPaidProductWithAgentWallet(
       run.id,
       advanced,
       appUrl,
@@ -278,6 +296,17 @@ async function executeAgentAction(
         await onProgress?.(paidProgress)
       }
     )
+    const paidResult = paidCall.result
+
+    if (paidCall.attempts.length > 0) {
+      paidProgress = {
+        ...paidProgress,
+        vaultSpendAttempts: mergeVaultAttempts(
+          paidProgress.vaultSpendAttempts,
+          paidCall.attempts
+        )
+      } satisfies AgentAction
+    }
 
     const resultStatus =
       paidResult.order?.status === 'failed' ||
@@ -298,7 +327,7 @@ async function executeAgentAction(
               error instanceof Error
                 ? error.message
                 : 'Unable to return the refunded x402 payment to the agent vault.',
-            attempts: getAgentRunVaultWriteAttempts(error)
+            attempts: getAgentTransactionAttempts(error)
           }))
         : null
     const refundError =
@@ -350,7 +379,7 @@ async function executeAgentAction(
             error instanceof Error
               ? error.message
               : 'Unable to return the advanced vault spend.',
-          attempts: getAgentRunVaultWriteAttempts(error)
+          attempts: getAgentTransactionAttempts(error)
         }))
       : null
     const refundError =
@@ -374,7 +403,7 @@ async function executeAgentAction(
       status: 'failed',
       vaultSpendAttempts: mergeVaultAttempts(
         failedAction.vaultSpendAttempts,
-        getAgentRunVaultWriteAttempts(caughtError)
+        getAgentTransactionAttempts(caughtError)
       ),
       errorMessage: [
         caughtError instanceof Error
@@ -532,7 +561,7 @@ async function refundAgentVaultAdvance({
         : formatMusdAmount(refundableAmount),
     vaultRefundTxHash: refund.txHash,
     vaultRefundExplorerUrl: refund.explorerUrl,
-    vaultRefundAttempts: refund.attempts,
+    vaultRefundAttempts: mergeVaultAttempts(returnTx.attempts, refund.attempts),
     vaultReturnTxHash: returnTx.txHash,
     vaultReturnExplorerUrl: returnTx.explorerUrl
   } satisfies Partial<AgentAction>
@@ -564,37 +593,97 @@ async function callPaidProductWithAgentWallet(
   const account = privateKeyToAccount(
     (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
-  const client = registerExactEvmScheme(new x402Client(), { signer: account })
+  const attempts: AgentAction['vaultSpendAttempts'] = []
+  const client = registerExactEvmScheme(new x402Client(), {
+    signer: buildAgentX402Signer(account),
+    schemeOptions: {
+      rpcUrl: defaultAppChain.viemChain.rpcUrls.default.http[0]
+    }
+  })
   const httpClient = new x402HTTPClient(client)
   const paidFetch = wrapFetchWithPayment(fetch, httpClient)
-  const response = await paidFetch(
-    `${appUrl}/api/x402/products/${action.productSlug}/call`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-app-agent-run-id': runId
-      },
-      body: JSON.stringify(action.requestPayload)
-    }
-  )
-  const paymentResult = await httpClient
-    .processResponse(response.clone())
-    .catch(() => null)
-  const body = await readJsonResponse(response)
+  let acceptedResult: PaidProductCallResponse | null = null
 
-  if (!response.ok) {
-    throw new Error(describePaidCallFailure(response, body, paymentResult))
+  for (
+    let attempt = 1;
+    attempt <= agentPaymentTransactionMaxAttempts;
+    attempt += 1
+  ) {
+    try {
+      const response = await paidFetch(
+        `${appUrl}/api/x402/products/${action.productSlug}/call`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'x-app-agent-run-id': runId
+          },
+          body: JSON.stringify(action.requestPayload)
+        }
+      )
+      const paymentResult = await httpClient
+        .processResponse(response.clone())
+        .catch(() => null)
+      const body = await readJsonResponse(response)
+
+      if (!response.ok) {
+        throw new Error(describePaidCallFailure(response, body, paymentResult))
+      }
+
+      attempts.push({
+        attempt,
+        functionName: 'x402Payment',
+        status: 'succeeded',
+        message: 'x402 payment settled and the provider request was accepted.',
+        createdAt: new Date().toISOString()
+      })
+
+      await onProgress?.(body as PaidProductCallResponse)
+      acceptedResult = body as PaidProductCallResponse
+
+      break
+    } catch (error) {
+      const message = describeTransactionError(error)
+      const shouldRetry =
+        attempt < agentPaymentTransactionMaxAttempts &&
+        isRetryableAgentPaymentTransactionError(message)
+      const retryDelayMs = shouldRetry
+        ? getAgentPaymentRetryDelayMs(attempt)
+        : undefined
+
+      attempts.push({
+        attempt,
+        functionName: 'x402Payment',
+        status: 'failed',
+        message,
+        retryDelayMs,
+        createdAt: new Date().toISOString()
+      })
+
+      if (!shouldRetry) {
+        throw new AgentPaymentTransactionError(message, attempts)
+      }
+
+      await delay(retryDelayMs ?? 0)
+    }
   }
 
-  await onProgress?.(body as PaidProductCallResponse)
+  if (!acceptedResult) {
+    throw new AgentPaymentTransactionError(
+      `x402 payment failed after ${agentPaymentTransactionMaxAttempts} attempts.`,
+      attempts
+    )
+  }
 
-  return await waitForPaidProductCompletion({
-    appUrl,
-    initial: body as PaidProductCallResponse,
-    onProgress
-  })
+  return {
+    result: await waitForPaidProductCompletion({
+      appUrl,
+      initial: acceptedResult,
+      onProgress
+    }),
+    attempts
+  }
 }
 
 type PaidProductCallResponse = {
@@ -1042,33 +1131,221 @@ async function returnAgentSignerMusdToVault(amount: bigint) {
     chain: defaultAppChain.viemChain,
     transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
   })
-  const txHash = await walletClient
-    .writeContract({
-      address: paymentTokenAddress as Address,
-      abi: musdAgentAbi,
-      functionName: 'transfer',
-      args: [vaultAddress, amount]
-    })
-    .catch(error => {
-      throw new Error(
-        `Agent signer could not return unused MUSD to the vault. The signer may need ${defaultAppChain.nativeCurrency.symbol} gas on ${defaultAppChain.shortName}. ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      )
-    })
-  const receipt = await agentPublicClient.waitForTransactionReceipt({
-    hash: txHash
+  const data = encodeFunctionData({
+    abi: musdAgentAbi,
+    functionName: 'transfer',
+    args: [vaultAddress, amount]
   })
-
-  if (receipt.status !== 'success') {
-    throw new Error(`Agent signer MUSD return transaction reverted: ${txHash}`)
-  }
+  const { txHash, explorerUrl, attempts } = await sendAgentSignerTransaction({
+    account,
+    walletClient,
+    functionName: 'signerMusdReturn',
+    to: paymentTokenAddress as Address,
+    data,
+    confirmedMessage:
+      'Agent signer returned unused MUSD to the agent run vault.',
+    failureMessage: `Agent signer could not return unused MUSD to the vault. The signer may need ${defaultAppChain.nativeCurrency.symbol} gas on ${defaultAppChain.shortName}.`
+  })
 
   return {
     txHash,
-    explorerUrl: buildExplorerUrl(txHash),
-    attempts: []
-  } satisfies AgentVaultWriteResult
+    explorerUrl,
+    attempts
+  }
+}
+
+async function sendAgentSignerTransaction({
+  account,
+  walletClient,
+  functionName,
+  to,
+  data,
+  confirmedMessage,
+  failureMessage
+}: {
+  account: PrivateKeyAccount
+  walletClient: ReturnType<typeof createWalletClient>
+  functionName: string
+  to: Address
+  data: Hex
+  confirmedMessage: string
+  failureMessage: string
+}) {
+  const attempts: AgentAction['vaultSpendAttempts'] = []
+  const gasLimit = getBufferedContractWriteGasLimit({ data })
+
+  for (
+    let attempt = 1;
+    attempt <= agentPaymentTransactionMaxAttempts;
+    attempt += 1
+  ) {
+    let txHash: Hex | null = null
+
+    try {
+      txHash = await walletClient.sendTransaction({
+        account,
+        chain: defaultAppChain.viemChain,
+        to,
+        data,
+        gas: gasLimit
+      })
+      const receipt = await agentPublicClient.waitForTransactionReceipt({
+        hash: txHash
+      })
+
+      if (receipt.status !== 'success') {
+        throw new Error(`${functionName} transaction reverted: ${txHash}`)
+      }
+
+      const explorerUrl = buildExplorerUrl(txHash)
+
+      attempts.push({
+        attempt,
+        functionName,
+        status: 'succeeded',
+        message: confirmedMessage,
+        gasLimit: gasLimit.toString(),
+        txHash,
+        explorerUrl,
+        createdAt: new Date().toISOString()
+      })
+
+      return {
+        txHash,
+        explorerUrl,
+        attempts
+      }
+    } catch (error) {
+      const message = describeTransactionError(error)
+      const shouldRetry =
+        !txHash &&
+        attempt < agentPaymentTransactionMaxAttempts &&
+        isRetryableAgentPaymentTransactionError(message)
+      const retryDelayMs = shouldRetry
+        ? getAgentPaymentRetryDelayMs(attempt)
+        : undefined
+
+      attempts.push({
+        attempt,
+        functionName,
+        status: 'failed',
+        message,
+        gasLimit: gasLimit.toString(),
+        txHash,
+        retryDelayMs,
+        createdAt: new Date().toISOString()
+      })
+
+      if (!shouldRetry) {
+        throw new AgentPaymentTransactionError(
+          `${failureMessage} ${message}`,
+          attempts
+        )
+      }
+
+      await delay(retryDelayMs ?? 0)
+    }
+  }
+
+  throw new AgentPaymentTransactionError(
+    `${failureMessage} Transaction failed after ${agentPaymentTransactionMaxAttempts} attempts.`,
+    attempts
+  )
+}
+
+class AgentPaymentTransactionError extends Error {
+  attempts: AgentAction['vaultSpendAttempts']
+
+  constructor(message: string, attempts: AgentAction['vaultSpendAttempts']) {
+    super(message)
+    this.name = 'AgentPaymentTransactionError'
+    this.attempts = attempts
+  }
+}
+
+function getAgentPaymentTransactionAttempts(error: unknown) {
+  return error instanceof AgentPaymentTransactionError
+    ? (error.attempts ?? [])
+    : []
+}
+
+function getAgentTransactionAttempts(error: unknown) {
+  return [
+    ...getAgentRunVaultWriteAttempts(error),
+    ...getAgentPaymentTransactionAttempts(error)
+  ]
+}
+
+function buildAgentX402Signer(account: PrivateKeyAccount): ClientEvmSigner {
+  return {
+    address: account.address,
+    signTypedData: message =>
+      account.signTypedData(
+        message as Parameters<typeof account.signTypedData>[0]
+      ),
+    readContract: args => agentPublicClient.readContract(args),
+    getTransactionCount: args =>
+      agentPublicClient.getTransactionCount({ address: args.address }),
+    estimateFeesPerGas: () => agentPublicClient.estimateFeesPerGas(),
+    signTransaction: args =>
+      account.signTransaction({
+        ...args,
+        gas: getBufferedContractWriteGasLimit({
+          data: args.data,
+          estimatedGas: args.gas,
+          minimumGas: args.gas
+        })
+      } as Parameters<typeof account.signTransaction>[0])
+  }
+}
+
+function isRetryableAgentPaymentTransactionError(message: string) {
+  const lower = message.toLowerCase()
+
+  if (
+    lower.includes('over budget') ||
+    lower.includes('insufficient balance') ||
+    lower.includes('allowance_required') ||
+    lower.includes('invalid signature') ||
+    lower.includes('signatureexpired') ||
+    lower.includes('invalid nonce') ||
+    lower.includes('already used') ||
+    lower.includes('reverted')
+  ) {
+    return false
+  }
+
+  return (
+    lower.includes('gas limit below eip-7623 floor') ||
+    lower.includes('failed to verify the fees') ||
+    lower.includes('missing or invalid parameters') ||
+    lower.includes('invalid_exact_evm_transaction_failed') ||
+    lower.includes('payment settlement failed') ||
+    lower.includes('settlement failed') ||
+    lower.includes('out of gas') ||
+    lower.includes('timeout') ||
+    lower.includes('timed out') ||
+    lower.includes('network') ||
+    lower.includes('connection') ||
+    lower.includes('temporar') ||
+    lower.includes('rate limit') ||
+    lower.includes('429') ||
+    lower.includes('503') ||
+    lower.includes('nonce too low') ||
+    lower.includes('underpriced')
+  )
+}
+
+function getAgentPaymentRetryDelayMs(attempt: number) {
+  return agentPaymentTransactionBaseRetryDelayMs * 2 ** (attempt - 1)
+}
+
+function describeTransactionError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return typeof error === 'string' ? error : 'Transaction failed.'
 }
 
 async function ensureAgentCanPayWithPermit2(amountUsd: number) {
@@ -1084,7 +1361,7 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   )
 
   if (requiredAmount <= 0n) {
-    return
+    return []
   }
 
   const account = privateKeyToAccount(
@@ -1115,7 +1392,7 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   }
 
   if (allowance >= requiredAmount) {
-    return
+    return []
   }
 
   const walletClient = createWalletClient({
@@ -1124,33 +1401,24 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
     transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
   })
   const approval = createPermit2ApprovalTx(tokenAddress)
-  const txHash = await walletClient
-    .sendTransaction({
-      account,
-      chain: defaultAppChain.viemChain,
-      to: approval.to,
-      data: approval.data
-    })
-    .catch(error => {
-      throw new Error(
-        `Agent signer received vault MUSD but could not submit the Permit2 approval. Fund the agent signer with a small amount of ${defaultAppChain.nativeCurrency.symbol} on ${defaultAppChain.shortName} for gas. ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      )
-    })
-  const receipt = await agentPublicClient.waitForTransactionReceipt({
-    hash: txHash
+  const result = await sendAgentSignerTransaction({
+    account,
+    walletClient,
+    functionName: 'permit2Approval',
+    to: approval.to,
+    data: approval.data,
+    confirmedMessage:
+      'Agent signer Permit2 allowance was approved for x402 settlement.',
+    failureMessage: `Agent signer received vault MUSD but could not submit the Permit2 approval. Fund the agent signer with a small amount of ${defaultAppChain.nativeCurrency.symbol} on ${defaultAppChain.shortName} for gas.`
   })
-
-  if (receipt.status !== 'success') {
-    throw new Error(`Agent MUSD Permit2 approval failed: ${txHash}`)
-  }
 
   await waitForAgentPermit2Allowance({
     tokenAddress,
     ownerAddress: account.address,
     requiredAmount
   })
+
+  return result.attempts
 }
 
 async function waitForAgentPermit2Allowance({

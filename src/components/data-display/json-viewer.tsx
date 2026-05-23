@@ -129,7 +129,7 @@ export function JsonViewer({
       <div className={cn('max-w-full min-w-0 border-t p-4', toneClasses.body)}>
         <pre
           className={cn(
-            'max-w-full min-w-0 overflow-x-auto overflow-y-auto rounded-lg p-4 text-xs leading-6 [overflow-wrap:anywhere] break-all whitespace-pre-wrap',
+            'max-w-full min-w-0 overflow-x-hidden overflow-y-auto rounded-lg p-4 text-xs leading-6 [overflow-wrap:anywhere] break-all whitespace-pre-wrap',
             toneClasses.pre,
             maxHeightClassName
           )}
