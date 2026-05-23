@@ -683,9 +683,11 @@ Before creating a new helper or service file:
   retry retryable pre-response settlement and gateway failures three times with
   fresh signed payloads; once a paid endpoint returns a provider/order response,
   the gateway does not submit a second x402 payment for the same vault advance.
-  Escrow reserve, release, and refund writes use the same floor-safe gas buffer
-  and retryable RPC backoff policy as other server-submitted payment
-  transactions. Async provider failures with transient HTTP status codes or
+  Escrow reserve, release, and refund writes use a higher floor-safe gas budget
+  than simple vault writes because `ApiPaymentEscrow.reservePayment` performs
+  role checks, storage writes, and token balance reads. They retry retryable RPC
+  failures and full-gas receipt reverts before surfacing escrow handoff
+  diagnostics. Async provider failures with transient HTTP status codes or
   transient gateway language stay reserved for up to three provider retries
   before the order becomes terminal and refund recovery begins. Refund recovery
   reads the vault's live spent amount before calling `recordSpendRefund` so

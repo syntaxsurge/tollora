@@ -92,6 +92,7 @@ const publicClient = createPublicClient({
 })
 const escrowWriteMaxAttempts = 3
 const escrowWriteBaseRetryDelayMs = 750
+const escrowWriteMinimumGas = 750_000n
 
 export function shouldUseApiPaymentEscrow(product: EscrowableProduct) {
   return (
@@ -257,16 +258,22 @@ async function writeEscrow({
 
   let retryMinimumGas: bigint | undefined
   let lastError: unknown
+  let attemptsUsed = 0
 
   for (let attempt = 1; attempt <= escrowWriteMaxAttempts; attempt += 1) {
+    attemptsUsed = attempt
+    let gasLimit: bigint | undefined
+
     try {
+      gasLimit = getBufferedContractWriteGasLimit({
+        data: gasRequest.data,
+        estimatedGas: gasRequest.gas,
+        minimumGas: maxBigInt(escrowWriteMinimumGas, retryMinimumGas ?? 0n)
+      })
+
       const txHash = await walletClient.writeContract({
         ...request,
-        gas: getBufferedContractWriteGasLimit({
-          data: gasRequest.data,
-          estimatedGas: gasRequest.gas,
-          minimumGas: retryMinimumGas
-        })
+        gas: gasLimit
       })
 
       const receipt = await publicClient.waitForTransactionReceipt({
@@ -274,6 +281,15 @@ async function writeEscrow({
       })
 
       if (receipt.status !== 'success') {
+        if (receipt.gasUsed >= gasLimit && attempt < escrowWriteMaxAttempts) {
+          retryMinimumGas = gasLimit * 2n
+          lastError = new Error(
+            `${functionName} escrow transaction used the full ${gasLimit.toString()} gas limit and likely ran out of gas: ${txHash}`
+          )
+          await delay(escrowWriteBaseRetryDelayMs * 2 ** (attempt - 1))
+          continue
+        }
+
         throw new Error(`${functionName} transaction reverted: ${txHash}`)
       }
 
@@ -298,9 +314,9 @@ async function writeEscrow({
   }
 
   throw new Error(
-    `${functionName} escrow transaction failed after ${escrowWriteMaxAttempts} attempts. ${describeEscrowWriteError(
-      lastError
-    )}`
+    `${functionName} escrow transaction failed after ${attemptsUsed} ${
+      attemptsUsed === 1 ? 'attempt' : 'attempts'
+    }. ${describeEscrowWriteError(lastError)}`
   )
 }
 
@@ -344,4 +360,10 @@ function describeEscrowWriteError(error: unknown) {
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function maxBigInt(...values: bigint[]) {
+  return values.reduce((currentMax, value) =>
+    value > currentMax ? value : currentMax
+  )
 }

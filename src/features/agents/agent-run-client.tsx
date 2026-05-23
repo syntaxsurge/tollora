@@ -1847,6 +1847,21 @@ function buildActionErrorNotice(
   }
 
   if (
+    lower.includes('reservepayment escrow transaction') ||
+    lower.includes('async_prepaid_handoff_failed') ||
+    lower.includes('could not finish the async provider handoff')
+  ) {
+    return {
+      title: 'Escrow reservation failed',
+      message:
+        'The x402 payment reached the async escrow path, but the gateway could not record the escrow reservation on-chain.',
+      detail:
+        'This only affects prepaid async tools. The gateway uses a higher floor-safe gas limit and retries escrow writes before reporting this failure.',
+      raw
+    }
+  }
+
+  if (
     lower.includes('gas limit below eip-7623 floor') ||
     lower.includes('failed to verify the fees') ||
     lower.includes('invalid_exact_evm_transaction_failed')
