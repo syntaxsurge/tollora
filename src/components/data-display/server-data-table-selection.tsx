@@ -150,15 +150,18 @@ export function ServerDataTableSelection({
       const body = (await response.json().catch(() => null)) as {
         error?: string
         deletedRunIds?: string[]
+        deletedIds?: string[]
       } | null
 
       if (!response.ok) {
         throw new Error(body?.error ?? 'Bulk action failed.')
       }
 
-      removeRowsFromDom(ids)
+      const affectedIds = body?.deletedIds ?? body?.deletedRunIds ?? ids
+
+      removeRowsFromDom(affectedIds)
       removeAgentRunSessionStorage(body?.deletedRunIds ?? ids)
-      updateResultCount(tableId, ids.length)
+      updateResultCount(tableId, affectedIds.length)
       updateSelection([])
       setPendingAction(null)
       router.refresh()

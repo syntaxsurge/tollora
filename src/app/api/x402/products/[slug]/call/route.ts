@@ -20,7 +20,10 @@ import {
 import { getProductBySlug } from '@/features/marketplace/products'
 import { getProviderConfigurationIssue } from '@/features/marketplace/provider-config'
 import { resolveProviderFeeSplit } from '@/features/marketplace/provider-fees'
-import { recordMarketplaceReceipt } from '@/features/marketplace/receipt-store'
+import {
+  getMarketplaceReceiptById,
+  recordMarketplaceReceipt
+} from '@/features/marketplace/receipt-store'
 import {
   buildExplorerUrl,
   buildReceiptAmounts
@@ -29,6 +32,7 @@ import { sanitizeProductRequestPayload } from '@/features/marketplace/request-pa
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
+import { APP_AGENT_RUN_ID_HEADER, APP_ORDER_ID_HEADER } from '@/lib/api/headers'
 import {
   defaultX402FacilitatorUrl,
   paymentTokenSymbol,
@@ -102,8 +106,8 @@ async function handlePaidProductCall(
   rawPayload: unknown
 ) {
   const product = await getProductBySlug(slug)
-  const requestedOrderId = request.headers.get('x-tollora-order-id')
-  const agentRunId = request.headers.get('x-app-agent-run-id') ?? undefined
+  const requestedOrderId = request.headers.get(APP_ORDER_ID_HEADER)
+  const agentRunId = request.headers.get(APP_AGENT_RUN_ID_HEADER) ?? undefined
   const existingOrder = requestedOrderId
     ? await getMarketplaceOrderById(requestedOrderId)
     : undefined
@@ -139,6 +143,26 @@ async function handlePaidProductCall(
     product,
     payload: rawPayload
   })
+
+  if (existingOrder && existingOrder.status !== 'payment_required') {
+    const receipt = existingOrder.receiptId
+      ? await getMarketplaceReceiptById(existingOrder.receiptId)
+      : null
+
+    return NextResponse.json({
+      order: existingOrder,
+      receipt,
+      data: existingOrder.responsePayload ?? {
+        status: existingOrder.status,
+        requestId: existingOrder.requestId,
+        externalJobId: existingOrder.externalJobId,
+        resultUrl: existingOrder.resultUrl
+      },
+      message:
+        'This order already has a settled payment record. Use the order status endpoint to continue polling provider work.'
+    })
+  }
+
   const adapter = new NextRequestAdapter(request, payload)
   const context = {
     adapter,
@@ -1100,6 +1124,23 @@ async function reservePrepaidEscrow({
     'amount' in requirement
       ? BigInt(requirement.amount ?? '0')
       : toAtomicPaymentAmount(resolvedPrice.amountUsd)
+  const existingState = await getEscrowPaymentState(paymentId)
+
+  if (existingState === 'reserved') {
+    return {
+      paymentId,
+      escrowAddress,
+      reserveTxHash: settlement.transaction,
+      reserveExplorerUrl: buildExplorerUrl(settlement.transaction)
+    }
+  }
+
+  if (existingState === 'released' || existingState === 'refunded') {
+    throw new Error(
+      `Escrow payment is already ${existingState}; create a new order before charging this API again.`
+    )
+  }
+
   await waitForEscrowSettlementTransaction(settlement.transaction)
   const reserve = await reserveEscrowPayment({
     paymentId,

@@ -24,6 +24,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { getMarketplaceOrderById } from '@/features/marketplace/orders'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
+import { APP_ORDER_ID_HEADER } from '@/lib/api/headers'
 import {
   defaultAppChain,
   defaultX402FacilitatorUrl,
@@ -81,7 +82,7 @@ async function canPriceProductFromContext(
     return false
   }
 
-  const orderId = context.adapter.getHeader?.('x-tollora-order-id')
+  const orderId = context.adapter.getHeader?.(APP_ORDER_ID_HEADER)
   const order = orderId ? await getMarketplaceOrderById(orderId) : undefined
 
   if (!order || order.productSlug !== product.slug) {
@@ -116,8 +117,7 @@ const paidCallRoute: RouteConfig = {
     },
     maxTimeoutSeconds: x402MaxTimeoutSeconds
   },
-  description:
-    'MUSD-settled Tollora API call on Mezo through the x402 protocol.',
+  description: `${paymentTokenSymbol}-settled API call through the x402 protocol.`,
   mimeType: 'application/json',
   unpaidResponseBody: async context => {
     const product = await requireProductFromContext(context)

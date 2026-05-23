@@ -433,7 +433,9 @@ Before creating a new helper or service file:
 - `POST /api/orders` — validates a buyer API request payload and returns a
   payment-required order record with a stable provider idempotency key for the
   selected marketplace product.
-- `GET /api/orders/[orderId]` — returns an order lifecycle record.
+- `GET /api/orders/[orderId]` — returns an order lifecycle record and reconciles
+  active async provider jobs through the shared provider-status polling helper,
+  persisting the latest polling response or polling error on the order record.
 - `GET /api/orders/[orderId]/provider-status` — polls a provider adapter for
   long-running job status, compares final credit-metered usage with the prepaid
   quote, locks results that require a metered delta, returns the latest provider
@@ -490,9 +492,11 @@ Before creating a new helper or service file:
   — protect product calls with x402, return HTTP 402 payment requirements for
   unpaid requests, quote credit-metered requests before payment, verify and
   settle signed payment-token transfers through the configured facilitator,
-  start credit-metered async provider work only after settlement, send the
-  order's provider idempotency key to upstream POST endpoints, return paid
-  provider responses or pollable job records, and attach receipt metadata.
+  start credit-metered async provider work only after settlement, read the
+  generic `x-app-order-id` header for browser-created order persistence, return
+  settled order records without reserving escrow again, send the order's
+  provider idempotency key to upstream POST endpoints, return paid provider
+  responses or pollable job records, and attach receipt metadata.
 - `POST /api/x402/orders/[orderId]/claim` — protects metered result release with
   x402 when final provider usage exceeds the prepaid quote, settles the delta in
   the configured settlement token, unlocks the stored provider result, and
@@ -560,6 +564,10 @@ Before creating a new helper or service file:
   Server-side query helpers live in `src/lib/table/server-table.ts` and are used
   by agent templates/runs, marketplace products, orders, and provider product
   management.
+- Shared async provider polling lives in
+  `src/features/marketplace/async-provider-polling.ts`; marketplace order detail
+  pages and agent paid actions use the same provider-status polling URL, request
+  shape, compact response capture, and persisted polling-error contract.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with app logo branding, public navigation, theme controls, a
   server-verified admin shortcut for allowlisted active wallets, and an avatar
@@ -815,15 +823,17 @@ Before creating a new helper or service file:
 - `/orders/[orderId]` shows payment, escrow, provider job, result, receipt, and
   metered usage state. Provider responses include a collapsed sanitized upstream
   request trace with method, URL, query/body, redacted headers, response status,
-  selected response headers, and provider response body so provider integrations
-  can be debugged without exposing API secrets.
+  selected response headers, provider response body, and the latest async
+  polling response or polling error so provider integrations can be debugged
+  without exposing API secrets.
 - `/provider` shows the connected wallet's owned provider revenue, API call
   volume, success rate, top product, recent request activity, product listing
   health, production narrative, and tiered provider revenue split.
 - `/provider/products` lists provider API products in the shared server-fed
   table for the connected owner wallet with status context, price, call volume,
-  gateway path, listing links, bulk deletion for owner-created rows, and
-  next-step management actions for drafts, paused listings, and live products.
+  gateway path, bulk deletion for owner-created rows, and per-row overflow
+  actions for managing or deleting individual listings with confirmation
+  dialogs.
 - `/provider/products/new` uses
   `src/features/marketplace/provider-product-form.tsx` and
   `src/features/marketplace/schemas.ts` to validate provider product metadata,

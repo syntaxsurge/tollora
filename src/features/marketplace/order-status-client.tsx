@@ -47,6 +47,7 @@ import {
 } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
 import { useAutoPolling } from '@/hooks/use-auto-polling'
+import { APP_ORDER_ID_HEADER } from '@/lib/api/headers'
 import {
   defaultAppChain,
   getExplorerTransactionUrl,
@@ -324,7 +325,7 @@ function OrderStatusContent({
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'X-App-Order-Id': order.id
+      [APP_ORDER_ID_HEADER]: order.id
     }
 
     try {
@@ -525,7 +526,7 @@ function OrderStatusContent({
               headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
-                'X-App-Order-Id': order.id
+                [APP_ORDER_ID_HEADER]: order.id
               },
               body: order.requestPayloadJson ?? '{}'
             }
@@ -756,18 +757,14 @@ function OrderStatusContent({
     try {
       const { response, body } = await withTransientRetries(
         async () => {
-          const nextResponse = await fetch(
-            `/api/orders/${order.id}/provider-status`,
-            {
-              headers: {
-                Accept: 'application/json'
-              }
+          const nextResponse = await fetch(`/api/orders/${order.id}`, {
+            headers: {
+              Accept: 'application/json'
             }
-          )
-          const nextBody = (await readResponseBody(nextResponse)) as {
-            error?: string
-            order?: MarketplaceOrder
-          }
+          })
+          const nextBody = (await readResponseBody(nextResponse)) as
+            | (MarketplaceOrder & { error?: string })
+            | { error?: string }
 
           return { response: nextResponse, body: nextBody }
         },
@@ -781,18 +778,20 @@ function OrderStatusContent({
         }
       )
 
-      if (!response.ok || !body.order) {
+      if (!response.ok || !isMarketplaceOrder(body)) {
         throw new Error(body.error ?? 'Unable to refresh provider job status.')
       }
 
-      setOrder(body.order)
-      storeMarketplaceOrderSnapshot(body.order)
+      setOrder(body)
+      storeMarketplaceOrderSnapshot(body)
       setStatus(
-        body.order.status === 'completed'
+        body.status === 'completed'
           ? 'Provider job completed. The API response is ready.'
-          : body.order.resultReleaseStatus === 'provider_retrying'
+          : body.resultReleaseStatus === 'provider_retrying'
             ? 'Provider returned a temporary error. Escrow is still reserved and the gateway will retry.'
-            : `Provider job is ${orderStatusLabels[body.order.status].toLowerCase()}.`
+            : body.asyncPollingError
+              ? body.asyncPollingError.message
+              : `Provider job is ${orderStatusLabels[body.status].toLowerCase()}.`
       )
     } catch (caughtError) {
       setStatus(
@@ -1499,6 +1498,19 @@ function ProviderResponsePanel({
         </div>
       ) : null}
 
+      {order.asyncPollingError ? (
+        <div className='border-destructive/35 bg-destructive/10 rounded-lg border p-4'>
+          <p className='font-semibold'>Latest polling error</p>
+          <p className='text-foreground/70 mt-1 text-sm leading-6'>
+            {order.asyncPollingError.message}
+          </p>
+          <p className='text-foreground/60 mt-2 text-xs'>
+            Last checked{' '}
+            {new Date(order.asyncPollingError.polledAt).toLocaleString()}
+          </p>
+        </div>
+      ) : null}
+
       {order.status === 'failed' ? (
         <div className='border-destructive/35 bg-destructive/10 rounded-lg border p-4'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
@@ -1544,6 +1556,16 @@ function ProviderResponsePanel({
           defaultOpen={false}
           maxHeightClassName='max-h-[28rem]'
           copyLabel='Copy trace'
+        />
+      ) : null}
+
+      {order.latestAsyncPollingResponse ? (
+        <JsonViewer
+          title='Async polling response'
+          value={order.latestAsyncPollingResponse}
+          defaultOpen={Boolean(order.asyncPollingError)}
+          maxHeightClassName='max-h-[28rem]'
+          copyLabel='Copy polling response'
         />
       ) : null}
 
@@ -2000,6 +2022,16 @@ function canRetryProviderCall(order: MarketplaceOrder) {
   )
 }
 
+function isMarketplaceOrder(value: unknown): value is MarketplaceOrder {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof (value as Partial<MarketplaceOrder>).id === 'string' &&
+      typeof (value as Partial<MarketplaceOrder>).productSlug === 'string' &&
+      typeof (value as Partial<MarketplaceOrder>).status === 'string'
+  )
+}
+
 function isPermit2AllowanceError(
   response: Response,
   body: PaidApiErrorBody,
@@ -2183,7 +2215,7 @@ async function requestPaymentRequirement(order: MarketplaceOrder) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'X-App-Order-Id': order.id
+      [APP_ORDER_ID_HEADER]: order.id
     },
     body: order.requestPayloadJson ?? '{}'
   })

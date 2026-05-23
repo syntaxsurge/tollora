@@ -13,6 +13,10 @@ import type {
   AgentRun,
   CreateAgentRunInput
 } from '@/features/agents/types'
+import {
+  buildProviderStatusPollingRequest,
+  buildProviderStatusPollingUrl
+} from '@/features/marketplace/async-provider-polling'
 import { buildExplorerUrl } from '@/features/marketplace/receipts'
 import {
   getAgentRunBytes32,
@@ -106,13 +110,14 @@ export async function syncAgentRunAsyncProviderStatus(
     return canonicalRun
   }
 
-  const pollingUrl = `${appUrl}/api/orders/${encodeURIComponent(syncableAction.orderId)}/provider-status`
-  const pollingRequest = {
-    method: 'GET',
-    url: pollingUrl,
-    headers: { Accept: 'application/json' },
-    params: { orderId: syncableAction.orderId }
-  }
+  const pollingUrl = buildProviderStatusPollingUrl(
+    appUrl,
+    syncableAction.orderId
+  )
+  const pollingRequest = buildProviderStatusPollingRequest(
+    pollingUrl,
+    syncableAction.orderId
+  )
   const response = await fetch(pollingUrl, {
     headers: pollingRequest.headers
   }).catch(() => null)

@@ -34,6 +34,12 @@ import type {
   AgentAsyncPollingResponse,
   AgentRun
 } from '@/features/agents/types'
+import {
+  type AsyncProviderPollingRequest,
+  buildMarketplaceAsyncPollingResponse,
+  buildProviderStatusPollingRequest,
+  buildProviderStatusPollingUrl
+} from '@/features/marketplace/async-provider-polling'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
 import {
@@ -839,13 +845,11 @@ async function waitForPaidProductCompletion({
       await delay(asyncProviderPollIntervalMs)
     }
 
-    const pollingUrl = `${appUrl}/api/orders/${encodeURIComponent(String(order?.id))}/provider-status`
-    const pollingRequest = {
-      method: 'GET',
-      url: pollingUrl,
-      headers: { Accept: 'application/json' },
-      params: { orderId: String(order?.id ?? '') }
-    }
+    const pollingUrl = buildProviderStatusPollingUrl(appUrl, String(order?.id))
+    const pollingRequest = buildProviderStatusPollingRequest(
+      pollingUrl,
+      String(order?.id ?? '')
+    )
     const response = await fetch(pollingUrl, {
       headers: pollingRequest.headers
     })
@@ -911,28 +915,26 @@ function buildAsyncPollingResponse({
 }: {
   attempt: number
   pollingUrl: string
-  request: AgentAsyncPollingResponse['request']
+  request: AsyncProviderPollingRequest
   httpStatus: number
   body: ProviderStatusResponse
 }): AgentAsyncPollingResponse {
-  const resultUrl =
-    body.order?.resultUrl ??
-    body.provider?.resultUrl ??
-    extractResultUrl(body.order?.responsePayload) ??
-    extractResultUrl(body.provider?.responsePayload)
-
-  return {
-    id: `poll_${Date.now().toString(36)}_${attempt}`,
+  const poll = buildMarketplaceAsyncPollingResponse({
     attempt,
-    polledAt: new Date().toISOString(),
     pollingUrl,
     request,
     httpStatus,
-    orderStatus: body.order?.status,
-    resultReleaseStatus: body.order?.resultReleaseStatus,
-    externalJobId: body.order?.externalJobId ?? body.provider?.externalJobId,
-    resultUrl,
-    response: compactProviderStatusResponse(body)
+    body
+  })
+
+  return {
+    ...poll,
+    request,
+    httpStatus,
+    response:
+      poll.response && typeof poll.response === 'object'
+        ? (poll.response as Record<string, unknown>)
+        : compactProviderStatusResponse(body)
   }
 }
 

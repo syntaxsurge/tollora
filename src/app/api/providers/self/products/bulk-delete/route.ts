@@ -23,10 +23,18 @@ export async function POST(request: Request) {
   const ownerWallet = cookieStore.get(WALLET_ADDRESS_COOKIE)?.value
   const deleted = (
     await Promise.all(ids.map(id => deleteProviderProduct(id, ownerWallet)))
-  ).filter(Boolean)
+  ).filter(
+    (
+      product
+    ): product is NonNullable<
+      Awaited<ReturnType<typeof deleteProviderProduct>>
+    > => Boolean(product)
+  )
+  const deletedIds = deleted.map(product => product.slug)
 
   return NextResponse.json({
     deleted: deleted.length,
-    requested: ids.length
+    requested: ids.length,
+    deletedIds
   })
 }
