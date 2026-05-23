@@ -373,20 +373,22 @@ async function executeAgentAction(
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   } catch (caughtError) {
-    const refundedAdvance = advanced
-      ? await refundAgentVaultAdvance({
-          runId: run.id,
-          action: advanced,
-          amountUsd: quotedPrice.amountUsd,
-          amountLabel: quotedPrice.amountLabel
-        }).catch(error => ({
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Unable to return the advanced vault spend.',
-          attempts: getAgentTransactionAttempts(error)
-        }))
-      : null
+    const escrowHandoffFailure = isAsyncEscrowHandoffFailure(caughtError)
+    const refundedAdvance =
+      advanced && !escrowHandoffFailure
+        ? await refundAgentVaultAdvance({
+            runId: run.id,
+            action: advanced,
+            amountUsd: quotedPrice.amountUsd,
+            amountLabel: quotedPrice.amountLabel
+          }).catch(error => ({
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to return the advanced vault spend.',
+            attempts: getAgentTransactionAttempts(error)
+          }))
+        : null
     const refundError =
       refundedAdvance && 'error' in refundedAdvance
         ? refundedAdvance.error
@@ -414,6 +416,9 @@ async function executeAgentAction(
         caughtError instanceof Error
           ? caughtError.message
           : 'The paid x402 request failed.',
+        escrowHandoffFailure
+          ? 'The x402 settlement already moved the advanced MUSD out of the agent signer, so the gateway did not try to return funds from the signer. Retry escrow reservation with the floor-safe escrow gas path or reconcile the escrow balance before refunding the vault.'
+          : undefined,
         refundError
           ? `the gateway advanced this action from the vault, but could not return the unused signer funds: ${refundError}`
           : undefined
@@ -1403,6 +1408,17 @@ function describeTransactionError(error: unknown) {
   }
 
   return typeof error === 'string' ? error : 'Transaction failed.'
+}
+
+function isAsyncEscrowHandoffFailure(error: unknown) {
+  const message = describeTransactionError(error).toLowerCase()
+
+  return (
+    message.includes('reservepayment escrow transaction') ||
+    message.includes('async paid product call failed') ||
+    message.includes('async_prepaid_handoff_failed') ||
+    message.includes('could not finish the async provider handoff')
+  )
 }
 
 async function describeAgentPaidCallError(error: unknown, action: AgentAction) {

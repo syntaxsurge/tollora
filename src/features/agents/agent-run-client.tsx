@@ -1100,7 +1100,7 @@ function RunStatusMessage({ run, status }: { run: AgentRun; status: string }) {
   if (!notice) {
     return (
       <p
-        className='border-border bg-muted/35 rounded-lg border p-3 text-sm leading-6 [overflow-wrap:anywhere] break-words'
+        className='border-border bg-muted/35 rounded-lg border p-3 text-sm leading-6 [overflow-wrap:anywhere]'
         role='status'
       >
         {status}
@@ -1697,7 +1697,7 @@ function PaymentAttemptPanel({
                 {attempt.status}
               </span>
             </div>
-            <p className='text-foreground/65 mt-2 text-sm leading-6 [overflow-wrap:anywhere] break-words'>
+            <p className='text-foreground/65 mt-2 text-sm leading-6 [overflow-wrap:anywhere]'>
               {attempt.message}
             </p>
             {attempt.explorerUrl && attempt.txHash ? (
@@ -1724,7 +1724,7 @@ function ActionMetric({ label, value }: { label: string; value: string }) {
       <p className='text-foreground/55 text-[0.68rem] font-semibold tracking-[0.12em] uppercase'>
         {label}
       </p>
-      <p className='mt-1 text-sm font-semibold [overflow-wrap:anywhere] break-words'>
+      <p className='mt-1 text-sm font-semibold [overflow-wrap:anywhere]'>
         {value}
       </p>
     </div>
@@ -1831,6 +1831,21 @@ function buildActionErrorNotice(
   }
 
   if (
+    lower.includes('reservepayment escrow transaction') ||
+    lower.includes('async_prepaid_handoff_failed') ||
+    lower.includes('could not finish the async provider handoff')
+  ) {
+    return {
+      title: 'Escrow reservation failed',
+      message:
+        'The x402 payment reached the async escrow path, but the gateway could not record the escrow reservation on-chain.',
+      detail:
+        'This only affects prepaid async tools. The gateway uses a higher floor-safe gas limit and retries escrow writes before reporting this failure.',
+      raw
+    }
+  }
+
+  if (
     lower.includes('permit2_insufficient_balance') ||
     lower.includes('agent signer does not have enough musd') ||
     lower.includes('agent signer cannot return unused musd') ||
@@ -1842,21 +1857,6 @@ function buildActionErrorNotice(
       message:
         'The vault advanced this tool budget to the backend agent signer, but the signer did not have enough MUSD available for settlement or refund recovery.',
       detail: `This is separate from your connected wallet's ${defaultAppChain.nativeCurrency.symbol} balance. Check AGENT_SPENDER_PRIVATE_KEY, the signer MUSD balance, Permit2 allowance, and whether another failed or concurrent run consumed the signer funds before retrying.`,
-      raw
-    }
-  }
-
-  if (
-    lower.includes('reservepayment escrow transaction') ||
-    lower.includes('async_prepaid_handoff_failed') ||
-    lower.includes('could not finish the async provider handoff')
-  ) {
-    return {
-      title: 'Escrow reservation failed',
-      message:
-        'The x402 payment reached the async escrow path, but the gateway could not record the escrow reservation on-chain.',
-      detail:
-        'This only affects prepaid async tools. The gateway uses a higher floor-safe gas limit and retries escrow writes before reporting this failure.',
       raw
     }
   }

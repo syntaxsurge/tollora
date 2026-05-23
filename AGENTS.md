@@ -649,8 +649,11 @@ Before creating a new helper or service file:
   hosted x402 call from the same origin that triggered the run. If a
   pre-settlement failure occurs after the vault advance, or if an escrowed
   provider failure refunds the x402 payment back to the signer, the gateway
-  returns the settlement token to the vault and records `recordSpendRefund`;
-  unrecovered settlement or refund failures stay counted as spent and remain
+  returns the settlement token to the vault and records `recordSpendRefund`; if
+  x402 settlement already moved funds from the signer to async escrow but escrow
+  accounting cannot be recorded, the gateway does not attempt a signer return
+  and instead keeps the action spent with escrow handoff diagnostics.
+  Unrecovered settlement or refund failures stay counted as spent and remain
   visible in diagnostics. Running executions persist planner and per-action
   progress as tools move from quoted to paid to terminal states, and the run
   detail client auto-polls `GET /api/agents/runs/[runId]` while the run is
