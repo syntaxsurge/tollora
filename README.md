@@ -139,6 +139,20 @@ Vercel CLI login flow uses browser-based OAuth device authorization; do not pass
 an email address or deprecated provider flags to the login command. If using the
 global `vercel` command directly, update it with `npm i -g vercel@latest`.
 
+Manage Vercel project environment variables with the CLI:
+
+```bash
+pnpm exec vercel env ls
+pnpm exec vercel env add NEXT_PUBLIC_CONVEX_URL production --force
+pnpm exec vercel env add AGENT_LLM_API_KEY production --force
+pnpm exec vercel env pull .env.local
+pnpm exec vercel --prod
+```
+
+Use `vercel env add <name> production --force` to create or update a production
+variable. Redeploy with `pnpm exec vercel --prod` after environment changes so
+the new values are available to the build and runtime.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` and configure the values for your local
