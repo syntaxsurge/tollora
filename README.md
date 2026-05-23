@@ -163,8 +163,11 @@ pnpm vercel:env:sync:production
 
 Use `pnpm vercel:env:sync:preview` or `pnpm vercel:env:sync:development` to
 reset those Vercel environments without a production redeploy. The sync script
-only touches keys present in `.env.local`; remove extra Vercel-only keys
-manually with `pnpm exec vercel env rm <KEY> production --yes`.
+requires an existing Vercel project link and never pulls Vercel env values into
+`.env.local`. If the project is not linked yet, run `pnpm exec vercel link`
+first and do not pull environment variables when prompted. The sync script only
+touches keys present in `.env.local`; remove extra Vercel-only keys manually
+with `pnpm exec vercel env rm <KEY> production --yes`.
 
 ## Environment
 

@@ -980,7 +980,8 @@ Before creating a new helper or service file:
   repository pushes can create deployments unless the Vercel project dashboard
   disables deployments for a branch. Vercel environment resets from `.env.local`
   use `scripts/sync-vercel-env.cjs` through the `vercel:env:sync:*` package
-  scripts.
+  scripts; the sync script requires an existing Vercel project link and does not
+  pull remote environment variables into `.env.local`.
 - Theme switching using `next-themes` with class-based dark mode.
 
 ## Core Commands

@@ -8,6 +8,7 @@ const args = process.argv.slice(2)
 const target = args.find(arg => !arg.startsWith('--')) || 'production'
 const shouldDeploy = args.includes('--deploy')
 const envPath = '.env.local'
+const vercelProjectFiles = ['.vercel/project.json', '.vercel/repo.json']
 
 if (!validTargets.has(target)) {
   console.error(
@@ -21,6 +22,13 @@ if (!fs.existsSync(envPath)) {
   process.exit(1)
 }
 
+if (!vercelProjectFiles.some(file => fs.existsSync(file))) {
+  console.error(
+    'This workspace is not linked to a Vercel project. Run `pnpm exec vercel link` first and choose not to pull environment variables.'
+  )
+  process.exit(1)
+}
+
 const parsed = dotenv.parse(fs.readFileSync(envPath))
 const entries = Object.entries(parsed)
 
@@ -28,8 +36,6 @@ if (entries.length === 0) {
   console.error(`${envPath} does not contain any environment variables.`)
   process.exit(1)
 }
-
-runVercel(['link'])
 
 for (const key of Object.keys(parsed)) {
   runVercel(['env', 'rm', key, target, '--yes'])
