@@ -391,7 +391,9 @@ function AgentRunContent({
       setStatus(
         body.status === 'completed'
           ? 'Agent run completed paid actions and prepared deliverables.'
-          : body.summary
+          : body.status === 'failed'
+            ? body.summary
+            : ''
       )
     } catch (caughtError) {
       setStatus(
@@ -503,6 +505,7 @@ function AgentRunContent({
     run.fundingStatus === 'refund_available' &&
     run.availableAmountMusd !== '0.00 MUSD'
   const finalOutputs = collectFinalOutputs(run)
+  const runControlStatus = getVisibleRunControlStatus(run, status)
 
   return (
     <div className='space-y-5'>
@@ -517,7 +520,7 @@ function AgentRunContent({
         <RunControlPanel
           run={run}
           address={address}
-          status={status}
+          status={runControlStatus}
           isFunding={isFunding}
           isRunning={isRunning}
           isRefunding={isRefunding}
@@ -1110,6 +1113,37 @@ function collectRefundLinks(run: AgentRun) {
   }
 
   return links
+}
+
+function getVisibleRunControlStatus(run: AgentRun, status: string) {
+  if (!status) {
+    return ''
+  }
+
+  const notice = buildRunErrorNotice(status, run)
+
+  if (!notice) {
+    return status
+  }
+
+  if (shouldSuppressRecoveredRunError(run)) {
+    return ''
+  }
+
+  return status
+}
+
+function shouldSuppressRecoveredRunError(run: AgentRun) {
+  const hasFailedAction = run.actions.some(action => action.status === 'failed')
+
+  if (run.status === 'failed' || hasFailedAction) {
+    return false
+  }
+
+  return (
+    ['running', 'completed', 'attested'].includes(run.status) ||
+    run.actions.some(action => ['quoted', 'paid'].includes(action.status))
+  )
 }
 
 function isRefundStatusMessage(status: string) {

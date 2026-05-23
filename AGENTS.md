@@ -728,8 +728,10 @@ Before creating a new helper or service file:
   deliverable card. Long provider, gateway, and contract failure text stays
   inside expandable copyable diagnostics with user-facing summaries for budget,
   gas-floor, agent signer settlement-token balance, contract, refund, and tool
-  failures; AgentRunVault over-budget errors show funded, spent, available, and
-  attempted tool-spend context before the raw error. Public provider result
+  failures; run-control error banners appear only for failed runs or failed tool
+  actions, so recovered retry errors do not remain visible while tools continue
+  processing. AgentRunVault over-budget errors show funded, spent, available,
+  and attempted tool-spend context before the raw error. Public provider result
   links render as compact host/path previews instead of full-width raw URLs.
   Agent and marketplace snapshots persisted to Convex keep result URLs, job IDs,
   statuses, pricing, and escrow metadata, but compact provider response bodies
