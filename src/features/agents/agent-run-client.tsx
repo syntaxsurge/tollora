@@ -1667,7 +1667,7 @@ function PaymentAttemptPanel({
         </span>
       </summary>
       <div className='border-border/70 grid gap-2 border-t p-3'>
-        {attempts.map(attempt => (
+        {attempts.map((attempt, index) => (
           <div
             key={`${attempt.functionName}-${attempt.attempt}-${attempt.createdAt}`}
             className='border-border/70 bg-background/45 rounded-lg border p-3'
@@ -1675,8 +1675,8 @@ function PaymentAttemptPanel({
             <div className='flex flex-wrap items-start justify-between gap-3'>
               <div className='min-w-0'>
                 <p className='text-sm font-semibold'>
-                  Attempt {attempt.attempt} -{' '}
-                  {humanizePath(attempt.functionName)}
+                  Step {index + 1} - {humanizePath(attempt.functionName)}
+                  {attempt.attempt > 1 ? ` (try ${attempt.attempt})` : ''}
                 </p>
                 <p className='text-foreground/55 mt-1 text-xs'>
                   {new Date(attempt.createdAt).toLocaleString()}
@@ -1735,7 +1735,7 @@ function collectPaymentAttempts(action: AgentRun['actions'][number]) {
   return [
     ...(action.vaultSpendAttempts ?? []),
     ...(action.vaultRefundAttempts ?? [])
-  ]
+  ].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
 }
 
 function formatRetryDelay(delayMs: number) {

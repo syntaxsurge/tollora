@@ -629,7 +629,27 @@ async function callPaidProductWithAgentWallet(
       const body = await readJsonResponse(response)
 
       if (!response.ok) {
-        throw new Error(describePaidCallFailure(response, body, paymentResult))
+        const message = await describeAgentPaidCallError(
+          describePaidCallFailure(response, body, paymentResult),
+          action
+        )
+
+        attempts.push({
+          attempt,
+          functionName: 'x402Payment',
+          status: 'failed',
+          message,
+          createdAt: new Date().toISOString()
+        })
+
+        if (isPaidProductCallResponse(body)) {
+          await onProgress?.(body)
+          acceptedResult = body
+
+          break
+        }
+
+        throw new AgentPaymentTransactionError(message, attempts)
       }
 
       attempts.push({
@@ -689,12 +709,24 @@ async function callPaidProductWithAgentWallet(
 
 type PaidProductCallResponse = {
   order?: Partial<MarketplaceOrder>
-  receipt: MarketplaceReceipt
-  data: Record<string, unknown>
+  receipt?: MarketplaceReceipt
+  data?: Record<string, unknown>
   pricing?: unknown
   provider?: unknown
   x402?: unknown
   escrow?: unknown
+}
+
+function isPaidProductCallResponse(
+  value: unknown
+): value is PaidProductCallResponse {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'order' in value &&
+      value.order &&
+      typeof value.order === 'object'
+  )
 }
 
 type PaidProductProgressHandler = (
@@ -952,20 +984,19 @@ function normalizePaidProductResponse(
   response: PaidProductCallResponse,
   order: PaidProductCallResponse['order']
 ): PaidProductCallResponse {
+  const data = response.data ?? {}
+
   return {
     ...response,
     order,
     data: {
-      ...response.data,
+      ...data,
       order,
-      resultUrl:
-        order?.resultUrl ??
-        extractResultUrl(response.data) ??
-        response.data?.resultUrl,
-      externalJobId: order?.externalJobId ?? response.data?.externalJobId,
-      status: order?.status ?? response.data?.status,
+      resultUrl: order?.resultUrl ?? extractResultUrl(data) ?? data.resultUrl,
+      externalJobId: order?.externalJobId ?? data.externalJobId,
+      status: order?.status ?? data.status,
       resultReleaseStatus:
-        order?.resultReleaseStatus ?? response.data?.resultReleaseStatus
+        order?.resultReleaseStatus ?? data.resultReleaseStatus
     }
   }
 }
