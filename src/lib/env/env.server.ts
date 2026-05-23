@@ -13,7 +13,6 @@ const optionalUrl = z.preprocess(
 const serverSchema = z.object({
   CONVEX_DEPLOYMENT: optionalString,
   X402_FACILITATOR_URL: optionalUrl,
-  X402_FACILITATOR_PRIVATE_KEY: optionalString,
   NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS: optionalString,
   AGENT_SPENDER_PRIVATE_KEY: optionalString,
   AGENT_ATTESTER_PRIVATE_KEY: optionalString,
@@ -27,7 +26,6 @@ const serverSchema = z.object({
 export const envServer = serverSchema.parse({
   CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
   X402_FACILITATOR_URL: process.env.X402_FACILITATOR_URL,
-  X402_FACILITATOR_PRIVATE_KEY: process.env.X402_FACILITATOR_PRIVATE_KEY,
   NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS:
     process.env.NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS,
   AGENT_SPENDER_PRIVATE_KEY: process.env.AGENT_SPENDER_PRIVATE_KEY,

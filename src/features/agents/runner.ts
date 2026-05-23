@@ -55,7 +55,10 @@ import {
   parsePaymentAmountToAtomic,
   writeAgentRunVault
 } from '@/lib/contracts/agent-run-vault'
-import { getBufferedContractWriteGasLimit } from '@/lib/contracts/gas'
+import {
+  extractEip7623FloorGasFromError,
+  getBufferedContractWriteGasLimit
+} from '@/lib/contracts/gas'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 import {
@@ -1172,7 +1175,7 @@ async function sendAgentSignerTransaction({
   failureMessage: string
 }) {
   const attempts: AgentAction['vaultSpendAttempts'] = []
-  const gasLimit = getBufferedContractWriteGasLimit({ data })
+  let retryMinimumGas: bigint | undefined
 
   for (
     let attempt = 1;
@@ -1180,6 +1183,10 @@ async function sendAgentSignerTransaction({
     attempt += 1
   ) {
     let txHash: Hex | null = null
+    const gasLimit = getBufferedContractWriteGasLimit({
+      data,
+      minimumGas: retryMinimumGas
+    })
 
     try {
       txHash = await walletClient.sendTransaction({
@@ -1217,6 +1224,8 @@ async function sendAgentSignerTransaction({
       }
     } catch (error) {
       const message = describeTransactionError(error)
+      retryMinimumGas =
+        extractEip7623FloorGasFromError(error) ?? retryMinimumGas
       const shouldRetry =
         !txHash &&
         attempt < agentPaymentTransactionMaxAttempts &&

@@ -19,7 +19,10 @@ import {
   paymentTokenDecimals,
   paymentTokenAddress
 } from '@/lib/config/chains'
-import { getBufferedContractWriteGasLimit } from '@/lib/contracts/gas'
+import {
+  extractEip7623FloorGasFromError,
+  getBufferedContractWriteGasLimit
+} from '@/lib/contracts/gas'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
 
@@ -311,6 +314,7 @@ export async function writeAgentRunVault({
     transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
   })
   const attempts: AgentVaultWriteAttempt[] = []
+  let retryMinimumGas: bigint | undefined
 
   for (
     let attempt = 1;
@@ -334,7 +338,8 @@ export async function writeAgentRunVault({
       }
       gasLimit = getBufferedContractWriteGasLimit({
         data: gasRequest.data,
-        estimatedGas: gasRequest.gas
+        estimatedGas: gasRequest.gas,
+        minimumGas: retryMinimumGas
       })
       txHash = await walletClient.writeContract({
         ...request,
@@ -368,6 +373,8 @@ export async function writeAgentRunVault({
       }
     } catch (error) {
       const message = describeContractWriteError(error)
+      retryMinimumGas =
+        extractEip7623FloorGasFromError(error) ?? retryMinimumGas
       const shouldRetry =
         !txHash &&
         attempt < agentRunVaultWriteMaxAttempts &&

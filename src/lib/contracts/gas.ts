@@ -5,7 +5,7 @@ const eip7623FloorGasPerToken = 10n
 const eip7623ZeroByteTokens = 1n
 const eip7623NonZeroByteTokens = 4n
 const defaultContractWriteMinimumGas = 100_000n
-const defaultContractWriteGasBufferBps = 1_250n
+const defaultContractWriteGasBufferBps = 1_500n
 const bpsDenominator = 1_000n
 
 export function getBufferedContractWriteGasLimit({
@@ -39,6 +39,28 @@ export function getEip7623FloorGas(data?: Hex) {
   }
 
   return eip7623BaseGas + calldataTokens * eip7623FloorGasPerToken
+}
+
+export function extractEip7623FloorGasFromError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : ''
+  const floorMatch = message.match(
+    /gas limit below eip-7623 floor:\s*\d+\s*\([^)]*\)\s*<\s*(\d+)/i
+  )
+
+  if (!floorMatch?.[1]) {
+    return undefined
+  }
+
+  try {
+    return BigInt(floorMatch[1])
+  } catch {
+    return undefined
+  }
 }
 
 function maxBigInt(...values: bigint[]) {

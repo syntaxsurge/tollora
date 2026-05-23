@@ -674,13 +674,14 @@ Before creating a new helper or service file:
   funding, and escrow reserves must use that token metadata for facilitator
   verification and settlement. Server-submitted vault writes, escrow writes,
   agent-signer Permit2 approvals, and agent-signer settlement-token returns
-  apply an explicit EIP-7623 floor-safe gas limit with a buffer before
+  apply an explicit EIP-7623 floor-safe gas limit with a 1.5x buffer before
   broadcasting to the configured Mezo RPC. Retryable pre-broadcast payment RPC
-  failures use exponential backoff, record each attempt on the action, wait for
-  successful transaction receipts, and avoid retrying after a transaction hash
-  is accepted so vault spends are not duplicated. Agent-paid x402 calls retry
-  retryable settlement failures with fresh signed payloads before provider work
-  is accepted. Refund recovery reads the vault's live spent amount before
+  failures use exponential backoff, promote any returned EIP-7623 floor value to
+  the next retry's minimum gas limit, record each attempt on the action, wait
+  for successful transaction receipts, and avoid retrying after a transaction
+  hash is accepted so vault spends are not duplicated. Agent-paid x402 calls
+  retry retryable settlement failures with fresh signed payloads before provider
+  work is accepted. Refund recovery reads the vault's live spent amount before
   calling `recordSpendRefund` so retries and partially recovered failures do not
   request a larger refund than the current vault state can accept. Direct run
   reads refresh from Convex by run ID before using the in-memory run cache so
@@ -916,11 +917,10 @@ Before creating a new helper or service file:
   `NEXT_PUBLIC_X402_NETWORK`; the resource server in
   `src/lib/x402/payment-resource-server.ts` registers the EVM `exact` scheme,
   protects product call routes, and resolves dollar-denominated prices to the
-  configured payment token. When `X402_FACILITATOR_PRIVATE_KEY` or a compatible
-  server settlement key is configured, the resource server uses an in-process
-  facilitator signer with EIP-7623 floor-safe gas and retryable pre-broadcast
-  settlement retries; otherwise it delegates settlement to
-  `X402_FACILITATOR_URL`.
+  configured payment token. When a compatible server settlement key is
+  configured, the resource server uses an in-process facilitator signer with
+  EIP-7623 floor-safe gas and retryable pre-broadcast settlement retries;
+  otherwise it delegates settlement to `X402_FACILITATOR_URL`.
 - Walkthrough and deployment documentation lives in `docs/demo-script.md` and
   `docs/deployment-checklist.md`.
 - The admin subscriptions page reads SubscriptionManager balance, plan prices,

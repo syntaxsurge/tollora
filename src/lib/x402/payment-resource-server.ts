@@ -33,7 +33,10 @@ import {
 } from '@/lib/config/chains'
 import { siteConfig } from '@/lib/config/site'
 import { getApiPaymentPayTo } from '@/lib/contracts/api-payment-escrow'
-import { getBufferedContractWriteGasLimit } from '@/lib/contracts/gas'
+import {
+  extractEip7623FloorGasFromError,
+  getBufferedContractWriteGasLimit
+} from '@/lib/contracts/gas'
 import { envServer } from '@/lib/env/env.server'
 
 const paidCallPattern = '/api/x402/products/:slug/call'
@@ -297,7 +300,6 @@ function createPaymentFacilitator(): FacilitatorClient {
 
 function getLocalFacilitatorPrivateKey() {
   const privateKey =
-    envServer.X402_FACILITATOR_PRIVATE_KEY ??
     envServer.AGENT_SPENDER_PRIVATE_KEY ??
     envServer.API_ESCROW_OPERATOR_PRIVATE_KEY ??
     envServer.AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY
@@ -336,7 +338,7 @@ function buildLocalFacilitatorSigner(privateKey: string): FacilitatorEvmSigner {
     data: Hex
     estimatedGas?: bigint
   }) {
-    const gas = getBufferedContractWriteGasLimit({ data, estimatedGas })
+    let retryMinimumGas: bigint | undefined
 
     for (
       let attempt = 1;
@@ -344,6 +346,11 @@ function buildLocalFacilitatorSigner(privateKey: string): FacilitatorEvmSigner {
       attempt += 1
     ) {
       let txHash: Hex | null = null
+      const gas = getBufferedContractWriteGasLimit({
+        data,
+        estimatedGas,
+        minimumGas: retryMinimumGas
+      })
 
       try {
         txHash = await walletClient.sendTransaction({
@@ -357,6 +364,8 @@ function buildLocalFacilitatorSigner(privateKey: string): FacilitatorEvmSigner {
         return txHash
       } catch (error) {
         const message = describeFacilitatorTransactionError(error)
+        retryMinimumGas =
+          extractEip7623FloorGasFromError(error) ?? retryMinimumGas
         const shouldRetry =
           !txHash &&
           attempt < facilitatorTransactionMaxAttempts &&
