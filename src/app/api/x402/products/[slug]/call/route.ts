@@ -243,22 +243,9 @@ async function handlePaidProductCall(
           message: describeUnknownError(caughtError),
           guidance:
             'The gateway reached the prepaid async settlement path but could not finish the async provider handoff. The agent will not retry this as a second x402 payment because the first payment may already have settled.',
-          order: {
-            id: orderId,
-            requestId,
-            productSlug: product.slug,
-            productName: product.name,
-            status: 'failed',
-            amountMusd: resolvedPrice.amountLabel,
-            resultReleaseStatus: 'refundable',
-            responsePayload: {
-              error: 'Async paid product call failed.',
-              message: describeUnknownError(caughtError)
-            }
-          },
           data: {
             status: 'failed',
-            resultReleaseStatus: 'refundable'
+            reason: 'async_prepaid_handoff_failed'
           }
         },
         { status: 502 }

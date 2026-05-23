@@ -685,53 +685,56 @@ Before creating a new helper or service file:
   the gateway does not submit a second x402 payment for the same vault advance.
   Escrow reserve, release, and refund writes use the same floor-safe gas buffer
   and retryable RPC backoff policy as other server-submitted payment
-  transactions. Refund recovery reads the vault's live spent amount before
-  calling `recordSpendRefund` so retries and partially recovered failures do not
-  request a larger refund than the current vault state can accept, and it checks
-  the backend agent signer's settlement-token balance before submitting a return
-  transfer so diagnostics distinguish signer MUSD shortages from the owner
-  wallet's native gas balance. Direct run reads refresh from Convex by run ID
-  before using the in-memory run cache so polling clients see the latest
-  persisted progress across server runtimes. Agent action progress records the
-  settled x402 order/receipt and the provider's initial response as soon as the
-  paid request is accepted, then keeps async media actions in `paid` state while
-  polling for the terminal provider output. The latest async provider-status
-  poll is stored on the action with attempt number, timestamp, polling URL,
-  request method, headers, path parameters, HTTP status, order state,
-  result-release state, external job ID, result URL when present, and compact
-  response metadata; each new backend poll replaces the prior visible snapshot
-  instead of growing an unbounded history. The run page refreshes running,
-  attesting, and active paid async runs every eight seconds, reconciles stale
-  paid actions through the provider-status endpoint using the configured public
-  app origin, auto-resumes remaining planned tools after an async action reaches
-  a terminal state, renders the latest async poll as a compact live-status
-  disclosure without poll-number timeline rows, summarizes each tool's quote,
-  phase, vault spend, order, and status in the execution map, and keeps compact
-  request/response JSON inside expandable diagnostics. Receipt, settlement, and
-  vault transaction links render as icon actions on each tool card. Payment
-  transaction attempts render in expandable chronological per-action diagnostics
-  with step numbers, per-step retry numbers, gas limit, retry delay, message,
-  and transaction link when available. Long provider, gateway, and contract
-  failure text stays inside expandable copyable diagnostics with user-facing
-  summaries for budget, gas-floor, agent signer settlement-token balance,
-  contract, refund, and tool failures; AgentRunVault over-budget errors show
-  funded, spent, available, and attempted tool-spend context before the raw
-  error. Public provider result links render as compact host/path previews
-  instead of full-width raw URLs. Agent and marketplace snapshots persisted to
-  Convex keep result URLs, job IDs, statuses, pricing, and escrow metadata, but
-  compact provider response bodies before saving. When `AGENT_LLM_API_KEY` is
-  configured, the agent uses the OpenAI Responses API with `AGENT_LLM_MODEL` or
-  `gpt-5.2` to select tools, generate request payloads, skip unrelated tools,
-  reserve one affordable media tool when the objective or template requires
-  video output, set a budget strategy, and synthesize the final launch pack from
-  completed paid responses and receipts. When no paid action completes in
-  production, the run remains failed and presents diagnostics instead of
-  treating generated copy as verified output. When the key is absent, the
-  deterministic fallback ranks the allowed marketplace tools from the objective
-  and source context while preserving required media-tool selection for video
-  workflows. Both planner modes record the prompt, model or fallback label,
-  rationale, skipped tools, selected tools, funding ledger, and synthesis
-  metadata in run deliverables, action cards, and proof payloads.
+  transactions. Async provider failures with transient HTTP status codes or
+  transient gateway language stay reserved for up to three provider retries
+  before the order becomes terminal and refund recovery begins. Refund recovery
+  reads the vault's live spent amount before calling `recordSpendRefund` so
+  retries and partially recovered failures do not request a larger refund than
+  the current vault state can accept, and it checks the backend agent signer's
+  settlement-token balance before submitting a return transfer so diagnostics
+  distinguish signer MUSD shortages from the owner wallet's native gas balance.
+  Direct run reads refresh from Convex by run ID before using the in-memory run
+  cache so polling clients see the latest persisted progress across server
+  runtimes. Agent action progress records the settled x402 order/receipt and the
+  provider's initial response as soon as the paid request is accepted, then
+  keeps async media actions in `paid` state while polling for the terminal
+  provider output. The latest async provider-status poll is stored on the action
+  with attempt number, timestamp, polling URL, request method, headers, path
+  parameters, HTTP status, order state, result-release state, external job ID,
+  result URL when present, and compact response metadata; each new backend poll
+  replaces the prior visible snapshot instead of growing an unbounded history.
+  The run page refreshes running, attesting, and active paid async runs every
+  eight seconds, reconciles stale paid actions through the provider-status
+  endpoint using the configured public app origin, auto-resumes remaining
+  planned tools after an async action reaches a terminal state, renders the
+  latest async poll as a compact live-status disclosure without poll-number
+  timeline rows, summarizes each tool's quote, phase, vault spend, order, and
+  status in the execution map, and keeps compact request/response JSON inside
+  expandable diagnostics. Receipt, settlement, and vault transaction links
+  render as icon actions on each tool card. Payment transaction attempts render
+  in expandable chronological per-action diagnostics with step numbers, per-step
+  retry numbers, gas limit, retry delay, message, and transaction link when
+  available. Long provider, gateway, and contract failure text stays inside
+  expandable copyable diagnostics with user-facing summaries for budget,
+  gas-floor, agent signer settlement-token balance, contract, refund, and tool
+  failures; AgentRunVault over-budget errors show funded, spent, available, and
+  attempted tool-spend context before the raw error. Public provider result
+  links render as compact host/path previews instead of full-width raw URLs.
+  Agent and marketplace snapshots persisted to Convex keep result URLs, job IDs,
+  statuses, pricing, and escrow metadata, but compact provider response bodies
+  before saving. When `AGENT_LLM_API_KEY` is configured, the agent uses the
+  OpenAI Responses API with `AGENT_LLM_MODEL` or `gpt-5.2` to select tools,
+  generate request payloads, skip unrelated tools, reserve one affordable media
+  tool when the objective or template requires video output, set a budget
+  strategy, and synthesize the final launch pack from completed paid responses
+  and receipts. When no paid action completes in production, the run remains
+  failed and presents diagnostics instead of treating generated copy as verified
+  output. When the key is absent, the deterministic fallback ranks the allowed
+  marketplace tools from the objective and source context while preserving
+  required media-tool selection for video workflows. Both planner modes record
+  the prompt, model or fallback label, rationale, skipped tools, selected tools,
+  funding ledger, and synthesis metadata in run deliverables, action cards, and
+  proof payloads.
 - `/agents` is a tabbed command center that opens on recent runs and also
   exposes a templates tab. Both tabs use separate server-fed tables with search,
   sorting, and pagination; recent runs support current-page row selection and
