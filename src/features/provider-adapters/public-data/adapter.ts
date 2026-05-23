@@ -5,13 +5,21 @@ import type {
 } from '@/features/provider-adapters/types'
 
 const PUBLIC_DATA_TIMEOUT_MS = 15_000
+export const publicDataProductSlugs = new Set([
+  'public-wikipedia-context',
+  'public-hn-trend-scan',
+  'public-github-repo-search',
+  'public-npm-package-signal',
+  'public-openalex-research-scan',
+  'public-gdelt-news-scan'
+])
 
 type FetchJsonResult =
   | { ok: true; status: number; data: unknown }
   | { ok: false; status: number; data: unknown; message: string }
 
 export const publicDataAdapter: ProviderAdapter = {
-  id: 'tollora-public-data',
+  id: 'public-data',
   async call(input) {
     switch (input.productSlug) {
       case 'public-wikipedia-context':
@@ -344,7 +352,11 @@ function completeFromFetch(
     }
   }
 
-  return completedWithUnavailableSource(fallbackMessage, result)
+  return {
+    status: 'failed',
+    errorMessage: `${fallbackMessage} ${result.message}`,
+    responsePayload: result.data
+  }
 }
 
 function failedWithFallback(
@@ -352,42 +364,14 @@ function failedWithFallback(
   primary: FetchJsonResult,
   fallback: FetchJsonResult
 ): ProviderAdapterResult {
-  return completedWithUnavailableSource(
-    `${message} Primary and fallback public data sources were temporarily unavailable.`,
-    {
-      ok: false,
-      status: fallback.status || primary.status,
-      data: { primary, fallback },
-      message: failureMessage(fallback) || failureMessage(primary)
-    }
-  )
-}
-
-function completedWithUnavailableSource(
-  message: string,
-  failure: FetchJsonResult
-): ProviderAdapterResult {
   return {
-    status: 'completed',
+    status: 'failed',
+    errorMessage: `${message} Primary and fallback public data sources failed.`,
     responsePayload: {
-      degraded: true,
-      warning:
-        'The public data source was temporarily unavailable, so Tollora returned a receipt-backed empty result with diagnostics instead of failing the paid action.',
-      message,
-      sourceStatus: failure.status,
-      sourceError: failureMessage(failure),
-      articles: [],
-      hits: [],
-      items: [],
-      objects: [],
-      results: [],
-      primaryFailure: failure.data
+      primary,
+      fallback
     }
   }
-}
-
-function failureMessage(result: FetchJsonResult) {
-  return result.ok ? 'The source returned no usable records.' : result.message
 }
 
 async function fetchJson(url: URL): Promise<FetchJsonResult> {
@@ -395,7 +379,7 @@ async function fetchJson(url: URL): Promise<FetchJsonResult> {
     const response = await fetch(url, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'Tollora public-data gateway (https://tollora.com)'
+        'User-Agent': 'API commerce public-data gateway (https://platform.com)'
       },
       signal: AbortSignal.timeout(PUBLIC_DATA_TIMEOUT_MS)
     })

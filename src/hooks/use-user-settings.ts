@@ -55,12 +55,12 @@ export function useUserSettings(walletAddress?: string | null) {
     }
 
     window.addEventListener('storage', syncSettings)
-    window.addEventListener('tollora:user-settings-updated', syncSettings)
+    window.addEventListener('app:user-settings-updated', syncSettings)
 
     return () => {
       isMounted = false
       window.removeEventListener('storage', syncSettings)
-      window.removeEventListener('tollora:user-settings-updated', syncSettings)
+      window.removeEventListener('app:user-settings-updated', syncSettings)
     }
   }, [normalizedWallet])
 

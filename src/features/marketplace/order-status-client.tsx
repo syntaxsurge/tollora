@@ -46,8 +46,16 @@ import {
   orderStatusLabels
 } from '@/features/marketplace/status'
 import type { MarketplaceOrder } from '@/features/marketplace/types'
-import { useAutoRefresh } from '@/hooks/use-auto-refresh'
-import { defaultAppChain, getExplorerTransactionUrl } from '@/lib/config/chains'
+import { useAutoPolling } from '@/hooks/use-auto-polling'
+import {
+  defaultAppChain,
+  getExplorerTransactionUrl,
+  paymentTokenAddress,
+  paymentTokenDecimals,
+  paymentTokenSymbol,
+  paymentTokenTransferMethod,
+  x402Network
+} from '@/lib/config/chains'
 import { walletProvider } from '@/lib/config/wallet'
 import { cn } from '@/lib/utils/cn'
 import { thirdwebActiveChain, thirdwebClient } from '@/lib/wallet/thirdweb'
@@ -145,9 +153,9 @@ type PaidProductCallBody = PaidApiErrorBody & {
 }
 
 const musdBalanceAbi = parseAbi([
-  'function balanceOf(address owner) view returns (uint256)'
+  'function balanceOf(address owner) view returns (uint256)',
+  'function decimals() view returns (uint8)'
 ])
-const MUSD_DECIMALS = 18
 const ASYNC_JOB_POLL_INTERVAL_MS = 8000
 const TRANSIENT_RETRY_ATTEMPTS = 3
 const TRANSIENT_RETRY_BASE_DELAY_MS = 900
@@ -158,7 +166,7 @@ const asyncJobTerminalStatuses = new Set<MarketplaceOrder['status']>([
   'delta_payment_required'
 ])
 
-const mezoPublicClient = createPublicClient({
+const paymentChainPublicClient = createPublicClient({
   chain: defaultAppChain.viemChain,
   transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
 })
@@ -278,7 +286,7 @@ function OrderStatusContent({
       return
     }
 
-    const saved = window.sessionStorage.getItem(`tollora:order:${orderId}`)
+    const saved = window.sessionStorage.getItem(`app:order:${orderId}`)
 
     if (saved) {
       setOrder(JSON.parse(saved) as MarketplaceOrder)
@@ -286,26 +294,21 @@ function OrderStatusContent({
   }, [order, orderId])
 
   const providerRetrying = order?.resultReleaseStatus === 'provider_retrying'
-  useAutoRefresh({
-    enabled: Boolean(
-      order &&
-        (order.externalJobId || providerRetrying) &&
-        !asyncJobTerminalStatuses.has(order.status)
-    ),
-    intervalMs: providerRetrying
-      ? Math.max(
-          ASYNC_JOB_POLL_INTERVAL_MS,
-          (order?.providerRetry?.retryAfterSeconds ?? 60) * 1000
-        )
-      : ASYNC_JOB_POLL_INTERVAL_MS,
-    onRefresh: pollProviderStatus,
-    refreshKey: [
-      order?.externalJobId,
-      order?.id,
-      order?.providerRetry?.retryAfterSeconds,
-      order?.resultReleaseStatus,
-      order?.status
-    ].join(':')
+  const shouldPollProvider =
+    Boolean(order) &&
+    Boolean(order?.externalJobId || providerRetrying) &&
+    !asyncJobTerminalStatuses.has(order?.status ?? 'failed')
+  const providerPollIntervalMs = providerRetrying
+    ? Math.max(
+        ASYNC_JOB_POLL_INTERVAL_MS,
+        (order?.providerRetry?.retryAfterSeconds ?? 60) * 1000
+      )
+    : ASYNC_JOB_POLL_INTERVAL_MS
+
+  useAutoPolling({
+    enabled: shouldPollProvider,
+    intervalMs: providerPollIntervalMs,
+    onPoll: pollProviderStatus
   })
 
   async function inspectPaymentRequirement() {
@@ -321,7 +324,7 @@ function OrderStatusContent({
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'X-Tollora-Order-Id': order.id
+      'X-App-Order-Id': order.id
     }
 
     try {
@@ -393,7 +396,9 @@ function OrderStatusContent({
       }
 
       setOrder(nextOrder)
-      setStatus('MUSD payment settled and provider response returned.')
+      setStatus(
+        `${paymentTokenSymbol} payment settled and provider response returned.`
+      )
     } catch (caughtError) {
       setStatus(
         caughtError instanceof Error
@@ -445,7 +450,7 @@ function OrderStatusContent({
 
     setIsPaying(true)
     setWalletSteps(createWalletSteps('requirement'))
-    setStatus('Reading the x402 payment requirement from Tollora.')
+    setStatus('Reading the x402 payment requirement from the gateway.')
     setPaymentError('')
     setPaymentRequirements(null)
 
@@ -468,7 +473,7 @@ function OrderStatusContent({
       if (initialRequirement) {
         updateWalletStep('requirement', {
           status: 'complete',
-          detail: 'Tollora returned a payable x402 requirement.'
+          detail: 'the gateway returned a payable x402 requirement.'
         })
         setPaymentRequirements({
           status: initialRequirement.status,
@@ -486,9 +491,11 @@ function OrderStatusContent({
 
       updateWalletStep('signature', {
         status: 'active',
-        detail: 'Confirm the x402 MUSD payment signature in your wallet.'
+        detail: `Confirm the x402 ${paymentTokenSymbol} payment signature in your wallet.`
       })
-      setStatus('Waiting for wallet signature and MUSD settlement.')
+      setStatus(
+        `Waiting for wallet signature and ${paymentTokenSymbol} settlement.`
+      )
 
       const client = registerExactEvmScheme(new x402Client(), {
         signer: walletControls.signer
@@ -506,7 +513,7 @@ function OrderStatusContent({
           status: 'active',
           detail:
             attempt === 0
-              ? 'Confirm the x402 MUSD payment signature in your wallet.'
+              ? `Confirm the x402 ${paymentTokenSymbol} payment signature in your wallet.`
               : `Retrying wallet signature and settlement ${attempt + 1} of ${TRANSIENT_RETRY_ATTEMPTS}.`
         })
 
@@ -518,7 +525,7 @@ function OrderStatusContent({
               headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
-                'X-Tollora-Order-Id': order.id
+                'X-App-Order-Id': order.id
               },
               body: order.requestPayloadJson ?? '{}'
             }
@@ -542,7 +549,7 @@ function OrderStatusContent({
 
             permit2AllowanceRefreshUsed = true
             setStatus(
-              'MUSD approval is confirmed, but the payment retry still needs a refreshed allowance check.'
+              `${paymentTokenSymbol} approval is confirmed, but the payment retry still needs a refreshed allowance check.`
             )
             await sleep(calculateRetryDelay(attempt))
             await ensurePermit2Allowance(
@@ -615,7 +622,7 @@ function OrderStatusContent({
         })
         throw new Error(
           body.error ??
-            'Wallet payment was not completed. Check MUSD balance, network, and signature approval.'
+            `Wallet payment was not completed. Check ${paymentTokenSymbol} balance, network, and signature approval.`
         )
       }
 
@@ -639,8 +646,8 @@ function OrderStatusContent({
       updateWalletStep('settlement', {
         status: 'complete',
         detail: settlementTxHash
-          ? 'MUSD settled on Mezo Testnet.'
-          : 'MUSD settled and Tollora received the paid response.',
+          ? `${paymentTokenSymbol} settled on the configured network.`
+          : `${paymentTokenSymbol} settled and the gateway received the paid response.`,
         txHash: isHexTransactionHash(settlementTxHash)
           ? settlementTxHash
           : undefined
@@ -678,7 +685,7 @@ function OrderStatusContent({
         detail: providerFailed
           ? 'Provider failed after payment settlement. Review refund and provider response details below.'
           : providerRetrying
-            ? 'Provider returned a temporary error. Payment remains reserved in escrow while Tollora retries.'
+            ? 'Provider returned a temporary error. Payment remains reserved in escrow while the gateway retries.'
             : 'Provider response and receipt were saved.'
       })
 
@@ -692,14 +699,14 @@ function OrderStatusContent({
       setStatus(
         providerRetrying
           ? body.message ||
-              'Payment settled, and Tollora is holding escrow while retrying the provider.'
+              'Payment settled, and the gateway is holding escrow while retrying the provider.'
           : providerFailed
             ? body.message ||
               body.error ||
               'Payment settled, but the provider request failed.'
             : settlementTxHash
-              ? `MUSD payment settled on Mezo. Transaction: ${settlementTxHash}`
-              : 'MUSD payment settled and provider response returned.'
+              ? `${paymentTokenSymbol} payment settled on-chain. Transaction: ${settlementTxHash}`
+              : `${paymentTokenSymbol} payment settled and provider response returned.`
       )
       setPaymentError(
         providerFailed
@@ -784,7 +791,7 @@ function OrderStatusContent({
         body.order.status === 'completed'
           ? 'Provider job completed. The API response is ready.'
           : body.order.resultReleaseStatus === 'provider_retrying'
-            ? 'Provider returned a temporary error. Escrow is still reserved and Tollora will retry.'
+            ? 'Provider returned a temporary error. Escrow is still reserved and the gateway will retry.'
             : `Provider job is ${orderStatusLabels[body.order.status].toLowerCase()}.`
       )
     } catch (caughtError) {
@@ -991,7 +998,7 @@ function OrderStatusContent({
       setOrder(nextOrder)
       setStatus(
         receipt?.txHash
-          ? `Metered delta settled on Mezo. Transaction: ${receipt.txHash}`
+          ? `Metered delta settled on-chain. Transaction: ${receipt.txHash}`
           : 'Metered delta settled and the provider result is released.'
       )
     } catch (caughtError) {
@@ -1039,8 +1046,8 @@ function OrderStatusContent({
             <div className='flex flex-col gap-3 sm:items-end'>
               <div className='flex flex-wrap gap-2 sm:justify-end'>
                 <Badge className='w-fit'>x402</Badge>
-                <Badge className='w-fit'>MUSD</Badge>
-                <Badge className='w-fit'>Mezo</Badge>
+                <Badge className='w-fit'>{paymentTokenSymbol}</Badge>
+                <Badge className='w-fit'>Network</Badge>
               </div>
               <div className='flex flex-wrap gap-2 sm:justify-end'>
                 <Button
@@ -1135,7 +1142,7 @@ function createWalletSteps(activeStep?: WalletStepId): WalletStep[] {
     {
       id: 'allowance',
       title: 'Approve',
-      description: 'MUSD ready'
+      description: `${paymentTokenSymbol} ready`
     },
     {
       id: 'signature',
@@ -1305,7 +1312,7 @@ function StatusMessage({
     return (
       <div className='text-foreground/60 mt-3 flex items-center gap-2 text-sm'>
         <ShieldCheck className='h-4 w-4' aria-hidden />
-        <span>First run may ask for MUSD approval.</span>
+        <span>First run may ask for {paymentTokenSymbol} approval.</span>
       </div>
     )
   }
@@ -1456,8 +1463,8 @@ function ProviderResponsePanel({
             <p className='font-semibold'>Metered delta required</p>
             <p className='text-foreground/70 mt-1 text-sm leading-6'>
               Final usage is {order.actualAmountMusd ?? 'above the quote'}. Pay
-              the remaining {order.deltaAmountMusd ?? 'MUSD'} to unlock the
-              completed provider response.
+              the remaining {order.deltaAmountMusd ?? paymentTokenSymbol} to
+              unlock the completed provider response.
             </p>
           </div>
           <Button onClick={onClaim} disabled={isClaiming}>
@@ -1477,7 +1484,7 @@ function ProviderResponsePanel({
         <div className='border-primary/30 bg-primary/10 rounded-lg border p-4'>
           <p className='font-semibold'>Temporary provider outage</p>
           <p className='text-foreground/70 mt-1 text-sm leading-6'>
-            Tollora kept the payment reserved in escrow instead of refunding
+            the gateway kept the payment reserved in escrow instead of refunding
             immediately. Polling will retry until{' '}
             {order.providerRetry?.retryUntil
               ? new Date(order.providerRetry.retryUntil).toLocaleString()
@@ -1587,7 +1594,7 @@ function SettlementLinks({ order }: { order: MarketplaceOrder }) {
       {order.explorerUrl ? (
         <div className='border-foreground/10 rounded-lg border p-4'>
           <p className='text-foreground/60 text-xs uppercase'>
-            Mezo transaction
+            Network transaction
           </p>
           <a
             className='text-primary mt-1 inline-flex max-w-full items-center gap-1 font-semibold break-all underline-offset-4 hover:underline'
@@ -1756,7 +1763,15 @@ function PaymentRequirementCard({
 }: {
   inspection: PaymentRequirementInspection
 }) {
-  const requirement = inspection.paymentRequired?.accepts[0]
+  const requirement = inspection.paymentRequired
+    ? getPreferredPaymentRequirement(inspection.paymentRequired)
+    : undefined
+  const tokenSymbol = requirement
+    ? getRequirementTokenSymbol(requirement)
+    : paymentTokenSymbol
+  const tokenDecimals = requirement
+    ? getRequirementTokenDecimals(requirement)
+    : paymentTokenDecimals
 
   return (
     <Card className='space-y-4'>
@@ -1767,7 +1782,10 @@ function PaymentRequirementCard({
           </p>
           <h2 className='mt-2 text-lg font-semibold'>
             {requirement
-              ? `${formatMusdAmount(BigInt(requirement.amount))} MUSD required`
+              ? `${formatPaymentTokenAmount(
+                  BigInt(requirement.amount),
+                  tokenDecimals
+                )} ${tokenSymbol} required`
               : 'x402 payment requirement returned'}
           </h2>
         </div>
@@ -1901,8 +1919,8 @@ function buildPaidRequestError(
     paymentRequired?.error === 'permit2_allowance_required'
   ) {
     return [
-      'Mezo MUSD settlement still needs Permit2 allowance or sufficient wallet funds.',
-      'Approve the MUSD allowance when prompted, then confirm the wallet has enough MUSD and BTC gas on Mezo Testnet.'
+      `${paymentTokenSymbol} settlement still needs Permit2 allowance or sufficient wallet funds.`,
+      `Approve the ${paymentTokenSymbol} allowance when prompted, then confirm the wallet has enough ${paymentTokenSymbol} and ${defaultAppChain.nativeCurrency.symbol} gas on ${defaultAppChain.shortName}.`
     ].join(' ')
   }
 
@@ -1920,7 +1938,7 @@ function buildPaidRequestError(
         paymentResult.settleResponse.errorReason
       ]
         .filter(Boolean)
-        .join(' ') || 'MUSD settlement failed.'
+        .join(' ') || `${paymentTokenSymbol} settlement failed.`
     )
   }
 
@@ -2165,7 +2183,7 @@ async function requestPaymentRequirement(order: MarketplaceOrder) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'X-Tollora-Order-Id': order.id
+      'X-App-Order-Id': order.id
     },
     body: order.requestPayloadJson ?? '{}'
   })
@@ -2189,7 +2207,7 @@ async function requestPaymentRequirement(order: MarketplaceOrder) {
   const paymentRequired = decodePaymentRequiredHeader(response)
 
   if (!paymentRequired) {
-    throw new Error('Tollora did not return a readable x402 requirement.')
+    throw new Error('the gateway did not return a readable x402 requirement.')
   }
 
   return {
@@ -2227,7 +2245,7 @@ async function requestClaimPaymentRequirement(order: MarketplaceOrder) {
 
   if (!paymentRequired) {
     throw new Error(
-      'Tollora did not return a readable x402 delta payment requirement.'
+      'the gateway did not return a readable x402 delta payment requirement.'
     )
   }
 
@@ -2247,14 +2265,25 @@ async function ensurePermit2Allowance(
 ) {
   onStep('allowance', {
     status: 'active',
-    detail: 'Checking MUSD balance and Permit2 allowance.'
+    detail: `Checking ${paymentTokenSymbol} balance and payment readiness.`
   })
-  const requirement = getPermit2Requirement(paymentRequired)
+  const requirement = getConfiguredPaymentRequirement(paymentRequired)
 
   if (!requirement) {
+    const mismatchedRequirement =
+      getMismatchedPaymentRequirement(paymentRequired)
+
+    if (mismatchedRequirement) {
+      throw new Error(
+        `The x402 quote is for token ${mismatchedRequirement.asset} on ${
+          mismatchedRequirement.network
+        }, but this app is configured for ${paymentTokenSymbol} ${paymentTokenAddress} on ${x402Network}. Refresh the page and create a new order so the quote uses the current payment token.`
+      )
+    }
+
     onStep('allowance', {
       status: 'complete',
-      detail: 'This payment requirement does not need Permit2 approval.'
+      detail: `No ${paymentTokenSymbol} readiness check is needed for this payment requirement.`
     })
     return
   }
@@ -2263,7 +2292,7 @@ async function ensurePermit2Allowance(
 
   if (!isHexAddress(tokenAddress)) {
     throw new Error(
-      'The x402 payment requirement did not include a valid MUSD token address.'
+      `The x402 payment requirement did not include a valid ${paymentTokenSymbol} token address.`
     )
   }
 
@@ -2272,28 +2301,39 @@ async function ensurePermit2Allowance(
   if (requiredAmount <= 0n) {
     onStep('allowance', {
       status: 'complete',
-      detail: 'No MUSD allowance is needed for a zero-amount request.'
+      detail: `No ${paymentTokenSymbol} allowance is needed for a zero-amount request.`
     })
     return
   }
 
-  onStatus('Checking MUSD Permit2 allowance on Mezo Testnet.')
+  onStatus(
+    `Checking ${paymentTokenSymbol} balance on ${defaultAppChain.shortName}.`
+  )
 
-  const [balance, allowance] = await withTransientRetries(
+  const usesPermit2 = isPermit2PaymentRequirement(requirement)
+
+  const [balance, allowance, tokenDecimals] = await withTransientRetries(
     () =>
       Promise.all([
-        mezoPublicClient.readContract({
+        paymentChainPublicClient.readContract({
           address: tokenAddress,
           abi: musdBalanceAbi,
           functionName: 'balanceOf',
           args: [walletControls.signer.address]
         }),
-        mezoPublicClient.readContract(
-          getPermit2AllowanceReadParams({
-            tokenAddress,
-            ownerAddress: walletControls.signer.address
-          })
-        )
+        usesPermit2
+          ? paymentChainPublicClient.readContract(
+              getPermit2AllowanceReadParams({
+                tokenAddress,
+                ownerAddress: walletControls.signer.address
+              })
+            )
+          : Promise.resolve(requiredAmount),
+        paymentChainPublicClient.readContract({
+          address: tokenAddress,
+          abi: musdBalanceAbi,
+          functionName: 'decimals'
+        })
       ]),
     {
       onRetry: ({ nextAttempt, maxAttempts }) =>
@@ -2305,24 +2345,34 @@ async function ensurePermit2Allowance(
 
   if (balance < requiredAmount) {
     throw new Error(
-      `Insufficient MUSD balance. This API call needs ${formatMusdAmount(
-        requiredAmount
-      )} MUSD, but the connected wallet has ${formatMusdAmount(
-        balance
-      )} MUSD on Mezo Testnet.`
+      `Insufficient ${paymentTokenSymbol} balance. This API call needs ${formatPaymentTokenAmount(
+        requiredAmount,
+        tokenDecimals
+      )} ${paymentTokenSymbol}, but the connected wallet has ${formatPaymentTokenAmount(
+        balance,
+        tokenDecimals
+      )} ${paymentTokenSymbol} on ${defaultAppChain.shortName}. Token: ${tokenAddress}.`
     )
+  }
+
+  if (!usesPermit2) {
+    onStep('allowance', {
+      status: 'complete',
+      detail: `${paymentTokenSymbol} balance is sufficient. This token uses ${paymentTokenTransferMethod} signatures, so no Permit2 approval is needed.`
+    })
+    return
   }
 
   if (allowance >= requiredAmount) {
     onStep('allowance', {
       status: 'complete',
-      detail: 'MUSD Permit2 allowance is already sufficient.'
+      detail: `${paymentTokenSymbol} Permit2 allowance is already sufficient.`
     })
     return
   }
 
   onStatus(
-    'Approve the one-time MUSD Permit2 allowance in your wallet, then Tollora will continue the paid API run.'
+    `Approve the one-time ${paymentTokenSymbol} Permit2 allowance in your wallet, then the gateway will continue the paid API run.`
   )
 
   const approvalTransaction = createPermit2ApprovalTx(tokenAddress)
@@ -2338,14 +2388,16 @@ async function ensurePermit2Allowance(
 
   onStep('allowance', {
     status: 'active',
-    detail: 'MUSD approval transaction submitted.',
+    detail: `${paymentTokenSymbol} approval transaction submitted.`,
     txHash: transactionHash
   })
-  onStatus(`Waiting for MUSD Permit2 approval to confirm: ${transactionHash}`)
+  onStatus(
+    `Waiting for ${paymentTokenSymbol} Permit2 approval to confirm: ${transactionHash}`
+  )
 
   const receipt = await withTransientRetries(
     () =>
-      mezoPublicClient.waitForTransactionReceipt({
+      paymentChainPublicClient.waitForTransactionReceipt({
         hash: transactionHash
       }),
     {
@@ -2357,15 +2409,19 @@ async function ensurePermit2Allowance(
   )
 
   if (receipt.status !== 'success') {
-    throw new Error('MUSD Permit2 approval transaction did not succeed.')
+    throw new Error(
+      `${paymentTokenSymbol} Permit2 approval transaction did not succeed.`
+    )
   }
 
   onStep('allowance', {
     status: 'active',
-    detail: 'Waiting for MUSD allowance to update.',
+    detail: `Waiting for ${paymentTokenSymbol} allowance to update.`,
     txHash: transactionHash
   })
-  onStatus('Confirming the new MUSD Permit2 allowance is readable.')
+  onStatus(
+    `Confirming the new ${paymentTokenSymbol} Permit2 allowance is readable.`
+  )
 
   await waitForPermit2Allowance({
     tokenAddress,
@@ -2375,7 +2431,7 @@ async function ensurePermit2Allowance(
 
   onStep('allowance', {
     status: 'complete',
-    detail: 'MUSD Permit2 approval confirmed on Mezo.',
+    detail: `${paymentTokenSymbol} Permit2 approval confirmed on-chain.`,
     txHash: transactionHash
   })
 }
@@ -2390,7 +2446,7 @@ async function waitForPermit2Allowance({
   requiredAmount: bigint
 }) {
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    const allowance = await mezoPublicClient.readContract(
+    const allowance = await paymentChainPublicClient.readContract(
       getPermit2AllowanceReadParams({
         tokenAddress,
         ownerAddress
@@ -2405,16 +2461,54 @@ async function waitForPermit2Allowance({
   }
 
   throw new Error(
-    'MUSD Permit2 approval was submitted, but the updated allowance is not readable yet. Wait a moment, then run with wallet again.'
+    `${paymentTokenSymbol} Permit2 approval was submitted, but the updated allowance is not readable yet. Wait a moment, then run with wallet again.`
   )
 }
 
-function getPermit2Requirement(paymentRequired: PaymentRequired) {
-  return paymentRequired.accepts.find(requirement => {
-    const assetTransferMethod = requirement.extra?.assetTransferMethod
+type PaymentRequirement = PaymentRequired['accepts'][number]
 
-    return assetTransferMethod === 'permit2'
-  })
+function getPreferredPaymentRequirement(paymentRequired: PaymentRequired) {
+  return (
+    paymentRequired.accepts.find(isConfiguredPaymentRequirement) ??
+    paymentRequired.accepts[0]
+  )
+}
+
+function getConfiguredPaymentRequirement(paymentRequired: PaymentRequired) {
+  return paymentRequired.accepts.find(isConfiguredPaymentRequirement)
+}
+
+function getMismatchedPaymentRequirement(paymentRequired: PaymentRequired) {
+  return paymentRequired.accepts.find(
+    requirement => !isConfiguredPaymentRequirement(requirement)
+  )
+}
+
+function isPermit2PaymentRequirement(requirement: PaymentRequirement) {
+  return requirement.extra?.assetTransferMethod === 'permit2'
+}
+
+function isConfiguredPaymentRequirement(requirement: PaymentRequirement) {
+  return (
+    requirement.network === x402Network &&
+    requirement.asset.toLowerCase() === paymentTokenAddress.toLowerCase()
+  )
+}
+
+function getRequirementTokenDecimals(requirement: PaymentRequirement) {
+  const extraDecimals = Number(requirement.extra?.decimals)
+
+  return Number.isInteger(extraDecimals) && extraDecimals >= 0
+    ? extraDecimals
+    : paymentTokenDecimals
+}
+
+function getRequirementTokenSymbol(requirement: PaymentRequirement) {
+  const extraSymbol = requirement.extra?.symbol
+
+  return typeof extraSymbol === 'string' && extraSymbol.length > 0
+    ? extraSymbol
+    : paymentTokenSymbol
 }
 
 function stringifyPayloadPath(data: unknown, path: string) {
@@ -2449,8 +2543,11 @@ function shortenHash(value: string) {
   return `${value.slice(0, 10)}...${value.slice(-8)}`
 }
 
-function formatMusdAmount(amount: bigint) {
-  return Number(formatUnits(amount, MUSD_DECIMALS)).toLocaleString(undefined, {
+function formatPaymentTokenAmount(
+  amount: bigint,
+  decimals = paymentTokenDecimals
+) {
+  return Number(formatUnits(amount, decimals)).toLocaleString(undefined, {
     maximumFractionDigits: 6
   })
 }
@@ -2470,7 +2567,7 @@ async function readResponseBody(response: Response) {
   return {
     error:
       response.status === 402
-        ? 'MUSD payment required.'
+        ? `${paymentTokenSymbol} payment required.`
         : 'The server returned a non-JSON response.',
     contentType,
     bodyPreview: text.slice(0, 300)

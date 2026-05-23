@@ -48,7 +48,7 @@ export async function POST(
 
   if (!apiKey) {
     return NextResponse.json(
-      { error: 'Tollora API key required for managed-credit calls.' },
+      { error: 'managed-credit API key required for managed-credit calls.' },
       { status: 401 }
     )
   }
@@ -57,7 +57,7 @@ export async function POST(
 
   if (!account) {
     return NextResponse.json(
-      { error: 'Tollora API key was not found.' },
+      { error: 'managed-credit API key was not found.' },
       { status: 401 }
     )
   }
@@ -183,7 +183,7 @@ export async function POST(
       ? {
           status: 'ready',
           message:
-            'Final usage exceeded the managed credit reservation. Top up or pay the delta before Tollora reveals the provider result.',
+            'Final usage exceeded the managed credit reservation. Top up or pay the delta before the gateway reveals the provider result.',
           externalJobId: providerResult.externalJobId
         }
       : providerResult.responsePayload
@@ -293,5 +293,5 @@ function createProviderIdempotencyKey({
   orderId: string
   requestId: string
 }) {
-  return `tollora_${orderId}_${requestId}`
+  return `app_${orderId}_${requestId}`
 }

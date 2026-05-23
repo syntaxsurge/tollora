@@ -1,12 +1,13 @@
-import { attestAgentRunOnMezo } from '@/features/agents/attestation'
 import {
   buildProofId,
   getAgentRunReceiptIds,
   hashAgentRunProof
 } from '@/features/agents/proof'
+import { attestAgentRunOnChain } from '@/features/agents/proof-attestation'
 import { executeAgentRunActions } from '@/features/agents/runner'
 import { getAgentTemplate } from '@/features/agents/templates'
 import type {
+  AgentAsyncPollingResponse,
   AgentLedgerEvent,
   AgentProof,
   AgentRun,
@@ -15,15 +16,20 @@ import type {
 import { buildExplorerUrl } from '@/features/marketplace/receipts'
 import {
   getAgentRunBytes32,
+  getAgentRunVaultBudget,
   getAgentRunVaultAddress,
   getAgentRunVaultExplorerUrl,
   getAgentSignerAddress,
-  getAgentVaultPaymentId,
-  getMusdTokenAddress,
-  parseMusdToAtomic,
+  getPaymentTokenAddress,
+  isActiveAgentRunVaultBudget,
+  parsePaymentAmountToAtomic,
   writeAgentRunVault
 } from '@/lib/contracts/agent-run-vault'
 import { getConvexClient } from '@/lib/db/convex/client'
+import {
+  compactJsonPayload,
+  compactProviderRequestTrace
+} from '@/lib/utils/json-payload'
 
 import { api } from '../../../convex/_generated/api'
 
@@ -36,12 +42,12 @@ type AgentGlobalStore = {
 }
 
 const globalStore = globalThis as typeof globalThis & {
-  __tolloraAgentStore?: AgentGlobalStore
+  __appAgentStore?: AgentGlobalStore
 }
 
 const store =
-  globalStore.__tolloraAgentStore ??
-  (globalStore.__tolloraAgentStore = {
+  globalStore.__appAgentStore ??
+  (globalStore.__appAgentStore = {
     runs: new Map<string, AgentRun>(),
     proofs: new Map<string, AgentProof>(),
     cancelledRuns: new Set<string>()
@@ -64,6 +70,16 @@ export async function listAgentRuns() {
 export async function getAgentRun(runId: string) {
   await loadAgentRuns()
 
+  const persistedRun = await getConvexClient()
+    .query(api.agentState.getRun, { runKey: runId })
+    .catch(() => null)
+
+  if (isAgentRun(persistedRun)) {
+    runs.set(persistedRun.id, persistedRun)
+
+    return persistedRun
+  }
+
   return runs.get(runId)
 }
 
@@ -71,6 +87,82 @@ export async function getAgentProof(proofId: string) {
   await loadAgentProofs()
 
   return proofs.get(proofId)
+}
+
+export async function syncAgentRunAsyncProviderStatus(
+  runId: string,
+  appUrl: string
+) {
+  const run = await getAgentRun(runId)
+
+  if (!run) {
+    return null
+  }
+
+  const canonicalRun = await canonicalizeAgentPollingUrls(run, appUrl)
+  const syncableAction = canonicalRun.actions.find(shouldSyncAsyncAction)
+
+  if (!syncableAction?.orderId) {
+    return canonicalRun
+  }
+
+  const pollingUrl = `${appUrl}/api/orders/${encodeURIComponent(syncableAction.orderId)}/provider-status`
+  const pollingRequest = {
+    method: 'GET',
+    url: pollingUrl,
+    headers: { Accept: 'application/json' },
+    params: { orderId: syncableAction.orderId }
+  }
+  const response = await fetch(pollingUrl, {
+    headers: pollingRequest.headers
+  }).catch(() => null)
+
+  if (!response) {
+    return canonicalRun
+  }
+
+  const body = (await response
+    .json()
+    .catch(() => null)) as ProviderStatusResponse | null
+
+  if (!body?.order) {
+    return canonicalRun
+  }
+
+  const poll = buildStoredAsyncPollingResponse({
+    action: syncableAction,
+    pollingUrl,
+    request: pollingRequest,
+    httpStatus: response.status,
+    body
+  })
+  const actionStatus = mapProviderStatusToAgentActionStatus(
+    body.order.status,
+    syncableAction.status
+  )
+  const nextAction = {
+    ...syncableAction,
+    status: actionStatus,
+    responsePayload: buildStoredProviderStatusPayload(body),
+    latestAsyncPollingResponse: poll,
+    asyncPollingResponses: [poll],
+    completedAt:
+      actionStatus === 'completed' || actionStatus === 'failed'
+        ? new Date().toISOString()
+        : syncableAction.completedAt
+  } satisfies AgentRun['actions'][number]
+  const nextRun = {
+    ...canonicalRun,
+    actions: canonicalRun.actions.map(action =>
+      action.id === nextAction.id ? nextAction : action
+    ),
+    updatedAt: new Date().toISOString()
+  } satisfies AgentRun
+
+  runs.set(nextRun.id, nextRun)
+  await persistAgentRun(nextRun)
+
+  return nextRun
 }
 
 export async function createAgentRun(input: CreateAgentRunInput) {
@@ -103,7 +195,7 @@ export async function createAgentRun(input: CreateAgentRunInput) {
     availableAmountMusd: '0.00 MUSD',
     ledgerEvents: [],
     summary:
-      'The launch-pack agent is ready to select paid tools, spend within budget, and prepare a Mezo proof.',
+      'The launch-pack agent is ready to select paid tools, spend within budget, and prepare a on-chain proof.',
     deliverables: {},
     actions: [],
     createdAt: now,
@@ -180,6 +272,35 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
     } satisfies AgentRun
   }
 
+  const budget = await getAgentRunVaultBudget(run.id).catch(() => null)
+
+  if (!isActiveAgentRunVaultBudget(budget) && budget?.state === 0) {
+    const nextRun = resetRunFundingState(
+      run,
+      'This run is not funded in the current AgentRunVault. Fund the agent again before retrying paid actions.'
+    )
+
+    runs.set(run.id, nextRun)
+    await persistAgentRun(nextRun)
+
+    return nextRun
+  }
+
+  if (!isActiveAgentRunVaultBudget(budget)) {
+    const nextRun = {
+      ...run,
+      status: 'failed',
+      summary:
+        'This run has an AgentRunVault budget, but it is no longer active for new paid actions. Refund unused budget, then create or fund a fresh run.',
+      updatedAt: new Date().toISOString()
+    } satisfies AgentRun
+
+    runs.set(run.id, nextRun)
+    await persistAgentRun(nextRun)
+
+    return nextRun
+  }
+
   const running = {
     ...run,
     status: 'running',
@@ -201,10 +322,25 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
     args: [getAgentRunBytes32(run.id)]
   }).catch(() => null)
 
+  let latestRun = running
   const result = await executeAgentRunActions(
     running,
     () => isAgentRunCancelled(run.id),
-    appUrl
+    appUrl,
+    async progress => {
+      if (isAgentRunCancelled(run.id)) {
+        return
+      }
+
+      latestRun = {
+        ...latestRun,
+        actions: progress.actions,
+        summary: progress.summary ?? latestRun.summary,
+        updatedAt: new Date().toISOString()
+      } satisfies AgentRun
+      runs.set(run.id, latestRun)
+      await persistAgentRun(latestRun)
+    }
   )
 
   if (isAgentRunCancelled(run.id)) {
@@ -213,7 +349,7 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
 
   const ledgerResult = await buildSpendLedger(running, result.actions)
   const nextRun = {
-    ...running,
+    ...latestRun,
     status: result.status,
     actions: result.actions,
     deliverables: result.deliverables,
@@ -233,7 +369,7 @@ export async function executeStoredAgentRun(runId: string, appUrl?: string) {
   await persistAgentRun(nextRun)
 
   await writeAgentRunVault({
-    functionName: 'markCompleted',
+    functionName: result.status === 'completed' ? 'markCompleted' : 'cancelRun',
     args: [getAgentRunBytes32(run.id)]
   }).catch(() => null)
 
@@ -247,6 +383,22 @@ export async function prepareAgentRunFunding(runId: string) {
 
   if (!run) {
     return null
+  }
+
+  const existingBudget = await getAgentRunVaultBudget(run.id).catch(() => null)
+
+  if (isActiveAgentRunVaultBudget(existingBudget)) {
+    return {
+      error:
+        'This agent run is already funded in the current AgentRunVault. Run the agent or refund unused budget before funding it again.'
+    }
+  }
+
+  if (existingBudget && existingBudget.state !== 0) {
+    return {
+      error:
+        'This agent run already has a finalized or inactive budget in the current AgentRunVault. Refund unused budget, then create a new run.'
+    }
   }
 
   if (!vaultAddress || !agentSigner) {
@@ -282,8 +434,8 @@ export async function prepareAgentRunFunding(runId: string) {
     funding: {
       runId: getAgentRunBytes32(run.id),
       vaultAddress,
-      tokenAddress: getMusdTokenAddress(),
-      amount: parseMusdToAtomic(run.budgetCapMusd).toString(),
+      tokenAddress: getPaymentTokenAddress(),
+      amount: parsePaymentAmountToAtomic(run.budgetCapMusd).toString(),
       amountMusd: `${run.budgetCapMusd.toFixed(2)} MUSD`,
       agentSigner,
       expiresAt
@@ -304,6 +456,15 @@ export async function confirmAgentRunFunding({
 
   if (!run) {
     return null
+  }
+
+  const budget = await waitForActiveVaultBudget(run.id)
+
+  if (!isActiveAgentRunVaultBudget(budget)) {
+    return resetRunFundingState(
+      run,
+      'Funding transaction was not found in the current AgentRunVault. Confirm that your wallet submitted fundRun to the configured vault address, then fund the agent again.'
+    )
   }
 
   const amountMusd = `${run.budgetCapMusd.toFixed(2)} MUSD`
@@ -327,7 +488,7 @@ export async function confirmAgentRunFunding({
       })
     ],
     summary:
-      'The agent budget is funded. OpenAI can now select tools and Tollora can pay x402 calls inside this budget.',
+      'The agent budget is funded. OpenAI can now select tools and the gateway can pay x402 calls inside this budget.',
     updatedAt: new Date().toISOString()
   } satisfies AgentRun
 
@@ -420,7 +581,7 @@ export async function attestStoredAgentRun(runId: string) {
   runs.set(run.id, attestingRun)
   await persistAgentRun(attestingRun)
 
-  const attestation = await attestAgentRunOnMezo(run, proofBase)
+  const attestation = await attestAgentRunOnChain(run, proofBase)
   const proof: AgentProof = {
     ...proofBase,
     txHash: attestation.txHash,
@@ -490,33 +651,80 @@ function buildLedgerEvent({
   }
 }
 
+function resetRunFundingState(run: AgentRun, summary: string) {
+  return {
+    ...run,
+    status: 'planned',
+    fundingStatus: 'unfunded',
+    fundedAmountMusd: '0.00 MUSD',
+    spentAmountMusd: '0.00 MUSD',
+    reservedAmountMusd: '0.00 MUSD',
+    refundedAmountMusd: '0.00 MUSD',
+    availableAmountMusd: '0.00 MUSD',
+    fundingTxHash: undefined,
+    fundingExplorerUrl: undefined,
+    approvalTxHash: undefined,
+    approvalExplorerUrl: undefined,
+    fundingExpiresAt: undefined,
+    summary,
+    updatedAt: new Date().toISOString()
+  } satisfies AgentRun
+}
+
+async function waitForActiveVaultBudget(runId: string) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const budget = await getAgentRunVaultBudget(runId).catch(() => null)
+
+    if (isActiveAgentRunVaultBudget(budget)) {
+      return budget
+    }
+
+    if (attempt < 4) {
+      await new Promise(resolve => setTimeout(resolve, 1200))
+    }
+  }
+
+  return await getAgentRunVaultBudget(runId).catch(() => null)
+}
+
 async function buildSpendLedger(run: AgentRun, actions: AgentRun['actions']) {
   const newEvents: AgentLedgerEvent[] = []
   let spent = 0
 
   for (const action of actions) {
-    if (action.status !== 'completed' || !action.receipt) {
+    const advanced = parseMusd(action.vaultAdvancedAmountMusd)
+    const refunded = parseMusd(action.vaultRefundedAmountMusd)
+
+    if (advanced <= 0) {
       continue
     }
 
-    const amount = parseMusd(action.amountMusd)
-    const paymentId = getAgentVaultPaymentId(run.id, action.id)
-    const tx = await writeAgentRunVault({
-      functionName: 'recordSpend',
-      args: [getAgentRunBytes32(run.id), paymentId, parseMusdToAtomic(amount)]
-    }).catch(() => null)
-
-    spent += amount
+    spent += Math.max(0, advanced - refunded)
     newEvents.push(
       buildLedgerEvent({
         type: 'spend_recorded',
-        label: `Agent spent budget on ${action.productName}.`,
-        amountMusd: `${amount.toFixed(2)} MUSD`,
-        txHash: tx?.txHash ?? action.receipt.txHash,
-        explorerUrl: tx?.explorerUrl ?? action.receipt.explorerUrl,
+        label: `Agent advanced vault budget to pay ${action.productName}.`,
+        amountMusd: `${advanced.toFixed(2)} MUSD`,
+        txHash: action.vaultSpendTxHash ?? action.receipt?.txHash,
+        explorerUrl:
+          action.vaultSpendExplorerUrl ?? action.receipt?.explorerUrl,
         actionId: action.id
       })
     )
+
+    if (refunded > 0) {
+      newEvents.push(
+        buildLedgerEvent({
+          type: 'spend_refunded',
+          label: `Unused agent signer funds were returned after ${action.productName}.`,
+          amountMusd: `${refunded.toFixed(2)} MUSD`,
+          txHash: action.vaultRefundTxHash ?? action.vaultReturnTxHash,
+          explorerUrl:
+            action.vaultRefundExplorerUrl ?? action.vaultReturnExplorerUrl,
+          actionId: action.id
+        })
+      )
+    }
   }
 
   const funded = parseMusd(run.fundedAmountMusd)
@@ -579,7 +787,7 @@ async function loadAgentProofs() {
 async function persistAgentRun(run: AgentRun) {
   await getConvexClient().mutation(api.agentState.upsertRun, {
     runKey: run.id,
-    runJson: JSON.stringify(run)
+    runJson: JSON.stringify(createPersistableAgentRun(run))
   })
 }
 
@@ -590,8 +798,8 @@ async function persistAgentProof(proof: AgentProof) {
   })
 }
 
-function parseMusd(value: string) {
-  const amount = Number(value.replace(/[^0-9.]/g, ''))
+function parseMusd(value: string | null | undefined) {
+  const amount = Number((value ?? '').replace(/[^0-9.]/g, ''))
 
   return Number.isFinite(amount) ? amount : 0
 }
@@ -632,4 +840,264 @@ function isAgentProof(value: unknown): value is AgentProof {
     typeof proof.proofHash === 'string' &&
     typeof proof.createdAt === 'string'
   )
+}
+
+type ProviderStatusResponse = {
+  error?: string
+  order?: {
+    id?: string
+    status?: string
+    externalJobId?: string
+    resultReleaseStatus?: string
+    resultUrl?: string
+    responsePayload?: unknown
+    providerRequest?: unknown
+  }
+  provider?: {
+    status?: string
+    externalJobId?: string
+    resultUrl?: string
+    responsePayload?: unknown
+    errorMessage?: string
+  }
+  pricing?: unknown
+  escrow?: unknown
+}
+
+function createPersistableAgentRun(run: AgentRun): AgentRun {
+  return {
+    ...run,
+    actions: run.actions.map(action => ({
+      ...action,
+      responsePayload: compactJsonPayload(
+        action.responsePayload,
+        0
+      ) as AgentRun['actions'][number]['responsePayload'],
+      latestAsyncPollingResponse: compactAsyncPollingResponse(
+        action.latestAsyncPollingResponse
+      ),
+      asyncPollingResponses: action.latestAsyncPollingResponse
+        ? [compactAsyncPollingResponse(action.latestAsyncPollingResponse)!]
+        : action.asyncPollingResponses?.slice(-1).flatMap(poll => {
+            const compactPoll = compactAsyncPollingResponse(poll)
+
+            return compactPoll ? [compactPoll] : []
+          })
+    }))
+  }
+}
+
+function compactAsyncPollingResponse(
+  poll: AgentAsyncPollingResponse | undefined
+): AgentAsyncPollingResponse | undefined {
+  if (!poll) {
+    return undefined
+  }
+
+  return {
+    ...poll,
+    response: compactJsonPayload(poll.response, 0) as Record<string, unknown>
+  }
+}
+
+function shouldSyncAsyncAction(action: AgentRun['actions'][number]) {
+  if (!action.orderId || action.status !== 'paid') {
+    return false
+  }
+
+  const latestPoll =
+    action.latestAsyncPollingResponse ?? action.asyncPollingResponses?.at(-1)
+
+  return !isTerminalProviderStatus(latestPoll?.orderStatus)
+}
+
+async function canonicalizeAgentPollingUrls(run: AgentRun, appUrl: string) {
+  let changed = false
+  const actions: AgentRun['actions'] = run.actions.map(
+    (action): AgentRun['actions'][number] => {
+      const latestAsyncPollingResponse = action.latestAsyncPollingResponse
+        ? canonicalizePollingResponse(action.latestAsyncPollingResponse, appUrl)
+        : undefined
+      const asyncPollingResponses = action.asyncPollingResponses?.map(poll =>
+        canonicalizePollingResponse(poll, appUrl)
+      )
+
+      if (
+        latestAsyncPollingResponse !== action.latestAsyncPollingResponse ||
+        asyncPollingResponses?.some(
+          (poll, index) => poll !== action.asyncPollingResponses?.[index]
+        )
+      ) {
+        changed = true
+
+        return {
+          ...action,
+          latestAsyncPollingResponse,
+          asyncPollingResponses
+        }
+      }
+
+      return action
+    }
+  )
+
+  if (!changed) {
+    return run
+  }
+
+  const nextRun = {
+    ...run,
+    actions,
+    updatedAt: new Date().toISOString()
+  } satisfies AgentRun
+
+  runs.set(nextRun.id, nextRun)
+  await persistAgentRun(nextRun)
+
+  return nextRun
+}
+
+function canonicalizePollingResponse(
+  poll: AgentAsyncPollingResponse,
+  appUrl: string
+): AgentAsyncPollingResponse {
+  const pollingUrl = canonicalizeProviderStatusUrl(poll.pollingUrl, appUrl)
+  const requestUrl = canonicalizeProviderStatusUrl(poll.request.url, appUrl)
+
+  if (pollingUrl === poll.pollingUrl && requestUrl === poll.request.url) {
+    return poll
+  }
+
+  return {
+    ...poll,
+    pollingUrl,
+    request: {
+      ...poll.request,
+      url: requestUrl
+    }
+  }
+}
+
+function canonicalizeProviderStatusUrl(value: string, appUrl: string) {
+  try {
+    const url = new URL(value)
+
+    if (!/^\/api\/orders\/[^/]+\/provider-status$/.test(url.pathname)) {
+      return value
+    }
+
+    return new URL(`${url.pathname}${url.search}`, appUrl).toString()
+  } catch {
+    return value
+  }
+}
+
+function buildStoredAsyncPollingResponse({
+  action,
+  pollingUrl,
+  request,
+  httpStatus,
+  body
+}: {
+  action: AgentRun['actions'][number]
+  pollingUrl: string
+  request: AgentAsyncPollingResponse['request']
+  httpStatus: number
+  body: ProviderStatusResponse
+}): AgentAsyncPollingResponse {
+  const priorAttempt =
+    action.latestAsyncPollingResponse?.attempt ??
+    action.asyncPollingResponses?.at(-1)?.attempt ??
+    0
+  const resultUrl = extractResultUrlFromProviderStatus(body)
+
+  return {
+    id: `poll_${Date.now().toString(36)}_${priorAttempt + 1}`,
+    attempt: priorAttempt + 1,
+    polledAt: new Date().toISOString(),
+    pollingUrl,
+    request,
+    httpStatus,
+    orderStatus: body.order?.status,
+    resultReleaseStatus: body.order?.resultReleaseStatus,
+    externalJobId: body.order?.externalJobId ?? body.provider?.externalJobId,
+    resultUrl,
+    response: buildStoredProviderStatusPayload(body)
+  }
+}
+
+function buildStoredProviderStatusPayload(
+  body: ProviderStatusResponse
+): Record<string, unknown> {
+  const resultUrl = extractResultUrlFromProviderStatus(body)
+
+  return {
+    status: body.order?.status ?? body.provider?.status,
+    resultReleaseStatus: body.order?.resultReleaseStatus,
+    externalJobId: body.order?.externalJobId ?? body.provider?.externalJobId,
+    resultUrl,
+    order: body.order
+      ? {
+          id: body.order.id,
+          status: body.order.status,
+          externalJobId: body.order.externalJobId,
+          resultReleaseStatus: body.order.resultReleaseStatus,
+          resultUrl: body.order.resultUrl,
+          providerRequest: compactProviderRequestTrace(
+            body.order.providerRequest
+          ),
+          responsePayload: compactJsonPayload(body.order.responsePayload, 0)
+        }
+      : undefined,
+    provider: compactJsonPayload(body.provider, 0),
+    pricing: compactJsonPayload(body.pricing),
+    escrow: compactJsonPayload(body.escrow),
+    error: body.error
+  }
+}
+
+function mapProviderStatusToAgentActionStatus(
+  status: string | undefined,
+  current: AgentRun['actions'][number]['status']
+) {
+  if (status === 'completed') {
+    return 'completed'
+  }
+
+  if (status === 'failed' || status === 'expired') {
+    return 'failed'
+  }
+
+  return current
+}
+
+function isTerminalProviderStatus(status: string | undefined) {
+  return status === 'completed' || status === 'failed' || status === 'expired'
+}
+
+function extractResultUrlFromProviderStatus(body: ProviderStatusResponse) {
+  return (
+    body.order?.resultUrl ??
+    body.provider?.resultUrl ??
+    readStringPath(body.order?.responsePayload, 'previewUrl') ??
+    readStringPath(body.provider?.responsePayload, 'previewUrl') ??
+    readStringPath(body.order?.responsePayload, 'renderUrl') ??
+    readStringPath(body.provider?.responsePayload, 'renderUrl') ??
+    readStringPath(body.order?.responsePayload, 'resultUrl') ??
+    readStringPath(body.provider?.responsePayload, 'resultUrl') ??
+    readStringPath(body.order?.responsePayload, 'result.previewUrl') ??
+    readStringPath(body.provider?.responsePayload, 'result.previewUrl')
+  )
+}
+
+function readStringPath(value: unknown, path: string) {
+  const result = path.split('.').reduce<unknown>((current, part) => {
+    if (!current || typeof current !== 'object') {
+      return undefined
+    }
+
+    return (current as Record<string, unknown>)[part]
+  }, value)
+
+  return typeof result === 'string' && result.trim() ? result : undefined
 }

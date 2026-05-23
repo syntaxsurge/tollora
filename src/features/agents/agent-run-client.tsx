@@ -4,49 +4,91 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  Activity,
   AlertTriangle,
   Bot,
+  Braces,
   CheckCircle2,
+  CircleDollarSign,
   Clock,
   ExternalLink,
   FileCheck2,
-  FileText,
   History,
-  ImageIcon,
-  LinkIcon,
-  Loader2,
+  Link2,
+  type LucideIcon,
+  Network,
   Play,
+  ReceiptText,
   RefreshCw,
-  Route,
   ShieldCheck,
   Sparkles,
   Undo2,
-  Video,
   WalletCards
 } from 'lucide-react'
-import { createPublicClient, http, type Address, type Hex } from 'viem'
-import { useAccount, useWalletClient } from 'wagmi'
+import {
+  createPublicClient,
+  encodeFunctionData,
+  formatUnits,
+  http,
+  isAddress,
+  numberToHex,
+  type Address,
+  type Hex
+} from 'viem'
 
 import { JsonViewer } from '@/components/data-display/json-viewer'
 import { MarkdownViewer } from '@/components/data-display/markdown-viewer'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
 import {
   agentActionStatusLabels,
   agentRunStatusDetails,
   agentRunStatusLabels
 } from '@/features/agents/status'
 import type { AgentLedgerEvent, AgentRun } from '@/features/agents/types'
-import { useAutoRefresh } from '@/hooks/use-auto-refresh'
-import { defaultAppChain } from '@/lib/config/chains'
+import { useAutoPolling } from '@/hooks/use-auto-polling'
+import { defaultAppChain, getExplorerTransactionUrl } from '@/lib/config/chains'
 import {
   agentRunVaultAbi,
   erc20ApprovalAbi
 } from '@/lib/contracts/agent-run-vault'
 
+type AgentOutputItem = {
+  id: string
+  label: string
+  kind: 'text' | 'video' | 'image' | 'link'
+  value: string
+  source: string
+}
+
+type AgentOutputCandidate = {
+  id: string
+  label: string
+  source: string
+  value?: string
+  kind?: AgentOutputItem['kind']
+}
+
+type ExtractedOutput = {
+  path: string
+  value: string
+  kind: AgentOutputItem['kind']
+}
+
+type AgentAsyncPoll = NonNullable<
+  AgentRun['actions'][number]['asyncPollingResponses']
+>[number]
+
 type AgentRunClientProps = {
   runId: string
   initialRun: AgentRun | null
+}
+
+type EthereumProvider = {
+  isMetaMask?: boolean
+  providers?: EthereumProvider[]
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
 }
 
 type FundingPrepareResponse = {
@@ -67,26 +109,47 @@ const publicClient = createPublicClient({
   chain: defaultAppChain.viemChain,
   transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
 })
-const AGENT_RUN_REFRESH_INTERVAL_MS = 8000
+const AGENT_RUN_POLL_INTERVAL_MS = 8000
+const agentRunPollingStatuses = new Set<AgentRun['status']>([
+  'running',
+  'attesting'
+])
 
 export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
-  const { address } = useAccount()
-  const { data: walletClient } = useWalletClient()
+  return (
+    <WalletAddressConsumer>
+      {({ address }) => (
+        <AgentRunContent
+          runId={runId}
+          initialRun={initialRun}
+          address={address}
+        />
+      )}
+    </WalletAddressConsumer>
+  )
+}
+
+function AgentRunContent({
+  runId,
+  initialRun,
+  address
+}: AgentRunClientProps & { address: string | null }) {
   const [run, setRun] = useState<AgentRun | null>(initialRun)
   const [status, setStatus] = useState('')
   const [isFunding, setIsFunding] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [isAttesting, setIsAttesting] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isRefreshingRun, setIsRefreshingRun] = useState(false)
   const refreshInFlightRef = useRef(false)
+  const autoResumeInFlightRef = useRef(false)
 
   useEffect(() => {
     if (run) {
       return
     }
 
-    const saved = window.sessionStorage.getItem(`tollora:agent-run:${runId}`)
+    const saved = window.sessionStorage.getItem(`app:agent-run:${runId}`)
 
     if (saved) {
       setRun(JSON.parse(saved) as AgentRun)
@@ -100,20 +163,35 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
       ).length ?? 0,
     [run?.actions]
   )
-  const finalOutputs = useMemo(
-    () => (run ? getFinalOutputItems(run) : []),
-    [run]
-  )
-  const shouldAutoRefreshRun = Boolean(
-    run && (run.status === 'running' || isRunning)
-  )
+  const shouldPollRun =
+    Boolean(run) &&
+    (isRunning ||
+      isAttesting ||
+      agentRunPollingStatuses.has(run?.status ?? 'planned') ||
+      Boolean(run?.actions.some(shouldPollAsyncActionOnClient)))
 
-  useAutoRefresh({
-    enabled: shouldAutoRefreshRun,
-    intervalMs: AGENT_RUN_REFRESH_INTERVAL_MS,
-    onRefresh: refreshRun,
-    refreshKey: [run?.id, run?.status, isRunning].join(':')
+  useAutoPolling({
+    enabled: shouldPollRun,
+    intervalMs: AGENT_RUN_POLL_INTERVAL_MS,
+    onPoll: refreshRun
   })
+
+  useEffect(() => {
+    if (
+      !run ||
+      isRunning ||
+      autoResumeInFlightRef.current ||
+      !shouldResumePlannedActions(run)
+    ) {
+      return
+    }
+
+    autoResumeInFlightRef.current = true
+    setStatus('Async tool completed. Continuing the remaining planned actions.')
+    void executeRun().finally(() => {
+      autoResumeInFlightRef.current = false
+    })
+  }, [isRunning, run])
 
   async function refreshRun() {
     if (refreshInFlightRef.current) {
@@ -121,49 +199,49 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
     }
 
     refreshInFlightRef.current = true
-    setIsRefreshing(true)
+    setIsRefreshingRun(true)
 
     try {
       const response = await fetch(`/api/agents/runs/${runId}`, {
-        headers: { Accept: 'application/json' }
+        headers: {
+          Accept: 'application/json'
+        }
       })
       const body = (await response.json()) as AgentRun & { error?: string }
 
       if (!response.ok) {
-        throw new Error(body.error ?? 'Unable to refresh agent status.')
+        throw new Error(body.error ?? 'Unable to refresh the agent run.')
       }
 
       persistRun(body)
 
-      if (body.status === 'running') {
-        setStatus('Agent is still running. Status refreshes automatically.')
-      } else if (body.status === 'completed') {
-        setStatus('Agent run completed and final output is ready.')
-      } else if (body.status === 'failed') {
-        setStatus(body.summary)
+      if (['completed', 'failed', 'attested'].includes(body.status)) {
+        setStatus(
+          body.status === 'completed'
+            ? 'Agent run completed paid actions and prepared deliverables.'
+            : body.status === 'attested'
+              ? 'Proof hash attested on-chain and ready for public audit.'
+              : body.summary
+        )
       }
     } catch (caughtError) {
       setStatus(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Unable to refresh agent status.'
+          : 'Unable to refresh the agent run.'
       )
     } finally {
       refreshInFlightRef.current = false
-      setIsRefreshing(false)
+      setIsRefreshingRun(false)
     }
   }
 
   async function fundRun() {
-    if (!walletClient?.account) {
-      setStatus('Connect the wallet that owns this run before funding it.')
-      return
-    }
-
     setIsFunding(true)
     setStatus('Preparing the agent budget vault transaction.')
 
     try {
+      const fundingWallet = await requestFundingWalletAddress(address)
       const prepareResponse = await fetch(
         `/api/agents/runs/${runId}/funding/prepare`,
         { method: 'POST' }
@@ -175,31 +253,91 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
       }
 
       setRun(prepared.run)
-      setStatus('Approve MUSD for the agent run vault in your wallet.')
-      const approvalTxHash = await walletClient.writeContract({
-        address: prepared.funding.tokenAddress,
-        abi: erc20ApprovalAbi,
-        functionName: 'approve',
-        args: [prepared.funding.vaultAddress, BigInt(prepared.funding.amount)]
+      const requiredAmount = BigInt(prepared.funding.amount)
+      const tokenState = await readFundingTokenState({
+        tokenAddress: prepared.funding.tokenAddress,
+        ownerAddress: fundingWallet,
+        spenderAddress: prepared.funding.vaultAddress
       })
 
-      await publicClient.waitForTransactionReceipt({ hash: approvalTxHash })
+      if (tokenState.balance < requiredAmount) {
+        throw new Error(
+          `Your connected wallet has ${formatTokenAmount(
+            tokenState.balance,
+            tokenState.decimals,
+            tokenState.symbol
+          )}, but this run needs ${formatTokenAmount(
+            requiredAmount,
+            tokenState.decimals,
+            tokenState.symbol
+          )}. Fund the wallet with the configured settlement token on ${defaultAppChain.shortName}, then try again.`
+        )
+      }
 
-      setStatus('Funding the agent run vault.')
-      const fundingTxHash = await walletClient.writeContract({
-        address: prepared.funding.vaultAddress,
-        abi: agentRunVaultAbi,
-        functionName: 'fundRun',
-        args: [
-          prepared.funding.runId,
-          prepared.funding.tokenAddress,
-          BigInt(prepared.funding.amount),
-          prepared.funding.agentSigner,
-          BigInt(prepared.funding.expiresAt)
-        ]
+      let approvalTxHash: Hex | undefined
+
+      if (tokenState.allowance < requiredAmount) {
+        setStatus('Open MetaMask and approve MUSD for the agent run vault.')
+        approvalTxHash = await sendBrowserWalletTransaction({
+          from: fundingWallet,
+          to: prepared.funding.tokenAddress,
+          data: encodeFunctionData({
+            abi: erc20ApprovalAbi,
+            functionName: 'approve',
+            args: [
+              prepared.funding.vaultAddress,
+              BigInt(prepared.funding.amount)
+            ]
+          })
+        })
+
+        await waitForSuccessfulTransaction(
+          approvalTxHash,
+          'MUSD approval transaction reverted.'
+        )
+
+        const nextAllowance = await readFundingTokenAllowance({
+          tokenAddress: prepared.funding.tokenAddress,
+          ownerAddress: fundingWallet,
+          spenderAddress: prepared.funding.vaultAddress
+        })
+
+        if (nextAllowance < requiredAmount) {
+          throw new Error(
+            `The approval transaction completed, but the vault allowance is only ${formatTokenAmount(
+              nextAllowance,
+              tokenState.decimals,
+              tokenState.symbol
+            )}. Approve the full ${formatTokenAmount(
+              requiredAmount,
+              tokenState.decimals,
+              tokenState.symbol
+            )} budget before funding.`
+          )
+        }
+      }
+
+      setStatus('Open MetaMask again to fund the agent run vault.')
+      const fundingTxHash = await sendBrowserWalletTransaction({
+        from: fundingWallet,
+        to: prepared.funding.vaultAddress,
+        data: encodeFunctionData({
+          abi: agentRunVaultAbi,
+          functionName: 'fundRun',
+          args: [
+            prepared.funding.runId,
+            prepared.funding.tokenAddress,
+            BigInt(prepared.funding.amount),
+            prepared.funding.agentSigner,
+            BigInt(prepared.funding.expiresAt)
+          ]
+        })
       })
 
-      await publicClient.waitForTransactionReceipt({ hash: fundingTxHash })
+      await waitForSuccessfulTransaction(
+        fundingTxHash,
+        'AgentRunVault funding transaction reverted.'
+      )
 
       const confirmResponse = await fetch(
         `/api/agents/runs/${runId}/funding/confirm`,
@@ -214,6 +352,10 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
       }
 
       if (!confirmResponse.ok) {
+        if (body.id) {
+          persistRun(body)
+        }
+
         throw new Error(body.error ?? 'Unable to confirm funding.')
       }
 
@@ -233,17 +375,6 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
   async function executeRun() {
     setIsRunning(true)
     setStatus('')
-    setRun(currentRun =>
-      currentRun
-        ? {
-            ...currentRun,
-            status: 'running',
-            summary:
-              'The agent is executing paid tool calls and polling async provider results.',
-            updatedAt: new Date().toISOString()
-          }
-        : currentRun
-    )
 
     try {
       const response = await fetch(`/api/agents/runs/${runId}/execute`, {
@@ -316,7 +447,7 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
       }
 
       persistRun(body)
-      setStatus('Proof hash attested on Mezo and ready for public audit.')
+      setStatus('Proof hash attested on-chain and ready for public audit.')
     } catch (caughtError) {
       setStatus(
         caughtError instanceof Error
@@ -331,19 +462,19 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
   function persistRun(nextRun: AgentRun) {
     try {
       window.sessionStorage.setItem(
-        `tollora:agent-run:${nextRun.id}`,
+        `app:agent-run:${nextRun.id}`,
         JSON.stringify(nextRun)
       )
       nextRun.actions.forEach(action => {
         if (action.receipt) {
           window.sessionStorage.setItem(
-            `tollora:receipt:${action.receipt.id}`,
+            `app:receipt:${action.receipt.id}`,
             JSON.stringify(action.receipt)
           )
         }
       })
     } catch {
-      window.sessionStorage.removeItem(`tollora:agent-run:${nextRun.id}`)
+      window.sessionStorage.removeItem(`app:agent-run:${nextRun.id}`)
     }
 
     setRun(nextRun)
@@ -370,246 +501,733 @@ export function AgentRunClient({ runId, initialRun }: AgentRunClientProps) {
     ['failed', 'completed', 'attested'].includes(run.status) &&
     run.fundingStatus === 'refund_available' &&
     run.availableAmountMusd !== '0.00 MUSD'
-  const RunStatusIcon = statusIcon(run.status)
+  const finalOutputs = collectFinalOutputs(run)
 
   return (
     <div className='space-y-5'>
-      <Card className='overflow-hidden p-0'>
-        <div className='from-primary/10 via-card to-brand-purple/10 border-border/70 border-b bg-gradient-to-br p-5 sm:p-6'>
-          <div className='flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between'>
-            <div className='min-w-0 space-y-3'>
-              <div className='flex flex-wrap items-center gap-2'>
-                <span className='bg-primary/10 text-primary inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold tracking-[0.14em] uppercase'>
-                  <Bot className='h-3.5 w-3.5' aria-hidden />
-                  Agent run
-                </span>
-                <StatusPill status={run.status} />
-              </div>
-              <div>
-                <h2 className='font-display text-3xl leading-tight sm:text-4xl'>
-                  {run.title}
-                </h2>
-                <p className='text-foreground/70 mt-2 max-w-4xl text-sm leading-6 sm:text-base'>
-                  {run.objective}
-                </p>
-              </div>
-            </div>
-
-            <div className='grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[34rem]'>
-              <CompactMetric label='Funded' value={run.fundedAmountMusd} />
-              <CompactMetric label='Spent' value={run.spentAmountMusd} />
-              <CompactMetric
-                label='Available'
-                value={run.availableAmountMusd}
-              />
-              <CompactMetric label='Planner' value={formatPlanner(run)} />
-            </div>
-          </div>
+      <section className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]'>
+        <div className='space-y-5'>
+          <RunSummaryCard
+            run={run}
+            completedPaidActions={completedPaidActions}
+          />
         </div>
 
-        <div className='grid gap-4 p-5 sm:p-6 xl:grid-cols-[1fr_22rem]'>
-          <div className='space-y-3'>
-            <div className='flex items-start gap-3'>
-              <span className='bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full'>
-                <RunStatusIcon className='h-5 w-5' aria-hidden />
-              </span>
-              <div className='min-w-0'>
-                <p className='font-semibold'>
-                  {agentRunStatusLabels[run.status]}
-                </p>
-                <p className='text-foreground/65 mt-1 text-sm leading-6'>
-                  {agentRunStatusDetails[run.status]}
-                </p>
-              </div>
-            </div>
-            {run.status === 'failed' && completedPaidActions === 0 ? (
-              <p className='rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm leading-6 text-red-600 dark:text-red-300'>
-                No paid tool completed with a receipt. Review the failed action
-                diagnostics below, then retry after funding and provider health
-                are confirmed.
-              </p>
-            ) : null}
-            {status ? (
-              <p
-                className='border-border bg-muted/40 rounded-xl border p-3 text-sm leading-6 break-words'
-                role='status'
-              >
-                {status}
-              </p>
-            ) : null}
-            {shouldAutoRefreshRun ? (
-              <p className='text-foreground/55 inline-flex items-center gap-2 text-sm'>
-                {isRefreshing ? (
-                  <Loader2 className='text-primary h-4 w-4 animate-spin' />
-                ) : (
-                  <RefreshCw className='text-primary h-4 w-4' />
-                )}
-                Auto-refreshes every {AGENT_RUN_REFRESH_INTERVAL_MS / 1000}s
-                until the run finishes.
-              </p>
-            ) : null}
-          </div>
+        <RunControlPanel
+          run={run}
+          address={address}
+          status={status}
+          isFunding={isFunding}
+          isRunning={isRunning}
+          isRefunding={isRefunding}
+          isAttesting={isAttesting}
+          isRefreshingRun={isRefreshingRun}
+          canRun={canRun}
+          canRefund={canRefund}
+          onFund={fundRun}
+          onRun={executeRun}
+          onRefund={refundUnusedBudget}
+          onAttest={attestRun}
+        />
+      </section>
 
-          <div className='space-y-3'>
-            <div className='grid grid-cols-2 gap-2'>
-              <Button
-                onClick={fundRun}
-                disabled={
-                  isFunding ||
-                  !['unfunded', 'funding_pending'].includes(run.fundingStatus)
-                }
-              >
-                <WalletCards className='h-4 w-4' aria-hidden />
-                {isFunding ? 'Funding' : 'Fund'}
-              </Button>
-              <Button onClick={executeRun} disabled={isRunning || !canRun}>
-                <Play className='h-4 w-4' aria-hidden />
-                {isRunning
-                  ? 'Running'
-                  : run.status === 'failed'
-                    ? 'Retry'
-                    : 'Run'}
-              </Button>
-            </div>
-            <div className='grid grid-cols-2 gap-2'>
-              <Button
-                variant='outline'
-                onClick={refreshRun}
-                disabled={isRefreshing}
-              >
-                {isRefreshing ? (
-                  <Loader2 className='h-4 w-4 animate-spin' aria-hidden />
-                ) : (
-                  <RefreshCw className='h-4 w-4' aria-hidden />
-                )}
-                Refresh
-              </Button>
-              <Button
-                variant='outline'
-                onClick={refundUnusedBudget}
-                disabled={isRefunding || !canRefund}
-              >
-                <Undo2 className='h-4 w-4' aria-hidden />
-                {isRefunding ? 'Refunding' : 'Refund'}
-              </Button>
-            </div>
-            <div className='grid grid-cols-1 gap-2'>
-              <Button
-                variant='outline'
-                onClick={attestRun}
-                disabled={
-                  isAttesting ||
-                  !['completed', 'attesting'].includes(run.status)
-                }
-              >
-                <FileCheck2 className='h-4 w-4' aria-hidden />
-                {isAttesting ? 'Writing' : 'Attest'}
-              </Button>
-            </div>
-            {run.proof ? (
-              <Link
-                href={`/proofs/${run.proof.id}`}
-                className={buttonClasses({
-                  variant: 'primary',
-                  size: 'md',
-                  className: 'w-full'
-                })}
-              >
-                <ExternalLink className='h-4 w-4' aria-hidden />
-                Open proof
-              </Link>
-            ) : null}
-            <p className='text-foreground/55 text-xs leading-5 break-all'>
-              Connected wallet: {address ?? 'Not connected'}
-            </p>
-          </div>
-        </div>
-      </Card>
+      <ExecutionSection run={run} />
 
-      <Card className='space-y-4'>
-        <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
-          <div>
+      <AdvancedRunDetails run={run} />
+
+      <FinalOutputSection outputs={finalOutputs} run={run} />
+    </div>
+  )
+}
+
+async function requestFundingWalletAddress(expectedAddress: string | null) {
+  const provider = getBrowserEthereumProvider()
+
+  if (!provider) {
+    throw new Error(
+      'MetaMask was not detected. Open the app in a browser with MetaMask installed, then click Fund agent again.'
+    )
+  }
+
+  const accounts = (await provider.request({
+    method: 'eth_requestAccounts'
+  })) as unknown
+  const selectedAddress = Array.isArray(accounts)
+    ? accounts.find(
+        (account): account is Address =>
+          typeof account === 'string' && isAddress(account)
+      )
+    : null
+
+  if (!selectedAddress) {
+    throw new Error('MetaMask did not return a funding wallet address.')
+  }
+
+  if (
+    expectedAddress &&
+    selectedAddress.toLowerCase() !== expectedAddress.toLowerCase()
+  ) {
+    throw new Error(
+      `MetaMask is using ${shorten(
+        selectedAddress
+      )}, but this app session is connected as ${shorten(
+        expectedAddress
+      )}. Switch MetaMask to the connected wallet, then fund again.`
+    )
+  }
+
+  return selectedAddress
+}
+
+async function sendBrowserWalletTransaction({
+  from,
+  to,
+  data
+}: {
+  from: Address
+  to: Address
+  data: Hex
+}) {
+  const provider = getBrowserEthereumProvider()
+
+  if (!provider) {
+    throw new Error('MetaMask was not detected.')
+  }
+
+  await ensureBrowserWalletChain(provider)
+  const txHash = await provider.request({
+    method: 'eth_sendTransaction',
+    params: [
+      {
+        from,
+        to,
+        data,
+        value: '0x0'
+      }
+    ]
+  })
+
+  if (typeof txHash !== 'string' || !txHash.startsWith('0x')) {
+    throw new Error('MetaMask did not return a transaction hash.')
+  }
+
+  return txHash as Hex
+}
+
+async function readFundingTokenState({
+  tokenAddress,
+  ownerAddress,
+  spenderAddress
+}: {
+  tokenAddress: Address
+  ownerAddress: Address
+  spenderAddress: Address
+}) {
+  const [balance, allowance, decimals, symbol] = await Promise.all([
+    publicClient.readContract({
+      address: tokenAddress,
+      abi: erc20ApprovalAbi,
+      functionName: 'balanceOf',
+      args: [ownerAddress]
+    }),
+    readFundingTokenAllowance({
+      tokenAddress,
+      ownerAddress,
+      spenderAddress
+    }),
+    publicClient.readContract({
+      address: tokenAddress,
+      abi: erc20ApprovalAbi,
+      functionName: 'decimals'
+    }),
+    publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: erc20ApprovalAbi,
+        functionName: 'symbol'
+      })
+      .catch(() => 'MUSD')
+  ])
+
+  return {
+    balance,
+    allowance,
+    decimals,
+    symbol
+  }
+}
+
+async function readFundingTokenAllowance({
+  tokenAddress,
+  ownerAddress,
+  spenderAddress
+}: {
+  tokenAddress: Address
+  ownerAddress: Address
+  spenderAddress: Address
+}) {
+  return await publicClient.readContract({
+    address: tokenAddress,
+    abi: erc20ApprovalAbi,
+    functionName: 'allowance',
+    args: [ownerAddress, spenderAddress]
+  })
+}
+
+async function waitForSuccessfulTransaction(
+  txHash: Hex,
+  revertedMessage: string
+) {
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+  if (receipt.status !== 'success') {
+    throw new Error(`${revertedMessage} Transaction hash: ${txHash}`)
+  }
+
+  return receipt
+}
+
+function formatTokenAmount(amount: bigint, decimals: number, symbol: string) {
+  return `${Number(formatUnits(amount, decimals)).toLocaleString(undefined, {
+    maximumFractionDigits: 6
+  })} ${symbol}`
+}
+
+async function ensureBrowserWalletChain(provider: EthereumProvider) {
+  const chainId = numberToHex(defaultAppChain.id)
+
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId }]
+    })
+    return
+  } catch (error) {
+    if (getWalletErrorCode(error) !== 4902) {
+      throw error
+    }
+  }
+
+  await provider.request({
+    method: 'wallet_addEthereumChain',
+    params: [
+      {
+        chainId,
+        chainName: defaultAppChain.name,
+        nativeCurrency: defaultAppChain.nativeCurrency,
+        rpcUrls: defaultAppChain.viemChain.rpcUrls.default.http,
+        blockExplorerUrls: [defaultAppChain.explorer.baseUrl]
+      }
+    ]
+  })
+
+  await provider.request({
+    method: 'wallet_switchEthereumChain',
+    params: [{ chainId }]
+  })
+}
+
+function getBrowserEthereumProvider() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const ethereum = (window as Window & { ethereum?: EthereumProvider }).ethereum
+
+  if (!ethereum) {
+    return null
+  }
+
+  return (
+    ethereum.providers?.find(
+      (provider: EthereumProvider) => provider.isMetaMask
+    ) ?? ethereum
+  )
+}
+
+function getWalletErrorCode(error: unknown) {
+  return typeof error === 'object' && error && 'code' in error
+    ? Number((error as { code?: unknown }).code)
+    : null
+}
+
+function RunSummaryCard({
+  run,
+  completedPaidActions
+}: {
+  run: AgentRun
+  completedPaidActions: number
+}) {
+  return (
+    <Card className='overflow-hidden p-0'>
+      <div className='border-border/70 bg-background/35 border-b p-5 sm:p-6'>
+        <div className='flex flex-wrap items-start justify-between gap-4'>
+          <div className='min-w-0 space-y-3'>
             <div className='text-primary flex items-center gap-2'>
-              <Route className='h-5 w-5' aria-hidden />
+              <Bot className='h-5 w-5' aria-hidden />
               <span className='text-xs font-semibold tracking-[0.18em] uppercase'>
-                Tool calls
+                Agent workspace
               </span>
             </div>
-            <h3 className='mt-2 text-2xl font-semibold'>Execution timeline</h3>
+            <div>
+              <h2 className='font-display max-w-4xl text-2xl leading-tight font-semibold text-balance sm:text-3xl'>
+                {run.title}
+              </h2>
+              <p className='text-foreground/65 mt-2 max-w-3xl text-sm leading-6'>
+                {run.objective}
+              </p>
+            </div>
           </div>
-          <p className='text-foreground/55 text-sm'>
-            {run.actions.length} selected, {completedPaidActions} completed with
-            receipts
+          <StatusPill status={run.status} />
+        </div>
+      </div>
+
+      <div className='space-y-5 p-5 sm:p-6'>
+        <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+          <SummaryStat
+            icon={WalletCards}
+            label='Funded'
+            value={run.fundedAmountMusd}
+          />
+          <SummaryStat
+            icon={CircleDollarSign}
+            label='Spent'
+            value={run.spentAmountMusd}
+          />
+          <SummaryStat
+            icon={Undo2}
+            label='Available'
+            value={run.availableAmountMusd}
+          />
+          <SummaryStat
+            icon={Sparkles}
+            label='Planner'
+            value={formatPlanner(run)}
+          />
+        </div>
+
+        <StatusNotice run={run} completedPaidActions={completedPaidActions} />
+      </div>
+    </Card>
+  )
+}
+
+function StatusNotice({
+  run,
+  completedPaidActions
+}: {
+  run: AgentRun
+  completedPaidActions: number
+}) {
+  const Icon = statusIcon(run.status)
+
+  return (
+    <div className='border-border/80 bg-muted/20 rounded-lg border p-4'>
+      <div className='flex items-start gap-3'>
+        <span className='bg-primary/10 text-primary mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full'>
+          <Icon className='h-4 w-4' aria-hidden />
+        </span>
+        <div className='min-w-0'>
+          <p className='font-semibold'>{agentRunStatusLabels[run.status]}</p>
+          <p className='text-foreground/65 mt-1 text-sm leading-6'>
+            {agentRunStatusDetails[run.status]}
+          </p>
+          {run.status === 'failed' && completedPaidActions === 0 ? (
+            <p className='mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm leading-6 text-red-600 dark:text-red-300'>
+              No paid tool completed with a receipt, so the gateway is showing
+              diagnostics instead of treating generated copy as verified output.
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RunControlPanel({
+  run,
+  address,
+  status,
+  isFunding,
+  isRunning,
+  isRefunding,
+  isAttesting,
+  isRefreshingRun,
+  canRun,
+  canRefund,
+  onFund,
+  onRun,
+  onRefund,
+  onAttest
+}: {
+  run: AgentRun
+  address: string | null
+  status: string
+  isFunding: boolean
+  isRunning: boolean
+  isRefunding: boolean
+  isAttesting: boolean
+  isRefreshingRun: boolean
+  canRun: boolean
+  canRefund: boolean
+  onFund: () => void
+  onRun: () => void
+  onRefund: () => void
+  onAttest: () => void
+}) {
+  return (
+    <aside className='xl:sticky xl:top-28 xl:self-start'>
+      <Card className='space-y-5'>
+        <div className='space-y-1'>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Run controls
+          </p>
+          <h3 className='text-lg font-semibold'>Fund, run, prove</h3>
+          <p className='text-foreground/60 text-sm leading-6'>
+            Spend is capped by the funded budget and each paid tool records a
+            receipt.
           </p>
         </div>
-        {run.actions.length === 0 ? (
-          <p className='text-foreground/65 rounded-xl border border-dashed p-5 text-sm leading-6'>
-            Actions appear here after the planner chooses tools.
-          </p>
-        ) : (
-          <div className='space-y-3'>
-            {run.actions.map(action => (
-              <ActionCard key={action.id} action={action} />
-            ))}
-          </div>
-        )}
-      </Card>
 
-      <details className='group border-border/80 bg-card/80 overflow-hidden rounded-xl border'>
-        <summary className='flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden'>
+        <div className='grid gap-2'>
+          <Button
+            className='w-full'
+            onClick={onFund}
+            disabled={
+              isFunding ||
+              !['unfunded', 'funding_pending', 'refund_available'].includes(
+                run.fundingStatus
+              ) ||
+              (run.fundingStatus === 'refund_available' &&
+                run.availableAmountMusd !== '0.00 MUSD')
+            }
+          >
+            <WalletCards className='h-4 w-4' aria-hidden />
+            {isFunding ? 'Funding' : 'Fund agent'}
+          </Button>
+          <Button
+            className='w-full'
+            onClick={onRun}
+            disabled={isRunning || !canRun}
+          >
+            <Play className='h-4 w-4' aria-hidden />
+            {isRunning
+              ? 'Running'
+              : run.status === 'failed'
+                ? 'Retry actions'
+                : 'Run actions'}
+          </Button>
+          <div className='grid grid-cols-2 gap-2'>
+            <Button
+              className='w-full px-3'
+              variant='outline'
+              onClick={onRefund}
+              disabled={isRefunding || !canRefund}
+            >
+              <Undo2 className='h-4 w-4' aria-hidden />
+              {isRefunding ? 'Refunding' : 'Refund'}
+            </Button>
+            <Button
+              className='w-full px-3'
+              variant='outline'
+              onClick={onAttest}
+              disabled={
+                isAttesting || !['completed', 'attesting'].includes(run.status)
+              }
+            >
+              <FileCheck2 className='h-4 w-4' aria-hidden />
+              {isAttesting ? 'Writing' : 'Attest'}
+            </Button>
+          </div>
+          {run.proof ? (
+            <Link
+              href={`/proofs/${run.proof.id}`}
+              className={buttonClasses({
+                variant: 'primary',
+                size: 'md',
+                className: 'w-full'
+              })}
+            >
+              <ExternalLink className='h-4 w-4' aria-hidden />
+              Open proof
+            </Link>
+          ) : null}
+        </div>
+
+        {status ? (
+          <div className='space-y-2'>
+            <p
+              className='border-border bg-muted/35 rounded-lg border p-3 text-sm leading-6 break-words'
+              role='status'
+            >
+              {status}
+            </p>
+            {isRefundStatusMessage(status) ? (
+              <RefundTransactionLinks run={run} />
+            ) : null}
+          </div>
+        ) : null}
+        {isRefreshingRun ? (
+          <p className='text-foreground/60 flex items-center gap-2 text-sm'>
+            <RefreshCw
+              className='text-primary h-4 w-4 animate-spin'
+              aria-hidden
+            />
+            Refreshing agent progress
+          </p>
+        ) : null}
+
+        <div className='border-border/80 grid gap-2 rounded-lg border p-3 text-sm'>
+          <div className='flex items-center justify-between gap-3'>
+            <span className='text-foreground/60'>Funding</span>
+            <span className='font-semibold'>{run.fundingStatus}</span>
+          </div>
+          <div className='flex items-center justify-between gap-3'>
+            <span className='text-foreground/60'>Wallet</span>
+            <span className='max-w-36 truncate font-semibold'>
+              {address ?? 'Not connected'}
+            </span>
+          </div>
+          {run.refundTxHash ? (
+            <a
+              href={
+                run.refundExplorerUrl ??
+                getExplorerTransactionUrl(run.refundTxHash) ??
+                undefined
+              }
+              target='_blank'
+              rel='noreferrer'
+              className='border-border/70 text-primary hover:bg-primary/10 mt-1 flex items-center justify-between gap-3 rounded-md border px-2.5 py-2 font-semibold transition'
+            >
+              <span>Refund tx</span>
+              <span className='flex min-w-0 items-center gap-2'>
+                <span className='max-w-32 truncate'>
+                  {shorten(run.refundTxHash)}
+                </span>
+                <ExternalLink className='h-3.5 w-3.5 shrink-0' aria-hidden />
+              </span>
+            </a>
+          ) : null}
+        </div>
+      </Card>
+    </aside>
+  )
+}
+
+function RefundTransactionLinks({ run }: { run: AgentRun }) {
+  const links = collectRefundLinks(run)
+
+  if (!links.length) {
+    return (
+      <p className='border-border/70 text-foreground/60 rounded-lg border border-dashed p-3 text-xs leading-5'>
+        Refund transaction is not recorded yet. Refresh after the wallet or
+        vault transaction confirms.
+      </p>
+    )
+  }
+
+  return (
+    <div className='grid gap-2'>
+      {links.map(link => (
+        <a
+          key={`${link.label}-${link.txHash}`}
+          href={
+            link.explorerUrl ??
+            getExplorerTransactionUrl(link.txHash) ??
+            undefined
+          }
+          target='_blank'
+          rel='noreferrer'
+          className='border-border bg-background/50 text-primary hover:bg-primary/10 flex items-center justify-between gap-3 rounded-lg border p-3 text-sm font-semibold transition'
+        >
+          <span>{link.label}</span>
+          <span className='flex min-w-0 items-center gap-2'>
+            <span className='max-w-40 truncate'>{shorten(link.txHash)}</span>
+            <ExternalLink className='h-4 w-4 shrink-0' aria-hidden />
+          </span>
+        </a>
+      ))}
+    </div>
+  )
+}
+
+function collectRefundLinks(run: AgentRun) {
+  const links: Array<{
+    label: string
+    txHash: string
+    explorerUrl?: string | null
+  }> = []
+  const seen = new Set<string>()
+  const addLink = (
+    label: string,
+    txHash: string | null | undefined,
+    explorerUrl?: string | null
+  ) => {
+    if (!txHash || seen.has(txHash)) {
+      return
+    }
+
+    seen.add(txHash)
+    links.push({ label, txHash, explorerUrl })
+  }
+
+  addLink('Unused budget refund', run.refundTxHash, run.refundExplorerUrl)
+
+  for (const event of run.ledgerEvents) {
+    if (event.type === 'unused_refunded' || event.type === 'spend_refunded') {
+      addLink(event.label, event.txHash, event.explorerUrl)
+    }
+  }
+
+  for (const action of run.actions) {
+    addLink(
+      `${action.productName} vault refund`,
+      action.vaultRefundTxHash,
+      action.vaultRefundExplorerUrl
+    )
+    addLink(
+      `${action.productName} signer return`,
+      action.vaultReturnTxHash,
+      action.vaultReturnExplorerUrl
+    )
+  }
+
+  return links
+}
+
+function isRefundStatusMessage(status: string) {
+  return /\brefund|refunded|refunding\b/i.test(status)
+}
+
+function ExecutionSection({ run }: { run: AgentRun }) {
+  return (
+    <section className='space-y-3'>
+      <div className='flex flex-wrap items-end justify-between gap-3'>
+        <div>
+          <p className='text-primary text-xs font-semibold tracking-[0.16em] uppercase'>
+            Execution
+          </p>
+          <h3 className='mt-1 text-xl font-semibold'>Tool calls</h3>
+        </div>
+        <span className='text-foreground/60 text-sm'>
+          {run.actions.length} planned action
+          {run.actions.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      {run.actions.length === 0 ? (
+        <div className='border-border text-foreground/65 rounded-lg border border-dashed p-5 text-sm leading-6'>
+          Actions appear here after the planner chooses tools.
+        </div>
+      ) : (
+        <div className='grid gap-3'>
+          {run.actions.map(action => (
+            <ActionCard key={action.id} action={action} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AdvancedRunDetails({ run }: { run: AgentRun }) {
+  return (
+    <section className='space-y-3'>
+      <details className='group border-border/80 bg-card/75 overflow-hidden rounded-lg border'>
+        <summary className='flex cursor-pointer list-none items-center justify-between gap-4 p-4 [&::-webkit-details-marker]:hidden'>
           <span className='flex items-center gap-2 font-semibold'>
             <ShieldCheck className='text-primary h-4 w-4' aria-hidden />
-            Run ledger and diagnostics
+            Funding and skipped-tool details
           </span>
-          <span className='text-foreground/50 text-sm group-open:hidden'>
+          <span className='text-foreground/55 text-sm group-open:hidden'>
             Expand
           </span>
-          <span className='text-foreground/50 hidden text-sm group-open:inline'>
+          <span className='text-foreground/55 hidden text-sm group-open:inline'>
             Collapse
           </span>
         </summary>
-        <div className='border-border/70 grid gap-4 border-t p-5 lg:grid-cols-[0.9fr_1.1fr]'>
-          <div className='space-y-4'>
-            <div className='grid gap-3 sm:grid-cols-2'>
-              <DetailLink
-                label='Vault'
-                value={run.vaultAddress}
-                href={run.vaultExplorerUrl}
-              />
-              <DetailLink
-                label='Funding tx'
-                value={run.fundingTxHash}
-                href={run.fundingExplorerUrl}
-              />
-              <DetailLink
-                label='Approval tx'
-                value={run.approvalTxHash}
-                href={run.approvalExplorerUrl}
-              />
-              <DetailLink
-                label='Refund tx'
-                value={run.refundTxHash}
-                href={run.refundExplorerUrl}
-              />
-            </div>
-            <LedgerTimeline events={run.ledgerEvents} />
-          </div>
-
-          <div className='space-y-4'>
-            {run.deliverables.skippedTools?.length ? (
-              <SkippedTools tools={run.deliverables.skippedTools} />
-            ) : null}
-            <JsonViewer
-              title='Planner and deliverable diagnostics'
-              value={run.deliverables}
-              defaultOpen={false}
-              copyLabel='Copy diagnostics'
+        <div className='border-border/70 space-y-5 border-t p-4'>
+          <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
+            <DetailLink
+              label='Vault'
+              value={run.vaultAddress}
+              href={run.vaultExplorerUrl}
+            />
+            <DetailLink
+              label='Funding tx'
+              value={run.fundingTxHash}
+              href={run.fundingExplorerUrl}
+            />
+            <DetailLink
+              label='Approval tx'
+              value={run.approvalTxHash}
+              href={run.approvalExplorerUrl}
+            />
+            <DetailLink
+              label='Refund tx'
+              value={run.refundTxHash}
+              href={run.refundExplorerUrl}
             />
           </div>
+          <LedgerTimeline events={run.ledgerEvents} />
+          <SkippedTools tools={run.deliverables.skippedTools ?? []} />
         </div>
       </details>
 
-      <FinalOutputSection run={run} outputs={finalOutputs} />
+      <JsonViewer
+        title='Planner, receipts, and deliverable diagnostics'
+        value={run.deliverables}
+        defaultOpen={false}
+        copyLabel='Copy diagnostics'
+      />
+    </section>
+  )
+}
+
+function SummaryStat({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+}) {
+  return (
+    <div className='border-border/70 bg-background/45 rounded-lg border p-3'>
+      <div className='flex items-center gap-2'>
+        <Icon className='text-primary h-4 w-4' aria-hidden />
+        <p className='text-foreground/60 text-xs tracking-[0.14em] uppercase'>
+          {label}
+        </p>
+      </div>
+      <p className='mt-2 text-sm font-semibold break-words'>{value}</p>
+    </div>
+  )
+}
+
+function SkippedTools({
+  tools
+}: {
+  tools: NonNullable<AgentRun['deliverables']['skippedTools']>
+}) {
+  if (tools.length === 0) {
+    return null
+  }
+
+  return (
+    <div className='space-y-3'>
+      <p className='font-semibold'>Skipped tools</p>
+      <div className='grid gap-3 md:grid-cols-2'>
+        {tools.map(tool => (
+          <div
+            key={tool.slug}
+            className='border-border bg-muted/20 rounded-lg border p-3 text-sm'
+          >
+            <p className='font-semibold'>{tool.productName ?? tool.slug}</p>
+            <p className='text-foreground/65 mt-1 leading-6'>{tool.reason}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -622,19 +1240,6 @@ function StatusPill({ status }: { status: AgentRun['status'] }) {
       <Icon className='text-primary h-4 w-4' aria-hidden />
       {agentRunStatusLabels[status]}
     </span>
-  )
-}
-
-function CompactMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className='border-border/70 bg-background/60 min-w-0 rounded-xl border p-3'>
-      <p className='text-foreground/55 text-[0.68rem] font-semibold tracking-[0.14em] uppercase'>
-        {label}
-      </p>
-      <p className='mt-1 truncate text-sm font-semibold sm:text-base'>
-        {value}
-      </p>
-    </div>
   )
 }
 
@@ -713,331 +1318,349 @@ function LedgerTimeline({ events }: { events: AgentLedgerEvent[] }) {
   )
 }
 
-function SkippedTools({
-  tools
-}: {
-  tools: NonNullable<AgentRun['deliverables']['skippedTools']>
-}) {
-  return (
-    <details className='border-border/80 bg-card/75 overflow-hidden rounded-xl border'>
-      <summary className='flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 [&::-webkit-details-marker]:hidden'>
-        <span className='flex items-center gap-2 text-sm font-semibold'>
-          <Route className='text-primary h-4 w-4' aria-hidden />
-          Skipped tools
-        </span>
-        <span className='bg-muted rounded-full px-2 py-1 text-xs font-semibold'>
-          {tools.length}
-        </span>
-      </summary>
-      <div className='border-border/70 grid gap-3 border-t p-4'>
-        {tools.map(tool => (
-          <div
-            key={tool.slug}
-            className='border-border bg-muted/20 rounded-lg border p-3 text-sm'
-          >
-            <p className='font-semibold'>{tool.productName ?? tool.slug}</p>
-            <p className='text-foreground/65 mt-1 leading-6'>{tool.reason}</p>
-          </div>
-        ))}
-      </div>
-    </details>
-  )
-}
-
 function ActionCard({ action }: { action: AgentRun['actions'][number] }) {
+  const displayStatus = getActionDisplayStatus(action)
   const Icon =
-    action.status === 'completed'
+    displayStatus.tone === 'completed'
       ? CheckCircle2
-      : action.status === 'failed'
+      : displayStatus.tone === 'failed'
         ? AlertTriangle
         : Clock
-  const outputItems = getActionOutputItems(action)
-  const requestUrl =
-    action.requestUrl ?? `/api/x402/products/${action.productSlug}/call`
-  const requestMethod = action.requestMethod ?? 'POST'
-  const responseValue = action.toolResponsePayload ?? action.responsePayload
+  const outputItems = collectActionOutputs(action)
 
   return (
-    <div className='border-border/80 bg-background/55 rounded-xl border p-4'>
-      <div className='grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start'>
-        <div className='min-w-0 space-y-2'>
+    <div className='border-border bg-background/55 rounded-lg border p-4 shadow-sm'>
+      <div className='flex flex-wrap items-start justify-between gap-3'>
+        <div className='min-w-0'>
           <div className='flex items-center gap-2'>
             <Icon className='text-primary h-4 w-4' aria-hidden />
             <p className='font-semibold'>{action.productName}</p>
           </div>
-          <div className='text-foreground/60 flex flex-wrap gap-x-3 gap-y-1 text-sm'>
-            <span>{action.providerName}</span>
-            <span>{action.amountMusd}</span>
-            {action.requestId ? <span>{shorten(action.requestId)}</span> : null}
-          </div>
+          <p className='text-foreground/60 mt-1 text-sm'>
+            {action.providerName} - {action.amountMusd}
+          </p>
         </div>
-        <div className='flex flex-wrap gap-2 lg:justify-end'>
-          <span className='bg-muted rounded-full px-3 py-1 text-xs font-semibold'>
-            {agentActionStatusLabels[action.status]}
+        <div className='flex flex-wrap items-center justify-end gap-2'>
+          <ActionLinks action={action} />
+          <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
+            {displayStatus.label}
           </span>
-          {action.receipt ? (
-            <Link
-              href={`/receipts/${action.receipt.id}`}
-              className='border-border text-primary rounded-full border px-3 py-1 text-xs font-semibold underline-offset-4 hover:underline'
-            >
-              Receipt
-            </Link>
-          ) : null}
-          {action.receipt?.explorerUrl ? (
-            <a
-              href={action.receipt.explorerUrl}
-              target='_blank'
-              rel='noreferrer'
-              className='border-border text-primary rounded-full border px-3 py-1 text-xs font-semibold underline-offset-4 hover:underline'
-            >
-              Settlement
-            </a>
-          ) : null}
         </div>
       </div>
-
-      {outputItems.length ? (
-        <div className='mt-3 flex flex-wrap gap-2'>
-          {outputItems.map(item => (
-            <OutputChip key={item.id} item={item} />
-          ))}
-        </div>
-      ) : null}
-
       {action.errorMessage ? (
         <p className='mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm leading-6 text-red-600 dark:text-red-300'>
           {action.errorMessage}
         </p>
       ) : null}
-
-      <details className='border-border/70 bg-muted/20 mt-3 overflow-hidden rounded-lg border'>
-        <summary className='flex cursor-pointer list-none items-center justify-between gap-4 px-3 py-2 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
-          Request, response, and planner notes
-          <span className='text-foreground/45 text-xs'>Diagnostics</span>
+      {action.planningRationale ? (
+        <details className='border-border bg-muted/30 mt-3 rounded-lg border p-3 text-sm'>
+          <summary className='cursor-pointer font-semibold'>
+            Planner rationale
+          </summary>
+          <p className='text-foreground/65 mt-2 leading-6'>
+            {action.planningRationale}
+          </p>
+        </details>
+      ) : null}
+      {outputItems.length > 0 ? (
+        <div className='mt-4'>
+          <SectionLabel icon={Link2} label='Tool output' />
+          <OutputGallery outputs={outputItems} className='mt-2' compact />
+        </div>
+      ) : null}
+      {action.asyncPollingResponses?.length ? (
+        <AsyncPollingPanel action={action} />
+      ) : null}
+      <details className='border-border/70 bg-muted/20 mt-4 rounded-lg border'>
+        <summary className='flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
+          <span className='flex items-center gap-2'>
+            <Braces className='text-primary h-4 w-4' aria-hidden />
+            Request and response JSON
+          </span>
+          <span className='text-foreground/50 text-xs'>Expand</span>
         </summary>
-        <div className='border-border/70 grid gap-3 border-t p-3'>
-          {action.planningRationale ? (
-            <div className='text-sm'>
-              <p className='font-semibold'>Planner rationale</p>
-              <p className='text-foreground/65 mt-1 leading-6'>
-                {action.planningRationale}
-              </p>
-            </div>
-          ) : null}
+        <div className='border-border/70 grid gap-3 border-t p-3 lg:grid-cols-2'>
           <JsonViewer
             title='Tool request'
-            value={{
-              method: requestMethod,
-              url: requestUrl,
-              body: action.requestPayload
-            }}
+            value={action.requestPayload}
             defaultOpen={false}
             copyLabel='Copy request'
           />
-          {responseValue ? (
-            <JsonViewer
-              title='Tool response'
-              value={responseValue}
-              defaultOpen={false}
-              copyLabel='Copy response'
-            />
-          ) : (
-            <div className='border-border/80 bg-card/75 rounded-xl border p-4 text-sm'>
-              <p className='font-semibold'>Tool response</p>
-              <p className='text-foreground/60 mt-1 leading-6'>
-                No response body was recorded for this action yet.
-              </p>
-            </div>
-          )}
+          <JsonViewer
+            title='Tool response'
+            value={
+              action.responsePayload ?? {
+                status: action.status,
+                message:
+                  action.errorMessage ??
+                  (action.status === 'paid'
+                    ? 'The paid request is running. the gateway is waiting for the provider response.'
+                    : 'No response payload recorded yet.')
+              }
+            }
+            defaultOpen={false}
+            copyLabel='Copy response'
+          />
         </div>
       </details>
     </div>
   )
 }
 
-function OutputChip({ item }: { item: AgentOutputItem }) {
-  const Icon =
-    item.kind === 'video'
-      ? Video
-      : item.kind === 'image'
-        ? ImageIcon
-        : item.kind === 'text'
-          ? FileText
-          : LinkIcon
+function getActionDisplayStatus(action: AgentRun['actions'][number]) {
+  const poll = getLatestAsyncPoll(action)
 
-  if (!item.url) {
-    return (
-      <span className='border-border bg-card inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold'>
-        <Icon className='text-primary h-3.5 w-3.5' aria-hidden />
-        {item.title}
-      </span>
+  if (action.status === 'paid' && poll?.orderStatus) {
+    if (poll.orderStatus === 'completed') {
+      return { label: 'Completed', tone: 'completed' as const }
+    }
+
+    if (poll.orderStatus === 'failed' || poll.orderStatus === 'expired') {
+      return { label: humanizePath(poll.orderStatus), tone: 'failed' as const }
+    }
+
+    if (poll.orderStatus === 'processing') {
+      return { label: 'Processing', tone: 'running' as const }
+    }
+
+    if (poll.orderStatus === 'forwarding') {
+      return { label: 'Running', tone: 'running' as const }
+    }
+
+    if (poll.orderStatus === 'created' || poll.orderStatus === 'paid') {
+      return { label: 'Pending', tone: 'running' as const }
+    }
+  }
+
+  return {
+    label: agentActionStatusLabels[action.status],
+    tone:
+      action.status === 'completed'
+        ? ('completed' as const)
+        : action.status === 'failed'
+          ? ('failed' as const)
+          : ('running' as const)
+  }
+}
+
+function shouldPollAsyncActionOnClient(action: AgentRun['actions'][number]) {
+  if (action.status !== 'paid' || !action.orderId) {
+    return false
+  }
+
+  const poll = getLatestAsyncPoll(action)
+
+  return !['completed', 'failed', 'expired'].includes(poll?.orderStatus ?? '')
+}
+
+function shouldResumePlannedActions(run: AgentRun) {
+  if (!['running', 'failed'].includes(run.status)) {
+    return false
+  }
+
+  if (
+    !['funded', 'partially_spent', 'refund_available'].includes(
+      run.fundingStatus
     )
+  ) {
+    return false
+  }
+
+  const hasCompletedAction = run.actions.some(
+    action => action.status === 'completed'
+  )
+  const hasPlannedAction = run.actions.some(action =>
+    ['planned', 'quoted'].includes(action.status)
+  )
+  const hasActivePaidAction = run.actions.some(shouldPollAsyncActionOnClient)
+
+  return hasCompletedAction && hasPlannedAction && !hasActivePaidAction
+}
+
+function ActionLinks({ action }: { action: AgentRun['actions'][number] }) {
+  const links = [
+    action.receipt
+      ? {
+          label: 'Receipt',
+          href: `/receipts/${action.receipt.id}`,
+          icon: ReceiptText
+        }
+      : null,
+    action.receipt?.explorerUrl
+      ? {
+          label: 'Settlement',
+          href: action.receipt.explorerUrl,
+          icon: ExternalLink,
+          external: true
+        }
+      : null,
+    action.vaultSpendExplorerUrl
+      ? {
+          label: 'Vault spend',
+          href: action.vaultSpendExplorerUrl,
+          icon: Network,
+          external: true
+        }
+      : null
+  ].filter(Boolean) as Array<{
+    label: string
+    href: string
+    icon: LucideIcon
+    external?: boolean
+  }>
+
+  if (!links.length) {
+    return null
   }
 
   return (
-    <a
-      href={item.url}
-      target='_blank'
-      rel='noreferrer'
-      className='border-border bg-card text-primary inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold underline-offset-4 hover:underline'
-    >
-      <Icon className='h-3.5 w-3.5' aria-hidden />
-      {item.title}
-    </a>
+    <div className='flex items-center gap-1'>
+      {links.map(({ label, href, icon: Icon, external }) => {
+        const classes =
+          'border-border bg-card/70 text-foreground/75 hover:text-primary hover:border-primary/50 inline-flex h-9 w-9 items-center justify-center rounded-lg border transition'
+
+        return external ? (
+          <a
+            key={label}
+            href={href}
+            target='_blank'
+            rel='noreferrer'
+            className={classes}
+            title={label}
+            aria-label={label}
+          >
+            <Icon className='h-4 w-4' aria-hidden />
+          </a>
+        ) : (
+          <Link
+            key={label}
+            href={href}
+            className={classes}
+            title={label}
+            aria-label={label}
+          >
+            <Icon className='h-4 w-4' aria-hidden />
+          </Link>
+        )
+      })}
+    </div>
   )
 }
 
-type AgentOutputItem = {
-  id: string
-  title: string
-  kind: 'video' | 'image' | 'link' | 'text'
-  url?: string
-  value?: string
-  source?: string
-}
-
-function FinalOutputSection({
-  run,
-  outputs
+function AsyncPollingPanel({
+  action
 }: {
-  run: AgentRun
-  outputs: AgentOutputItem[]
+  action: AgentRun['actions'][number]
 }) {
-  const textOutput = buildTextFinalOutput(run)
+  const poll = getLatestAsyncPoll(action)
+  const pollingUrl = poll?.pollingUrl
+
+  if (!poll) {
+    return null
+  }
+
+  const displayUrl = formatDisplayUrl(pollingUrl)
 
   return (
-    <Card className='space-y-5 overflow-hidden'>
-      <div className='flex flex-wrap items-start justify-between gap-3'>
-        <div>
-          <div className='text-primary flex items-center gap-2'>
-            <Sparkles className='h-5 w-5' aria-hidden />
-            <span className='text-xs font-semibold tracking-[0.18em] uppercase'>
-              Final output
+    <details className='border-border/80 bg-card/45 mt-4 overflow-hidden rounded-lg border'>
+      <summary className='flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden'>
+        <span className='flex min-w-0 flex-wrap items-center gap-2'>
+          <Activity className='text-primary h-4 w-4' aria-hidden />
+          <span className='text-foreground/60 text-xs font-semibold tracking-[0.14em] uppercase'>
+            Async polling
+          </span>
+          <span className='bg-primary/10 text-primary rounded-md px-2 py-1 text-xs font-semibold'>
+            HTTP {poll.httpStatus}
+          </span>
+          {poll.orderStatus ? (
+            <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
+              {poll.orderStatus}
             </span>
-          </div>
-          <h3 className='mt-2 text-2xl font-semibold'>Agent deliverables</h3>
-          <p className='text-foreground/60 mt-1 max-w-3xl text-sm leading-6'>
-            Completed tool outputs are rendered here as media, project links, or
-            synthesized text so the run shows the actual deliverable instead of
-            only execution notes.
+          ) : null}
+          {poll.resultReleaseStatus ? (
+            <span className='text-foreground/55 text-xs'>
+              {poll.resultReleaseStatus}
+            </span>
+          ) : null}
+        </span>
+        <span className='text-foreground/50 text-xs'>
+          {new Date(poll.polledAt).toLocaleTimeString()}
+        </span>
+      </summary>
+      <div className='border-border/70 grid gap-3 border-t p-3 md:grid-cols-2'>
+        <div className='border-border/70 bg-background/45 rounded-lg border p-3 text-sm'>
+          <p className='text-foreground/55 text-xs tracking-[0.14em] uppercase'>
+            Provider job
+          </p>
+          <p className='mt-1 truncate font-semibold'>
+            {poll.externalJobId ?? 'No provider job id yet'}
           </p>
         </div>
-        <StatusPill status={run.status} />
-      </div>
-
-      {outputs.length ? (
-        <div className='grid gap-4 lg:grid-cols-2'>
-          {outputs.map(item => (
-            <OutputPreview key={item.id} item={item} />
-          ))}
-        </div>
-      ) : null}
-
-      {textOutput ? (
-        <div className='border-border bg-background/60 rounded-xl border p-4'>
-          <div className='mb-3 flex items-center gap-2'>
-            <FileText className='text-primary h-4 w-4' aria-hidden />
-            <p className='font-semibold'>Synthesized result</p>
+        <div className='border-border/70 bg-background/45 grid gap-3 rounded-lg border p-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center'>
+          <div className='min-w-0'>
+            <p className='text-foreground/55 text-xs tracking-[0.14em] uppercase'>
+              Polling endpoint
+            </p>
+            <p className='mt-1 truncate font-semibold'>{displayUrl.host}</p>
+            <p className='text-foreground/55 mt-1 truncate text-xs'>
+              {displayUrl.path}
+            </p>
           </div>
-          <MarkdownViewer
-            value={textOutput}
-            className='max-h-[34rem] overflow-auto pr-2'
-          />
-        </div>
-      ) : null}
-
-      {!outputs.length && !textOutput ? (
-        <div className='border-border rounded-xl border border-dashed p-6'>
-          <p className='font-semibold'>No final output yet</p>
-          <p className='text-foreground/60 mt-1 text-sm leading-6'>
-            Run the agent or retry failed tools. Completed actions with result
-            URLs, media URLs, or synthesized text will appear here.
-          </p>
-        </div>
-      ) : null}
-    </Card>
-  )
-}
-
-function OutputPreview({
-  item,
-  compact = false
-}: {
-  item: AgentOutputItem
-  compact?: boolean
-}) {
-  const Icon =
-    item.kind === 'video'
-      ? Video
-      : item.kind === 'image'
-        ? ImageIcon
-        : item.kind === 'text'
-          ? FileText
-          : LinkIcon
-
-  return (
-    <div className='border-border bg-card/70 overflow-hidden rounded-xl border'>
-      <div className='border-border/70 flex items-start justify-between gap-3 border-b p-4'>
-        <div className='min-w-0'>
-          <div className='flex items-center gap-2'>
-            <Icon className='text-primary h-4 w-4 shrink-0' aria-hidden />
-            <p className='font-semibold'>{item.title}</p>
-          </div>
-          {item.source ? (
-            <p className='text-foreground/55 mt-1 text-xs'>{item.source}</p>
+          {pollingUrl ? (
+            <a
+              href={pollingUrl}
+              target='_blank'
+              rel='noreferrer'
+              className='border-border bg-card/70 text-primary inline-flex h-9 w-9 items-center justify-center rounded-lg border'
+              title='Open polling URL'
+              aria-label='Open polling URL'
+            >
+              <ExternalLink className='h-4 w-4' aria-hidden />
+            </a>
           ) : null}
         </div>
-        {item.url ? (
-          <a
-            href={item.url}
-            target='_blank'
-            rel='noreferrer'
-            className='text-primary inline-flex shrink-0 items-center gap-1 text-sm font-semibold underline-offset-4 hover:underline'
-          >
-            Open
-            <ExternalLink className='h-3.5 w-3.5' aria-hidden />
-          </a>
-        ) : null}
       </div>
-      <div className='p-4'>
-        {item.kind === 'video' && item.url ? (
-          <video
-            controls
-            className='bg-background aspect-video w-full rounded-lg border object-contain'
-            src={item.url}
-          >
-            <track kind='captions' />
-          </video>
-        ) : null}
-        {item.kind === 'image' && item.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.url}
-            alt={item.title}
-            className='bg-background max-h-[28rem] w-full rounded-lg border object-contain'
+      <details className='border-border/70 border-t'>
+        <summary className='flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
+          <span className='flex items-center gap-2'>
+            <Braces className='text-primary h-4 w-4' aria-hidden />
+            Polling request and response JSON
+          </span>
+          <span className='text-foreground/50 text-xs'>Expand</span>
+        </summary>
+        <div className='border-border/70 border-t p-3'>
+          <JsonViewer
+            title='Async polling response'
+            value={poll}
+            defaultOpen={false}
+            copyLabel='Copy polling response'
           />
-        ) : null}
-        {item.kind === 'link' && item.url ? (
-          <a
-            href={item.url}
-            target='_blank'
-            rel='noreferrer'
-            className='text-primary block rounded-lg border p-3 text-sm font-semibold break-all underline-offset-4 hover:underline'
-          >
-            {item.url}
-          </a>
-        ) : null}
-        {item.kind === 'text' && item.value ? (
-          compact ? (
-            <p className='text-foreground/70 line-clamp-5 text-sm leading-6'>
-              {item.value}
-            </p>
-          ) : (
-            <MarkdownViewer value={item.value} />
-          )
-        ) : null}
-      </div>
-    </div>
+        </div>
+      </details>
+    </details>
+  )
+}
+
+function getLatestAsyncPoll(
+  action: AgentRun['actions'][number]
+): AgentAsyncPoll | undefined {
+  return (
+    action.latestAsyncPollingResponse ?? action.asyncPollingResponses?.at(-1)
+  )
+}
+
+function SectionLabel({
+  icon: Icon,
+  label
+}: {
+  icon: LucideIcon
+  label: string
+}) {
+  return (
+    <p className='text-foreground/60 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] uppercase'>
+      <Icon className='text-primary h-4 w-4' aria-hidden />
+      {label}
+    </p>
   )
 }
 
@@ -1071,269 +1694,463 @@ function statusIcon(status: AgentRun['status']) {
   return Bot
 }
 
-function getFinalOutputItems(run: AgentRun): AgentOutputItem[] {
-  const seen = new Set<string>()
-  const items: AgentOutputItem[] = []
+function FinalOutputSection({
+  outputs,
+  run
+}: {
+  outputs: AgentOutputItem[]
+  run: AgentRun
+}) {
+  const completedActions = run.actions.filter(
+    action => action.status === 'completed'
+  )
 
-  for (const action of run.actions) {
-    if (action.status !== 'completed') {
-      continue
-    }
-
-    for (const item of getActionOutputItems(action)) {
-      const key = item.url ?? `${item.title}:${item.value}`
-
-      if (seen.has(key)) {
-        continue
-      }
-
-      seen.add(key)
-      items.push(item)
-    }
-  }
-
-  const deliverableUrl = run.deliverables.videoResultUrl?.trim()
-
-  if (deliverableUrl && !seen.has(deliverableUrl)) {
-    seen.add(deliverableUrl)
-    items.unshift(
-      createUrlOutputItem({
-        id: 'deliverable-video-result',
-        title: 'Primary result',
-        url: deliverableUrl,
-        source: 'Synthesized deliverable'
-      })
-    )
-  }
-
-  return items
-}
-
-function getActionOutputItems(
-  action: AgentRun['actions'][number]
-): AgentOutputItem[] {
-  const items = extractUrlOutputItems(action.responsePayload, {
-    idPrefix: action.id,
-    source: action.productName
-  })
-  const receiptUrl = action.receipt?.resultUrl?.trim()
-
-  if (receiptUrl && !items.some(item => item.url === receiptUrl)) {
-    items.unshift(
-      createUrlOutputItem({
-        id: `${action.id}:receipt-result`,
-        title: 'Receipt result',
-        url: receiptUrl,
-        source: action.productName
-      })
-    )
-  }
-
-  const textSummary = getActionTextSummary(action)
-
-  if (textSummary) {
-    items.push({
-      id: `${action.id}:text-summary`,
-      title: 'Text output',
-      kind: 'text',
-      value: textSummary,
-      source: action.productName
-    })
-  }
-
-  return items
-}
-
-function extractUrlOutputItems(
-  value: unknown,
-  {
-    idPrefix,
-    source
-  }: {
-    idPrefix: string
-    source: string
-  }
-) {
-  const urls = new Map<string, string>()
-
-  collectOutputUrls(value, [], urls)
-
-  return Array.from(urls.entries()).map(([url, label], index) =>
-    createUrlOutputItem({
-      id: `${idPrefix}:url:${index}:${url}`,
-      title: label,
-      url,
-      source
-    })
+  return (
+    <Card className='space-y-4 overflow-hidden'>
+      <div className='flex flex-wrap items-start justify-between gap-3'>
+        <div>
+          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+            Final deliverable
+          </p>
+          <h3 className='mt-1 text-lg font-semibold'>Final agent output</h3>
+          <p className='text-foreground/65 mt-1 max-w-2xl text-sm leading-6'>
+            Completed project links, rendered media, and final text extracted
+            after async tools finish and the agent synthesis is ready.
+          </p>
+        </div>
+        <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
+          {completedActions.length} completed tool
+          {completedActions.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      {outputs.length > 0 ? (
+        <OutputGallery outputs={outputs} />
+      ) : (
+        <p className='border-border text-foreground/65 rounded-lg border border-dashed p-4 text-sm leading-6'>
+          Final deliverables appear here after paid tools return completed text,
+          image, video, or project URLs. Use the tool response panels above to
+          inspect failed or pending calls.
+        </p>
+      )}
+    </Card>
   )
 }
 
-function collectOutputUrls(
+function OutputGallery({
+  outputs,
+  className,
+  compact = false
+}: {
+  outputs: AgentOutputItem[]
+  className?: string
+  compact?: boolean
+}) {
+  return (
+    <div
+      className={[
+        'grid gap-3',
+        compact ? 'md:grid-cols-2' : 'lg:grid-cols-2',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {outputs.map(output => (
+        <OutputPreview key={output.id} output={output} compact={compact} />
+      ))}
+    </div>
+  )
+}
+
+function OutputPreview({
+  output,
+  compact
+}: {
+  output: AgentOutputItem
+  compact?: boolean
+}) {
+  if (compact && output.kind === 'link') {
+    return (
+      <div className='border-border bg-background/50 rounded-lg border p-3'>
+        <CompactLinkPreview href={output.value} label={output.label} />
+      </div>
+    )
+  }
+
+  return (
+    <div className='border-border bg-background/50 overflow-hidden rounded-lg border'>
+      <div className='border-border/80 flex flex-wrap items-start justify-between gap-2 border-b p-3'>
+        <div className='min-w-0'>
+          <p className='font-semibold break-words'>{output.label}</p>
+          <p className='text-foreground/55 mt-1 text-xs'>{output.source}</p>
+        </div>
+        <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
+          {output.kind}
+        </span>
+      </div>
+      {output.kind === 'video' ? (
+        <div className='bg-black'>
+          <video
+            src={output.value}
+            controls
+            playsInline
+            className={compact ? 'max-h-56 w-full' : 'max-h-96 w-full'}
+          />
+        </div>
+      ) : null}
+      {output.kind === 'image' ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={output.value}
+          alt={output.label}
+          className={
+            compact
+              ? 'max-h-56 w-full object-contain'
+              : 'max-h-96 w-full object-contain'
+          }
+        />
+      ) : null}
+      {output.kind === 'text' ? (
+        <div className='max-h-96 overflow-auto p-3'>
+          <MarkdownViewer value={output.value} />
+        </div>
+      ) : null}
+      <div className='p-3'>
+        {output.kind === 'link' ? (
+          <CompactLinkPreview href={output.value} />
+        ) : output.kind === 'image' || output.kind === 'video' ? (
+          <a
+            href={output.value}
+            target='_blank'
+            rel='noreferrer'
+            className='text-primary inline-flex max-w-full items-center gap-2 text-sm font-semibold break-all underline-offset-4 hover:underline'
+          >
+            Open source
+            <ExternalLink className='h-4 w-4 shrink-0' aria-hidden />
+          </a>
+        ) : (
+          <p className='text-foreground/55 text-xs'>
+            Text output rendered from the agent result.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CompactLinkPreview({ href, label }: { href: string; label?: string }) {
+  const url = formatDisplayUrl(href)
+
+  return (
+    <a
+      href={href}
+      target='_blank'
+      rel='noreferrer'
+      className='group flex min-w-0 items-center gap-3 rounded-lg text-sm'
+    >
+      <span className='bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg'>
+        <ExternalLink className='h-4 w-4' aria-hidden />
+      </span>
+      <span className='min-w-0'>
+        <span className='block truncate font-semibold'>
+          {label ? `${label} - ${url.host}` : url.host}
+        </span>
+        <span className='text-foreground/55 group-hover:text-primary block truncate text-xs'>
+          {url.path}
+        </span>
+      </span>
+    </a>
+  )
+}
+
+function formatDisplayUrl(href?: string | null) {
+  if (!href) {
+    return {
+      host: 'Not recorded',
+      path: 'This run was created before polling URLs were captured.'
+    }
+  }
+
+  try {
+    const url = new URL(href)
+    const path = `${url.pathname}${url.search}`
+
+    return {
+      host: url.host,
+      path: path.length > 1 ? path : url.protocol.replace(':', '')
+    }
+  } catch {
+    return {
+      host: 'Link',
+      path: shorten(href)
+    }
+  }
+}
+
+function collectFinalOutputs(run: AgentRun) {
+  const outputs: AgentOutputItem[] = []
+  const seen = new Set<string>()
+
+  addOutput(outputs, seen, {
+    id: 'deliverable-video-url',
+    label: 'Synthesized video result',
+    source: 'Agent deliverables',
+    value: run.deliverables.videoResultUrl,
+    kind: classifyUrl(run.deliverables.videoResultUrl, 'videoResultUrl')
+  })
+
+  for (const action of run.actions) {
+    for (const output of collectActionOutputs(action)) {
+      addOutput(outputs, seen, {
+        ...output,
+        id: `final-${output.id}`
+      })
+    }
+  }
+
+  addOutput(outputs, seen, {
+    id: 'launch-brief',
+    label: 'Launch brief',
+    source: 'Agent synthesis',
+    value: run.deliverables.launchBrief,
+    kind: 'text'
+  })
+  addOutput(outputs, seen, {
+    id: 'developer-copy',
+    label: 'Developer copy',
+    source: 'Agent synthesis',
+    value: run.deliverables.developerCopy,
+    kind: 'text'
+  })
+  addOutput(outputs, seen, {
+    id: 'market-signal',
+    label: 'Market signal',
+    source: 'Agent synthesis',
+    value: run.deliverables.marketSignal,
+    kind: 'text'
+  })
+
+  return outputs
+}
+
+function collectActionOutputs(action: AgentRun['actions'][number]) {
+  const outputs: AgentOutputItem[] = []
+  const seen = new Set<string>()
+  const latestPoll = getLatestAsyncPoll(action)
+
+  addOutput(outputs, seen, {
+    id: `${action.id}-async-result`,
+    label: 'Provider result',
+    source: action.productName,
+    value: latestPoll?.resultUrl,
+    kind: classifyUrl(latestPoll?.resultUrl, 'resultUrl')
+  })
+
+  if (!action.responsePayload) {
+    return outputs
+  }
+
+  for (const candidate of extractResponseOutputs(action.responsePayload)) {
+    if (!shouldSurfaceOutputCandidate(candidate.path, candidate.value)) {
+      continue
+    }
+
+    addOutput(outputs, seen, {
+      id: `${action.id}-${candidate.path}`,
+      label: formatOutputLabel(candidate.path),
+      source: action.productName,
+      value: candidate.value,
+      kind: candidate.kind
+    })
+  }
+
+  return outputs
+}
+
+function shouldSurfaceOutputCandidate(path: string, value: string) {
+  const lowerPath = path.toLowerCase()
+
+  if (
+    /explorer|settlement|escrow|receipt|txhash|transaction|vault/.test(
+      lowerPath
+    )
+  ) {
+    return false
+  }
+
+  if (!isUrl(value)) {
+    return true
+  }
+
+  return /result|render|preview|project|clone|output|job|url|image|video/.test(
+    lowerPath
+  )
+}
+
+function formatOutputLabel(path: string) {
+  const key = path.split('.').at(-1)?.toLowerCase() ?? path.toLowerCase()
+
+  if (key === 'url') {
+    return 'Provider job'
+  }
+
+  if (key === 'resulturl') {
+    return 'Result'
+  }
+
+  if (key === 'renderurl') {
+    return 'Rendered video'
+  }
+
+  if (key === 'previewurl') {
+    return 'Preview'
+  }
+
+  if (key === 'projecturl' || key === 'publicprojecturl') {
+    return 'Project'
+  }
+
+  return humanizePath(path)
+}
+
+function extractResponseOutputs(
   value: unknown,
-  path: string[],
-  urls: Map<string, string>,
+  path = 'response',
   depth = 0
-) {
-  if (depth > 8 || value == null) {
-    return
+): ExtractedOutput[] {
+  if (depth > 5 || value == null) {
+    return []
   }
 
   if (typeof value === 'string') {
     const trimmed = value.trim()
+    const kind = classifyValue(trimmed, path)
 
-    if (isDisplayableUrl(trimmed)) {
-      urls.set(trimmed, labelFromPath(path))
-      return
+    if (!kind) {
+      return []
     }
 
-    const parsed = tryParseJson(trimmed)
-
-    if (parsed !== null) {
-      collectOutputUrls(parsed, path, urls, depth + 1)
-    }
-
-    return
+    return [{ path, value: trimmed, kind }]
   }
 
   if (Array.isArray(value)) {
-    value.forEach((item, index) =>
-      collectOutputUrls(item, [...path, String(index)], urls, depth + 1)
+    return value.flatMap((item, index) =>
+      extractResponseOutputs(item, `${path}.${index}`, depth + 1)
     )
-    return
   }
 
   if (typeof value === 'object') {
-    for (const [key, item] of Object.entries(
-      value as Record<string, unknown>
-    )) {
-      collectOutputUrls(item, [...path, key], urls, depth + 1)
-    }
+    return Object.entries(value as Record<string, unknown>).flatMap(
+      ([key, item]) => extractResponseOutputs(item, `${path}.${key}`, depth + 1)
+    )
   }
+
+  return []
 }
 
-function createUrlOutputItem({
-  id,
-  title,
-  url,
-  source
-}: {
-  id: string
-  title: string
-  url: string
-  source?: string
-}): AgentOutputItem {
-  return {
-    id,
-    title,
-    kind: classifyOutputUrl(url),
-    url,
-    source
+function addOutput(
+  outputs: AgentOutputItem[],
+  seen: Set<string>,
+  output: AgentOutputCandidate
+) {
+  if (!output.value) {
+    return
   }
+
+  const value = output.value.trim()
+
+  if (!value || seen.has(`${output.kind}:${value}`)) {
+    return
+  }
+
+  seen.add(`${output.kind}:${value}`)
+  outputs.push({
+    ...output,
+    value,
+    kind: output.kind ?? classifyValue(value, output.label) ?? 'text'
+  })
 }
 
-function isDisplayableUrl(value: string) {
-  return /^https?:\/\//i.test(value)
+function classifyValue(
+  value: string,
+  path: string
+): AgentOutputItem['kind'] | null {
+  if (isUrl(value)) {
+    return classifyUrl(value, path) ?? null
+  }
+
+  const lowerPath = path.toLowerCase()
+
+  if (
+    value.length >= 24 &&
+    /summary|brief|copy|signal|result|output|text|description|message|content/.test(
+      lowerPath
+    )
+  ) {
+    return 'text'
+  }
+
+  return null
 }
 
-function classifyOutputUrl(url: string): AgentOutputItem['kind'] {
-  if (isVideoUrl(url)) {
+function classifyUrl(
+  value: string | undefined,
+  path: string
+): AgentOutputItem['kind'] | undefined {
+  if (!value || !isUrl(value)) {
+    return undefined
+  }
+
+  const lowerUrl = value.toLowerCase().split('?')[0] ?? ''
+  const lowerPath = path.toLowerCase()
+
+  if (/\.(mp4|webm|mov|m4v|ogg|ogv)$/.test(lowerUrl)) {
     return 'video'
   }
 
-  if (isImageUrl(url)) {
+  if (/\.(png|jpe?g|gif|webp|svg|avif)$/.test(lowerUrl)) {
+    return 'image'
+  }
+
+  if (
+    /video|movie|render/.test(lowerPath) &&
+    !/thumbnail|image/.test(lowerPath)
+  ) {
+    return 'link'
+  }
+
+  if (/image|thumbnail|poster|preview/.test(lowerPath)) {
     return 'image'
   }
 
   return 'link'
 }
 
-function isVideoUrl(url: string) {
-  return /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i.test(url)
-}
+function isUrl(value: string) {
+  try {
+    const url = new URL(value)
 
-function isImageUrl(url: string) {
-  return /\.(png|jpe?g|gif|webp|avif|svg)(?:[?#].*)?$/i.test(url)
-}
-
-function labelFromPath(path: string[]) {
-  const meaningfulKey = [...path]
-    .reverse()
-    .find(part => !/^\d+$/.test(part) && part.length > 0)
-
-  if (!meaningfulKey) {
-    return 'Result link'
+    return ['http:', 'https:'].includes(url.protocol)
+  } catch {
+    return false
   }
-
-  return meaningfulKey
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, letter => letter.toUpperCase())
 }
 
-function getActionTextSummary(action: AgentRun['actions'][number]) {
-  const payload = action.responsePayload
+function humanizePath(path: string) {
+  const key = path.split('.').at(-1) ?? path
 
-  if (!payload) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/^\d+$/, index => `Result ${Number(index) + 1}`)
+    .replace(/\b\w/g, char => char.toUpperCase())
+}
+
+function shorten(value?: string | null) {
+  if (!value) {
     return ''
   }
 
-  const candidates = [
-    readStringPath(payload, ['summary']),
-    readStringPath(payload, ['message']),
-    readStringPath(payload, ['text']),
-    readStringPath(payload, ['answer']),
-    readStringPath(payload, ['data', 'summary']),
-    readStringPath(payload, ['data', 'message']),
-    readStringPath(payload, ['result', 'summary']),
-    readStringPath(payload, ['result', 'message'])
-  ]
-
-  return candidates.find(Boolean) ?? ''
-}
-
-function readStringPath(value: unknown, path: string[]) {
-  let current = value
-
-  for (const part of path) {
-    if (!current || typeof current !== 'object' || Array.isArray(current)) {
-      return ''
-    }
-
-    current = (current as Record<string, unknown>)[part]
-  }
-
-  return typeof current === 'string' ? current.trim() : ''
-}
-
-function tryParseJson(value: string) {
-  if (!value.startsWith('{') && !value.startsWith('[')) {
-    return null
-  }
-
-  try {
-    return JSON.parse(value) as unknown
-  } catch {
-    return null
-  }
-}
-
-function buildTextFinalOutput(run: AgentRun) {
-  return [
-    run.deliverables.launchBrief
-      ? `## Launch brief\n\n${run.deliverables.launchBrief}`
-      : '',
-    run.deliverables.developerCopy
-      ? `## Developer copy\n\n${run.deliverables.developerCopy}`
-      : '',
-    run.deliverables.marketSignal
-      ? `## Market signal\n\n${run.deliverables.marketSignal}`
-      : ''
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-}
-
-function shorten(value: string) {
   if (value.length <= 18) {
     return value
   }

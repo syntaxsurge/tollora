@@ -15,7 +15,7 @@ export const appNav = [
   {
     label: 'Agents',
     href: '/agents',
-    description: 'Run autonomous paid workflows and Mezo proofs'
+    description: 'Run autonomous paid workflows and on-chain proofs'
   },
   {
     label: 'Marketplace',

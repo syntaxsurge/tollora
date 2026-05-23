@@ -8,7 +8,8 @@ require("dotenv").config();
 /* -------------------------------------------------------------------------- */
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY ?? "";
-const MEZO_TESTNET_RPC_URL = process.env.MEZO_TESTNET_RPC_URL ?? "https://rpc.test.mezo.org";
+const EVM_RPC_URL = process.env.EVM_RPC_URL ?? "https://rpc.test.mezo.org";
+const EVM_CHAIN_ID = Number(process.env.EVM_CHAIN_ID ?? 31611);
 const accounts = PRIVATE_KEY ? [PRIVATE_KEY] : [];
 
 /* -------------------------------------------------------------------------- */
@@ -24,9 +25,9 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    mezoTestnet: {
-      url: MEZO_TESTNET_RPC_URL,
-      chainId: 31611,
+    appChain: {
+      url: EVM_RPC_URL,
+      chainId: EVM_CHAIN_ID,
       accounts,
     },
   },

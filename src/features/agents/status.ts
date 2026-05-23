@@ -28,7 +28,7 @@ export const agentRunStatusDetails: Record<AgentRunStatus, string> = {
   failed:
     'The agent could not complete one or more required paid actions within the selected configuration.',
   attesting:
-    'The proof hash is being written to the configured Mezo attestor contract.',
+    'The proof hash is being written to the configured attestor contract.',
   attested:
-    'The proof hash has a Mezo transaction and can be audited from the public proof page.'
+    'The proof hash has an on-chain transaction and can be audited from the public proof page.'
 }

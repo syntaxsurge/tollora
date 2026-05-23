@@ -34,15 +34,15 @@ export function RainbowWalletRuntimeProvider({
   const rainbowTheme =
     mounted && resolvedTheme === 'dark'
       ? darkTheme({
-          accentColor: 'hsl(174 72% 42%)',
-          accentColorForeground: 'hsl(0 0% 100%)',
+          accentColor: '#1BE500',
+          accentColorForeground: '#060906',
           borderRadius: 'medium',
           fontStack: 'system',
           overlayBlur: 'small'
         })
       : lightTheme({
-          accentColor: 'hsl(174 70% 36%)',
-          accentColorForeground: 'hsl(0 0% 100%)',
+          accentColor: '#0F7F00',
+          accentColorForeground: '#FFFFFF',
           borderRadius: 'medium',
           fontStack: 'system',
           overlayBlur: 'small'

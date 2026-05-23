@@ -39,16 +39,8 @@
     font-family: var(--font-sans);
     min-width: 320px;
     background:
-      radial-gradient(
-        circle at top left,
-        hsl(var(--brand-cyan) / 0.13),
-        transparent 34rem
-      ),
-      radial-gradient(
-        circle at top right,
-        hsl(var(--brand-purple) / 0.11),
-        transparent 30rem
-      ),
+      linear-gradient(135deg, hsl(var(--brand-cyan) / 0.1), transparent 38%),
+      linear-gradient(225deg, hsl(var(--brand-yellow) / 0.12), transparent 42%),
       hsl(var(--background));
     color: hsl(var(--foreground));
     font-size: 16px;
@@ -62,7 +54,7 @@
   }
 
   ::selection {
-    background: hsl(var(--brand-orange));
+    background: hsl(var(--brand-yellow));
     color: hsl(var(--warning-foreground));
   }
 
@@ -99,15 +91,15 @@
 
   .bg-app-grid {
     background-image:
-      linear-gradient(hsl(var(--brand-blue) / 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--brand-cyan) / 0.08) 1px, transparent 1px);
+      linear-gradient(hsl(var(--brand-blue) / 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--brand-cyan) / 0.1) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 
   .bg-panel-sheen {
     background-image:
-      linear-gradient(135deg, hsl(var(--brand-cyan) / 0.2), transparent 34%),
-      linear-gradient(315deg, hsl(var(--brand-purple) / 0.15), transparent 34%),
+      linear-gradient(135deg, hsl(var(--brand-cyan) / 0.22), transparent 34%),
+      linear-gradient(315deg, hsl(var(--brand-yellow) / 0.14), transparent 34%),
       linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)));
   }
 
@@ -132,12 +124,12 @@
 
   .logo-mark-surface {
     background: #ffffff;
-    box-shadow: 0 1px 2px hsl(var(--brand-blue) / 0.1);
+    box-shadow: 0 1px 2px hsl(var(--brand-blue) / 0.14);
   }
 
   .dark .logo-mark-surface {
-    background: #07111f;
-    box-shadow: 0 1px 2px hsl(var(--brand-cyan) / 0.12);
+    background: #ffffff;
+    box-shadow: 0 1px 2px hsl(var(--brand-cyan) / 0.18);
   }
 
   .brand-text-gradient {

@@ -29,7 +29,12 @@ import { sanitizeProductRequestPayload } from '@/features/marketplace/request-pa
 import { getProviderAdapter } from '@/features/provider-adapters/registry'
 import { classifyProviderFailure } from '@/features/provider-adapters/retry-policy'
 import type { ProviderAdapterResult } from '@/features/provider-adapters/types'
-import { x402Network } from '@/lib/config/chains'
+import {
+  defaultX402FacilitatorUrl,
+  paymentTokenSymbol,
+  paymentTokenTransferMethod,
+  x402Network
+} from '@/lib/config/chains'
 import {
   getApiPaymentPayTo,
   getEscrowPaymentId,
@@ -38,15 +43,15 @@ import {
   releaseEscrowPayment,
   reserveEscrowPayment,
   shouldUseApiPaymentEscrow,
-  toAtomicMusdAmount,
+  toAtomicPaymentAmount,
   waitForEscrowSettlementTransaction
 } from '@/lib/contracts/api-payment-escrow'
 import { envServer } from '@/lib/env/env.server'
 import { NextRequestAdapter } from '@/lib/x402/next-request-adapter'
 import {
-  getTolloraPaywallConfig,
-  getTolloraX402Server
-} from '@/lib/x402/tollora-resource-server'
+  getPaymentPaywallConfig,
+  getPaymentX402Server
+} from '@/lib/x402/payment-resource-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,7 +60,7 @@ type VerifiedPaymentResult = Extract<
   { type: 'payment-verified' }
 >
 
-type TolloraRequestContext = {
+type PaymentRequestContext = {
   adapter: NextRequestAdapter
   path: string
   method: string
@@ -98,7 +103,7 @@ async function handlePaidProductCall(
 ) {
   const product = await getProductBySlug(slug)
   const requestedOrderId = request.headers.get('x-tollora-order-id')
-  const agentRunId = request.headers.get('x-tollora-agent-run-id') ?? undefined
+  const agentRunId = request.headers.get('x-app-agent-run-id') ?? undefined
   const existingOrder = requestedOrderId
     ? await getMarketplaceOrderById(requestedOrderId)
     : undefined
@@ -109,7 +114,7 @@ async function handlePaidProductCall(
         error: 'API product was not found.',
         message:
           product?.status === 'draft'
-            ? 'Draft products can only be tested by the provider owner from a matching Tollora order.'
+            ? 'Draft products can only be tested by the provider owner from a matching gateway order.'
             : 'The product is not published or available for this request.'
       },
       { status: 404 }
@@ -141,11 +146,11 @@ async function handlePaidProductCall(
     method: request.method,
     paymentHeader:
       adapter.getHeader('payment-signature') ?? adapter.getHeader('x-payment')
-  } satisfies TolloraRequestContext
-  const server = await getTolloraX402Server()
+  } satisfies PaymentRequestContext
+  const server = await getPaymentX402Server()
   const processResult = await server.processHTTPRequest(
     context,
-    getTolloraPaywallConfig(request.url)
+    getPaymentPaywallConfig(request.url)
   )
 
   if (processResult.type === 'payment-error') {
@@ -194,7 +199,7 @@ async function handlePaidProductCall(
         error: 'Could not price this request.',
         message: describeUnknownError(caughtError),
         guidance:
-          'Credit-metered products must expose a quote endpoint or a deterministic credit field before Tollora can request x402 payment.'
+          'Credit-metered products must expose a quote endpoint or a deterministic credit field before the gateway can request x402 payment.'
       },
       { status: 400 }
     )
@@ -358,7 +363,7 @@ async function handlePaidProductCall(
   return NextResponse.json(finalBody, {
     headers: {
       ...settlement.headers,
-      'X-Tollora-Receipt-Id': receiptId
+      'X-App-Receipt-Id': receiptId
     }
   })
 }
@@ -405,9 +410,9 @@ async function handlePrepaidAsyncProviderCall({
   existingOrder,
   agentRunId
 }: {
-  server: Awaited<ReturnType<typeof getTolloraX402Server>>
+  server: Awaited<ReturnType<typeof getPaymentX402Server>>
   processResult: VerifiedPaymentResult
-  context: TolloraRequestContext
+  context: PaymentRequestContext
   product: ProductForCall
   providerAdapter: ProviderAdapterForCall
   payload: unknown
@@ -558,7 +563,7 @@ async function handlePrepaidAsyncProviderCall({
             adapterResult.errorMessage ??
             'Provider returned a temporary error.',
           message:
-            'The provider returned a retryable temporary error after payment. Tollora kept the payment reserved in escrow and will retry status checks until the retry window expires.',
+            'The provider returned a retryable temporary error after payment. the gateway kept the payment reserved in escrow and will retry status checks until the retry window expires.',
           order: retryingOrder ?? {
             ...baseOrder,
             status: 'processing' as const,
@@ -585,7 +590,7 @@ async function handlePrepaidAsyncProviderCall({
         {
           headers: {
             ...settlement.headers,
-            'X-Tollora-Receipt-Id': receiptId
+            'X-App-Receipt-Id': receiptId
           }
         }
       )
@@ -629,10 +634,10 @@ async function handlePrepaidAsyncProviderCall({
         ...reservationResponse,
         error: adapterResult.errorMessage ?? 'Provider request failed.',
         message: refundedEscrow
-          ? 'The provider failed after x402 settlement, so Tollora refunded the escrowed payment to the buyer.'
+          ? 'The provider failed after x402 settlement, so the gateway refunded the escrowed payment to the buyer.'
           : escrowContext
             ? `The provider failed after x402 settlement, but the escrow refund transaction did not complete. ${refundError}`
-            : 'The provider failed after direct x402 settlement. This order is refundable in Tollora records, but the payment was already sent to the payTo wallet.',
+            : 'The provider failed after direct x402 settlement. This order is refundable in the gateway records, but the payment was already sent to the payTo wallet.',
         order: failedOrder ?? {
           ...baseOrder,
           status: 'failed',
@@ -664,7 +669,7 @@ async function handlePrepaidAsyncProviderCall({
       {
         headers: {
           ...settlement.headers,
-          'X-Tollora-Receipt-Id': receiptId
+          'X-App-Receipt-Id': receiptId
         }
       }
     )
@@ -696,7 +701,7 @@ async function handlePrepaidAsyncProviderCall({
       ? {
           status: 'ready',
           message:
-            'Final usage exceeded the prepaid quote. Pay the delta before Tollora reveals the provider result.',
+            'Final usage exceeded the prepaid quote. Pay the delta before the gateway reveals the provider result.',
           externalJobId: adapterResult.externalJobId
         }
       : adapterResult.responsePayload
@@ -798,7 +803,7 @@ async function handlePrepaidAsyncProviderCall({
   return NextResponse.json(finalBody, {
     headers: {
       ...settlement.headers,
-      'X-Tollora-Receipt-Id': receiptId
+      'X-App-Receipt-Id': receiptId
     }
   })
 }
@@ -812,7 +817,7 @@ function toNextResponse(
   if (response.isHtml) {
     return new NextResponse(
       JSON.stringify({
-        error: 'MUSD payment required.',
+        error: `${paymentTokenSymbol} payment required.`,
         product: {
           slug: product.slug,
           name: product.name,
@@ -824,7 +829,7 @@ function toNextResponse(
           network: x402Network,
           scheme: 'exact',
           facilitatorUrl:
-            envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
+            envServer.X402_FACILITATOR_URL ?? defaultX402FacilitatorUrl
         }
       }),
       {
@@ -852,9 +857,9 @@ async function settlePayment({
   context,
   responseBody
 }: {
-  server: Awaited<ReturnType<typeof getTolloraX402Server>>
+  server: Awaited<ReturnType<typeof getPaymentX402Server>>
   processResult: VerifiedPaymentResult
-  context: TolloraRequestContext
+  context: PaymentRequestContext
   responseBody: unknown
 }) {
   let settlementErrorMessage = ''
@@ -880,13 +885,12 @@ async function settlePayment({
   if (!settlement) {
     return NextResponse.json(
       {
-        error: 'MUSD settlement failed.',
+        error: `${paymentTokenSymbol} settlement failed.`,
         reason: 'settlement_exception',
         message:
           settlementErrorMessage ||
           'The x402 facilitator did not return a valid settlement response.',
-        guidance:
-          'Confirm the buyer wallet has MUSD, BTC gas, and MUSD Permit2 allowance on Mezo Testnet, then try again.',
+        guidance: buildDefaultSettlementGuidance(),
         settlement: {
           status: 402
         }
@@ -898,7 +902,7 @@ async function settlePayment({
   if (!settlement.success) {
     return NextResponse.json(
       {
-        error: 'MUSD settlement failed.',
+        error: `${paymentTokenSymbol} settlement failed.`,
         reason: settlement.errorReason,
         message: settlement.errorMessage,
         details: settlement.response.body ?? null,
@@ -992,7 +996,7 @@ function buildReservationResponse({
     data: {
       status: 'paid',
       message:
-        'The x402 payment settled before Tollora started the credit-metered provider job.'
+        'The x402 payment settled before the gateway started the credit-metered provider job.'
     }
   }
 }
@@ -1020,7 +1024,7 @@ function createProviderIdempotencyKey({
   orderId: string
   requestId: string
 }) {
-  return `tollora_${orderId}_${requestId}`
+  return `app_${orderId}_${requestId}`
 }
 
 async function reservePrepaidEscrow({
@@ -1049,7 +1053,9 @@ async function reservePrepaidEscrow({
   const escrowAddress = getApiPaymentPayTo(product)
 
   if (!requirement || !isAddress(requirement.asset)) {
-    throw new Error('Escrow payment could not read the settled MUSD asset.')
+    throw new Error(
+      `Escrow payment could not read the settled ${paymentTokenSymbol} asset.`
+    )
   }
 
   if (!isAddress(escrowAddress)) {
@@ -1079,7 +1085,7 @@ async function reservePrepaidEscrow({
   const amount =
     'amount' in requirement
       ? BigInt(requirement.amount ?? '0')
-      : toAtomicMusdAmount(resolvedPrice.amountUsd)
+      : toAtomicPaymentAmount(resolvedPrice.amountUsd)
   await waitForEscrowSettlementTransaction(settlement.transaction)
   const reserve = await reserveEscrowPayment({
     paymentId,
@@ -1189,18 +1195,27 @@ function buildSettlementGuidance(
     .toLowerCase()
 
   if (haystack.includes('balance') || haystack.includes('funds')) {
-    return 'The paying wallet does not appear to have enough MUSD on Mezo Testnet for this API call.'
+    return `The paying wallet does not appear to have enough ${paymentTokenSymbol} on the configured network for this API call.`
   }
 
   if (haystack.includes('allowance') || haystack.includes('permit2')) {
-    return 'The paying wallet needs to approve MUSD Permit2 allowance before this x402 payment can settle.'
+    return `The paying wallet needs to approve ${paymentTokenSymbol} Permit2 allowance before this x402 payment can settle.`
   }
 
   if (haystack.includes('signature') || haystack.includes('authorization')) {
     return 'The wallet signature was rejected by settlement. Re-run the payment and approve the latest x402 signature prompt.'
   }
 
-  return 'Confirm the wallet has Mezo Testnet MUSD, BTC gas, and MUSD Permit2 allowance, then try again.'
+  return buildDefaultSettlementGuidance()
+}
+
+function buildDefaultSettlementGuidance() {
+  const tokenReadiness =
+    paymentTokenTransferMethod === 'permit2'
+      ? `${paymentTokenSymbol} Permit2 allowance`
+      : `${paymentTokenSymbol} signature approval`
+
+  return `Confirm the wallet has ${paymentTokenSymbol}, native gas, and ${tokenReadiness} on the configured network, then try again.`
 }
 
 function describeUnknownError(error: unknown) {

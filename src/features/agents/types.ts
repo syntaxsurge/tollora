@@ -54,6 +54,25 @@ export type AgentSkippedTool = {
   reason: string
 }
 
+export type AgentAsyncPollingResponse = {
+  id: string
+  attempt: number
+  polledAt: string
+  pollingUrl: string
+  request: {
+    method: string
+    url: string
+    headers: Record<string, string>
+    params: Record<string, string>
+  }
+  httpStatus: number
+  orderStatus?: string
+  resultReleaseStatus?: string
+  externalJobId?: string
+  resultUrl?: string
+  response: Record<string, unknown>
+}
+
 export type AgentAction = {
   id: string
   runId: string
@@ -65,14 +84,22 @@ export type AgentAction = {
   objective: string
   planningRationale?: string
   plannerScore?: number
-  requestMethod?: 'GET' | 'POST'
-  requestUrl?: string
   requestPayload: Record<string, unknown>
   responsePayload?: Record<string, unknown>
-  toolResponsePayload?: Record<string, unknown>
+  latestAsyncPollingResponse?: AgentAsyncPollingResponse
+  asyncPollingResponses?: AgentAsyncPollingResponse[]
   receipt?: MarketplaceReceipt
   orderId?: string
   requestId?: string
+  vaultPaymentId?: string
+  vaultAdvancedAmountMusd?: string
+  vaultSpendTxHash?: string | null
+  vaultSpendExplorerUrl?: string | null
+  vaultRefundedAmountMusd?: string
+  vaultRefundTxHash?: string | null
+  vaultRefundExplorerUrl?: string | null
+  vaultReturnTxHash?: string | null
+  vaultReturnExplorerUrl?: string | null
   errorMessage?: string
   startedAt?: string
   completedAt?: string

@@ -16,7 +16,8 @@ import { buildExplorerUrl } from '@/features/marketplace/receipts'
 import {
   defaultAppChain,
   getExplorerAddressUrl,
-  mezoMusdTokenAddress
+  paymentTokenDecimals,
+  paymentTokenAddress
 } from '@/lib/config/chains'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
@@ -24,6 +25,19 @@ import { envServer } from '@/lib/env/env.server'
 export type AgentVaultWriteResult = {
   txHash: Hex
   explorerUrl: string | null
+}
+
+export type AgentRunVaultBudget = {
+  owner: Address
+  agentSigner: Address
+  token: Address
+  fundedAmount: bigint
+  spentAmount: bigint
+  refundedAmount: bigint
+  expiresAt: bigint
+  state: number
+  createdAt: bigint
+  updatedAt: bigint
 }
 
 export const agentRunVaultAbi = [
@@ -125,6 +139,37 @@ export const erc20ApprovalAbi = [
       { name: 'amount', type: 'uint256' }
     ],
     outputs: [{ name: '', type: 'bool' }]
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' }
+    ],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    type: 'function',
+    name: 'decimals',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint8' }]
+  },
+  {
+    type: 'function',
+    name: 'symbol',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'string' }]
   }
 ] as const
 
@@ -173,16 +218,52 @@ export function getAgentVaultPaymentId(runId: string, actionId: string) {
   return keccak256(toBytes(`${runId}:${actionId}`))
 }
 
-export function parseMusdToAtomic(amountMusd: number | string) {
-  return parseUnits(Number(amountMusd).toFixed(6), 18)
+export function parsePaymentAmountToAtomic(amount: number | string) {
+  return parseUnits(
+    Number(amount).toFixed(Math.min(paymentTokenDecimals, 6)),
+    paymentTokenDecimals
+  )
 }
 
-export function formatAtomicMusd(amount: bigint) {
-  return `${Number(formatUnits(amount, 18)).toFixed(2)} MUSD`
+export function formatAtomicPaymentAmount(amount: bigint) {
+  return `${Number(formatUnits(amount, paymentTokenDecimals)).toFixed(2)} MUSD`
 }
 
-export function getMusdTokenAddress() {
-  return mezoMusdTokenAddress as Address
+export function getPaymentTokenAddress() {
+  return paymentTokenAddress as Address
+}
+
+export async function getAgentRunVaultBudget(runId: string) {
+  const address = getAgentRunVaultAddress()
+
+  if (!address) {
+    return null
+  }
+
+  const budget = await publicClient.readContract({
+    address,
+    abi: agentRunVaultAbi,
+    functionName: 'budgetOf',
+    args: [getAgentRunBytes32(runId)]
+  })
+
+  return normalizeAgentRunVaultBudget(budget)
+}
+
+export function isActiveAgentRunVaultBudget(
+  budget: AgentRunVaultBudget | null
+) {
+  if (!budget) {
+    return false
+  }
+
+  const now = BigInt(Math.floor(Date.now() / 1000))
+
+  return (
+    (budget.state === 1 || budget.state === 2) &&
+    budget.fundedAmount > budget.spentAmount + budget.refundedAmount &&
+    budget.expiresAt > now
+  )
 }
 
 export async function writeAgentRunVault({
@@ -219,11 +300,47 @@ export async function writeAgentRunVault({
     account
   })
   const txHash = await walletClient.writeContract(request)
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
 
-  await publicClient.waitForTransactionReceipt({ hash: txHash })
+  if (receipt.status !== 'success') {
+    throw new Error(`AgentRunVault ${functionName} transaction reverted.`)
+  }
 
   return {
     txHash,
     explorerUrl: buildExplorerUrl(txHash)
+  }
+}
+
+function normalizeAgentRunVaultBudget(value: unknown): AgentRunVaultBudget {
+  if (Array.isArray(value)) {
+    return {
+      owner: value[0] as Address,
+      agentSigner: value[1] as Address,
+      token: value[2] as Address,
+      fundedAmount: BigInt(value[3] ?? 0),
+      spentAmount: BigInt(value[4] ?? 0),
+      refundedAmount: BigInt(value[5] ?? 0),
+      expiresAt: BigInt(value[6] ?? 0),
+      state: Number(value[7] ?? 0),
+      createdAt: BigInt(value[8] ?? 0),
+      updatedAt: BigInt(value[9] ?? 0)
+    }
+  }
+
+  const budget = value as Partial<AgentRunVaultBudget> | null
+  const zeroAddress = '0x0000000000000000000000000000000000000000'
+
+  return {
+    owner: (budget?.owner ?? zeroAddress) as Address,
+    agentSigner: (budget?.agentSigner ?? zeroAddress) as Address,
+    token: (budget?.token ?? zeroAddress) as Address,
+    fundedAmount: BigInt(budget?.fundedAmount ?? 0),
+    spentAmount: BigInt(budget?.spentAmount ?? 0),
+    refundedAmount: BigInt(budget?.refundedAmount ?? 0),
+    expiresAt: BigInt(budget?.expiresAt ?? 0),
+    state: Number(budget?.state ?? 0),
+    createdAt: BigInt(budget?.createdAt ?? 0),
+    updatedAt: BigInt(budget?.updatedAt ?? 0)
   }
 }

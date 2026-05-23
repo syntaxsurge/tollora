@@ -78,7 +78,7 @@ import { privateKeyToAccount } from "viem/accounts";
 const privateKey = process.env.EVM_PRIVATE_KEY;
 
 if (!privateKey) {
-  throw new Error("Set EVM_PRIVATE_KEY to a Mezo MUSD-funded wallet.");
+  throw new Error("Set EVM_PRIVATE_KEY to a wallet funded with the configured payment token.");
 }
 
 const signer = privateKeyToAccount(privateKey);
@@ -265,14 +265,14 @@ function getSettlementLabel(model: string) {
 
 function getSettlementDescription(model: string) {
   if (model === 'pay_on_job_acceptance') {
-    return 'Best for providers that incur cost immediately. Tollora settles once the provider accepts the job, then tracks the final result separately.'
+    return 'Best for providers that incur cost immediately. the gateway settles once the provider accepts the job, then tracks the final result separately.'
   }
 
   if (model === 'pay_to_claim_result') {
     return 'Best for long-running APIs when buyers should only pay after successful completion. The result is locked until payment settles.'
   }
 
-  return 'Best for fast APIs. Tollora calls the provider first and settles only when the provider returns a successful response.'
+  return 'Best for fast APIs. the gateway calls the provider first and settles only when the provider returns a successful response.'
 }
 
 function getResultDeliveryLabel(delivery: string) {
@@ -289,11 +289,11 @@ function getResultDeliveryLabel(delivery: string) {
 
 function getResultDeliveryDescription(delivery: string) {
   if (delivery === 'poll_or_webhook') {
-    return 'The first response includes a job id. Buyers can poll Tollora, and providers can update status through a webhook.'
+    return 'The first response includes a job id. Buyers can poll the gateway, and providers can update status through a webhook.'
   }
 
   if (delivery === 'claim_after_completion') {
-    return 'The provider completes work first, then Tollora charges the buyer before revealing the final output.'
+    return 'The provider completes work first, then the gateway charges the buyer before revealing the final output.'
   }
 
   return 'The paid response contains the usable result immediately.'

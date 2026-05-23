@@ -105,7 +105,7 @@ export default async function AdminReceiptsPage({
           {
             label: 'Platform fees',
             value: `${platformFees.toFixed(2)} MUSD`,
-            detail: 'Tollora fee share',
+            detail: 'Platform fee share',
             icon: FileText
           }
         ].map(({ label, value, detail, icon: Icon }) => (

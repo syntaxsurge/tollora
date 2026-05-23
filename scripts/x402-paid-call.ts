@@ -17,8 +17,11 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
-import { getProductBySlug } from '../src/features/marketplace/products'
-import { defaultAppChain, mezoMusdTokenAddress } from '../src/lib/config/chains'
+import {
+  defaultAppChain,
+  paymentTokenAddress,
+  paymentTokenDecimals
+} from '../src/lib/config/chains'
 
 config({ path: '.env.local' })
 config()
@@ -71,13 +74,16 @@ const musdBalanceAbi = parseAbi([
 
 async function ensurePermit2Allowance(amountUsd: number) {
   const account = privateKeyToAccount(getPrivateKey() as Hex)
-  const requiredAmount = parseUnits(amountUsd.toFixed(6), 18)
+  const requiredAmount = parseUnits(
+    amountUsd.toFixed(Math.min(paymentTokenDecimals, 6)),
+    paymentTokenDecimals
+  )
 
   if (requiredAmount <= 0n) {
     return
   }
 
-  const tokenAddress = mezoMusdTokenAddress as Address
+  const tokenAddress = paymentTokenAddress as Address
   const [balance, allowance] = await Promise.all([
     publicClient.readContract({
       address: tokenAddress,
@@ -162,14 +168,17 @@ async function waitForPermit2Allowance({
 }
 
 function formatMusdAmount(amount: bigint) {
-  return `${Number(formatUnits(amount, 18)).toLocaleString(undefined, {
-    maximumFractionDigits: 6
-  })} MUSD`
+  return `${Number(formatUnits(amount, paymentTokenDecimals)).toLocaleString(
+    undefined,
+    {
+      maximumFractionDigits: 6
+    }
+  )} MUSD`
 }
 
 async function main() {
   const { slug, payload, url } = parseArgs()
-  const product = await getProductBySlug(slug)
+  const product = url ? null : await loadProductBySlug(slug)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const endpointUrl =
@@ -203,7 +212,8 @@ async function main() {
 
   registerExactEvmScheme(client, { signer })
 
-  const paidFetch = wrapFetchWithPayment(fetch, client)
+  const httpClient = new x402HTTPClient(client)
+  const paidFetch = wrapFetchWithPayment(fetch, httpClient)
   const response = await paidFetch(requestUrl, {
     method,
     headers: {
@@ -213,7 +223,6 @@ async function main() {
     body: method === 'POST' ? JSON.stringify(requestPayload) : undefined
   })
   const body = await response.json().catch(() => null)
-  const httpClient = new x402HTTPClient(client)
   const paymentResponse = response.ok
     ? httpClient.getPaymentSettleResponse(name => response.headers.get(name))
     : null
@@ -235,6 +244,14 @@ async function main() {
   if (!response.ok) {
     process.exit(1)
   }
+}
+
+async function loadProductBySlug(slug: string) {
+  const { getProductBySlug } = await import(
+    '../src/features/marketplace/products'
+  )
+
+  return await getProductBySlug(slug)
 }
 
 function asRecord(value: unknown) {

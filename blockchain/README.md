@@ -1,20 +1,21 @@
 # Blockchain Workspace
 
-This workspace keeps Tollora contracts isolated from the Next.js runtime while
+This workspace keeps app contracts isolated from the Next.js runtime while
 providing deployment shortcuts.
 
 ## Structure
 
 - `blockchain/contracts/SubscriptionManager.sol` - the on-chain subscription
-  contract supported by Tollora.
-- `blockchain/contracts/AgentRunAttestor.sol` - the Mezo proof hash attestor
+  contract supported by the app.
+- `blockchain/contracts/AgentRunAttestor.sol` - the proof hash attestor
   for autonomous agent runs.
 - `blockchain/contracts/ApiPaymentEscrow.sol` - escrow for prepaid
   credit-metered API calls that must be released or refunded after provider
   completion.
 - `blockchain/contracts/AgentRunVault.sol` - user-funded MUSD budget vault for
   autonomous agent runs.
-- `blockchain/hardhat.config.ts` - Hardhat configuration for Mezo Testnet.
+- `blockchain/hardhat.config.ts` - Hardhat configuration for the configured
+  EVM deployment target.
 - `blockchain/scripts/deploySubscriptionManager.ts` - deployment script that
   writes the deployed address to `blockchain/deployment.log`.
 - `blockchain/scripts/deployAgentRunAttestor.ts` - deployment script that

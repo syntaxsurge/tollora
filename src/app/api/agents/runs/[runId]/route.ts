@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 
-import { deleteAgentRun, getAgentRun } from '@/features/agents/store'
+import {
+  deleteAgentRun,
+  syncAgentRunAsyncProviderStatus
+} from '@/features/agents/store'
+import { getPublicAppOrigin } from '@/lib/config/site'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,8 +14,11 @@ type AgentRunRouteProps = {
   }>
 }
 
-export async function GET(_request: Request, { params }: AgentRunRouteProps) {
-  const run = await getAgentRun((await params).runId)
+export async function GET(request: Request, { params }: AgentRunRouteProps) {
+  const run = await syncAgentRunAsyncProviderStatus(
+    (await params).runId,
+    getAppOrigin(request)
+  )
 
   if (!run) {
     return NextResponse.json(
@@ -21,6 +28,10 @@ export async function GET(_request: Request, { params }: AgentRunRouteProps) {
   }
 
   return NextResponse.json(run)
+}
+
+function getAppOrigin(request: Request) {
+  return getPublicAppOrigin(request.url)
 }
 
 export async function DELETE(

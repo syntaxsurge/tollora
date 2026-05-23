@@ -33,7 +33,7 @@ export const agentTemplates: AgentTemplate[] = [
       'Researches developer signals, writes launch copy, and prepares an auditable proof package.',
     objective: 'Create a launch pack for my MUSD-native paid API product.',
     sourceText:
-      'The product sells premium API responses to AI agents and records MUSD receipts on Mezo.',
+      'The product sells premium API responses to AI agents and records MUSD receipts on-chain.',
     recommendedBudgetMusd: 0.9,
     maxPaidActions: 4,
     toolStrategy:
@@ -97,11 +97,11 @@ export const agentTemplates: AgentTemplate[] = [
     title: 'Video Promo Agent',
     category: 'Creative',
     summary:
-      'Plans a short promotional concept and may use async media tools when budget allows.',
+      'Plans a short promotional concept and waits for async media tools to return a usable project handoff when budget allows.',
     objective:
-      'Create a short promotional video concept and supporting launch copy for my API product.',
+      'Create a short promotional video concept and supporting launch copy for my API product, then return the completed video project or render link when a media tool is used.',
     sourceText:
-      'The video should explain the product in a concise developer-friendly style and produce a shareable project handoff when media tools are available.',
+      'The video should explain the product in a concise developer-friendly style. If a media tool is selected, the final output must include the completed project, render, preview, clone, or output URL instead of only the queued job response.',
     recommendedBudgetMusd: 1.2,
     maxPaidActions: 4,
     toolStrategy:
@@ -114,18 +114,18 @@ export const agentTemplates: AgentTemplate[] = [
     title: 'Video Launch Campaign Agent',
     category: 'Creative',
     summary:
-      'Combines developer/news/package signals with an async video-generation job for a richer launch asset.',
+      'Combines developer/news/package signals with an async video-generation job and returns the completed project handoff.',
     objective:
-      'Create a video-first launch campaign for my API product, including research-backed positioning, social copy, developer launch notes, and a final ClipLore project handoff link.',
+      'Create a video-first launch campaign for my API product, wait for the video-generation job to finish, and return the final ClipLore project or output link with research-backed positioning, social copy, and developer launch notes.',
     sourceText:
-      'Use public developer, package, repository, and news signals before deciding the video prompt. When a media tool is available, the final deliverable must include the completed cloneable ClipLore project URL or public project handoff URL, not only a text summary.',
+      'Use public developer, package, repository, and news signals before deciding the video prompt. The final deliverable must include the completed ClipLore or media-tool project handoff URL when a media tool is selected, not only the queued job ID or accepted job response.',
     recommendedBudgetMusd: 1.35,
     maxPaidActions: 4,
     toolStrategy:
-      'Let OpenAI select a compact research set first, then spend on async video generation only if the quote fits the remaining funded budget.',
+      'Let OpenAI select a compact research set first, then run one async media-generation tool when the quote fits the remaining funded budget and wait for its status result before synthesis.',
     deliverables: [
+      'Completed video project link',
       'Research-backed angle',
-      'ClipLore project handoff URL',
       'Social launch copy'
     ],
     icon: Clapperboard

@@ -11,12 +11,19 @@ import { registerExactEvmScheme } from '@x402/evm/exact/server'
 import { getMarketplaceOrderById } from '@/features/marketplace/orders'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
 import { getProductBySlug } from '@/features/marketplace/products'
-import { x402Network } from '@/lib/config/chains'
+import {
+  defaultX402FacilitatorUrl,
+  paymentTokenSymbol,
+  toPaymentAssetAmount,
+  x402Network
+} from '@/lib/config/chains'
+import { siteConfig } from '@/lib/config/site'
 import { getApiPaymentPayTo } from '@/lib/contracts/api-payment-escrow'
 import { envServer } from '@/lib/env/env.server'
 
 const paidCallPattern = '/api/x402/products/:slug/call'
 const claimPattern = '/api/x402/orders/:orderId/claim'
+const x402MaxTimeoutSeconds = 60
 let serverPromise: Promise<x402HTTPResourceServer> | null = null
 
 function getProductSlugFromPath(path: string) {
@@ -85,12 +92,11 @@ const paidCallRoute: RouteConfig = {
         requestPayload: getRequestPayload(context)
       })
 
-      return `$${resolvedPrice.amountUsd.toFixed(6)}`
+      return toPaymentAssetAmount(resolvedPrice.amountUsd)
     },
-    maxTimeoutSeconds: 300
+    maxTimeoutSeconds: x402MaxTimeoutSeconds
   },
-  description:
-    'MUSD-settled Tollora API call on Mezo Testnet through the x402 protocol.',
+  description: 'MUSD-settled Tollora API call on Mezo through the x402 protocol.',
   mimeType: 'application/json',
   unpaidResponseBody: async context => {
     const product = await requireProductFromContext(context)
@@ -110,7 +116,7 @@ const paidCallRoute: RouteConfig = {
     return {
       contentType: 'application/json',
       body: {
-        error: 'MUSD payment required.',
+        error: `${paymentTokenSymbol} payment required.`,
         product: {
           slug: product.slug,
           name: product.name,
@@ -123,7 +129,7 @@ const paidCallRoute: RouteConfig = {
           network: x402Network,
           scheme: 'exact',
           facilitatorUrl:
-            envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
+            envServer.X402_FACILITATOR_URL ?? defaultX402FacilitatorUrl
         }
       }
     }
@@ -131,7 +137,7 @@ const paidCallRoute: RouteConfig = {
   settlementFailedResponseBody: (_context, settleResult) => ({
     contentType: 'application/json',
     body: {
-      error: 'MUSD payment settlement failed.',
+      error: `${paymentTokenSymbol} payment settlement failed.`,
       reason: settleResult.errorReason,
       message: settleResult.errorMessage
     }
@@ -160,12 +166,11 @@ const claimRoute: RouteConfig = {
         throw new Error('Order does not have a payable metered delta.')
       }
 
-      return `$${amount.toFixed(6)}`
+      return toPaymentAssetAmount(amount)
     },
-    maxTimeoutSeconds: 300
+    maxTimeoutSeconds: x402MaxTimeoutSeconds
   },
-  description:
-    'MUSD-settled Tollora result claim for credit-metered API usage that exceeded the prepaid quote.',
+  description: `${paymentTokenSymbol}-settled result claim for credit-metered API usage that exceeded the prepaid quote.`,
   mimeType: 'application/json',
   unpaidResponseBody: async context => {
     const order = await requireClaimOrderFromContext(context)
@@ -173,7 +178,7 @@ const claimRoute: RouteConfig = {
     return {
       contentType: 'application/json',
       body: {
-        error: 'MUSD delta payment required.',
+        error: `${paymentTokenSymbol} delta payment required.`,
         order: {
           id: order.id,
           productSlug: order.productSlug,
@@ -185,7 +190,7 @@ const claimRoute: RouteConfig = {
           network: x402Network,
           scheme: 'exact',
           facilitatorUrl:
-            envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
+            envServer.X402_FACILITATOR_URL ?? defaultX402FacilitatorUrl
         }
       }
     }
@@ -193,7 +198,7 @@ const claimRoute: RouteConfig = {
   settlementFailedResponseBody: (_context, settleResult) => ({
     contentType: 'application/json',
     body: {
-      error: 'MUSD delta settlement failed.',
+      error: `${paymentTokenSymbol} delta settlement failed.`,
       reason: settleResult.errorReason,
       message: settleResult.errorMessage
     }
@@ -219,11 +224,11 @@ function getRequestPayload(context: HTTPRequestContext) {
   return context.adapter.getBody?.() ?? context.adapter.getQueryParams?.() ?? {}
 }
 
-export async function getTolloraX402Server() {
+export async function getPaymentX402Server() {
   if (!serverPromise) {
     serverPromise = (async () => {
       const facilitator = new HTTPFacilitatorClient({
-        url: envServer.X402_FACILITATOR_URL ?? 'https://facilitator.vativ.io/'
+        url: envServer.X402_FACILITATOR_URL ?? defaultX402FacilitatorUrl
       })
       const resourceServer = new x402ResourceServer(facilitator)
 
@@ -252,9 +257,9 @@ function parseMusdAmount(value: string | undefined) {
   return Number.isFinite(amount) ? amount : 0
 }
 
-export function getTolloraPaywallConfig(currentUrl: string) {
+export function getPaymentPaywallConfig(currentUrl: string) {
   return {
-    appName: 'Tollora',
+    appName: siteConfig.name,
     currentUrl,
     testnet: true
   }

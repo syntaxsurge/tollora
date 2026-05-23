@@ -1,4 +1,4 @@
-# Tollora Deployment Checklist
+# Deployment Checklist
 
 Use this checklist before operating the app.
 
@@ -12,9 +12,13 @@ Use this checklist before operating the app.
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
 - `NEXT_PUBLIC_ADMIN_WALLET_ADDRESSES` as one or more comma-separated admin
   wallets. Default public data APIs are owned by the first admin wallet.
-- `NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID=31611`
-- `NEXT_PUBLIC_MEZO_TESTNET_RPC_URL=https://rpc.test.mezo.org`
-- `NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL=https://explorer.test.mezo.org`
+- `NEXT_PUBLIC_EVM_CHAIN_ID=31611`
+- `NEXT_PUBLIC_EVM_CHAIN_NAME=Mezo Testnet`
+- `NEXT_PUBLIC_EVM_CHAIN_SHORT_NAME=Mezo Testnet`
+- `NEXT_PUBLIC_EVM_RPC_URL=https://rpc.test.mezo.org`
+- `NEXT_PUBLIC_EVM_EXPLORER_URL=https://explorer.test.mezo.org`
+- `NEXT_PUBLIC_EVM_NATIVE_CURRENCY_SYMBOL=BTC`
+- `NEXT_PUBLIC_EVM_IS_TESTNET=true`
 - `NEXT_PUBLIC_X402_NETWORK=eip155:31611`
 - `X402_FACILITATOR_URL=https://facilitator.vativ.io/`
 - `AGENT_SPENDER_PRIVATE_KEY`
@@ -22,7 +26,20 @@ Use this checklist before operating the app.
 - `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS`
 - `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS`
 - `AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY`
-- `NEXT_PUBLIC_MUSD_TOKEN_ADDRESS`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_ADDRESS`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_NAME`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_SYMBOL=MUSD`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_LABEL=MUSD`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_VERSION`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_DECIMALS`
+- `NEXT_PUBLIC_PAYMENT_TOKEN_TRANSFER_METHOD=permit2`
+
+## Current Contract Addresses
+
+- `NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS=0x1E9a9C960AE3c5a2Cec4495969CF2DB59d101aeC`
+- `NEXT_PUBLIC_AGENT_ATTESTOR_ADDRESS=0x509481D2aB7D1741Fe5C5C2C0d96273c5265c217`
+- `NEXT_PUBLIC_API_PAYMENT_ESCROW_ADDRESS=0xfF11B703096FF73F12205FBBBcdFffB3A485e302`
+- `NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS=0x61b1E9b08B67488D8F5c596A90907D68Ee4CE40F`
 
 ## Verification Commands
 
@@ -37,31 +54,33 @@ pnpm build
 - `GET /api/health` returns readiness checks.
 - `GET /api/openapi.json` returns the OpenAPI document.
 - `GET /api/reference` renders the Scalar reference.
+- `pnpm seed:database` upserts wallet-scoped users and their provider profiles.
+- `pnpm seed:admin-tools` upserts public provider-owned marketplace tools.
 - `POST /api/agents/runs` creates a Launch Pack Agent run.
 - `POST /api/agents/runs/[runId]/execute` uses OpenAI planning and synthesis
   when `AGENT_LLM_API_KEY` is configured, clearly labels deterministic fallback
-  when it is not, requires funded production runs before spending, and
-  completes paid actions when the agent spender is configured.
+  when it is not, requires funded production runs before spending, and completes
+  paid actions when the agent spender is configured.
 - `POST /api/agents/runs/[runId]/funding/prepare` and
   `POST /api/agents/runs/[runId]/funding/confirm` prepare and record the MUSD
   vault deposit for production agent runs.
-- `GET /api/agents/runs/[runId]/ledger` shows funding, spend, and refund
-  events for a run.
+- `GET /api/agents/runs/[runId]/ledger` shows funding, spend, and refund events
+  for a run.
 - `POST /api/agents/runs/[runId]/refund` records unused agent budget refunds
   after terminal states.
-- `POST /api/agents/runs/[runId]/attest` returns a proof with a Mezo explorer
-  link.
+- `POST /api/agents/runs/[runId]/attest` returns a proof with an explorer link.
 - `GET /api/proofs/[proofId]` returns the public proof package.
 - `POST /api/x402/products/{published-product-slug}/call` without `X-PAYMENT`
   returns HTTP 402 and a `payment-required` header.
 - Browser Run & Pay signs a marketplace request from a connected wallet and
   returns a receipt after settlement.
-- Credit-metered async listings return an x402 quote before provider work,
-  start provider work only after settlement, and expose
+- Credit-metered async listings return an x402 quote before provider work, start
+  provider work only after settlement, and expose
   `POST /api/x402/orders/{orderId}/claim` when final usage requires a delta.
 - Async provider listings that return editable project or workflow handoffs
   expose a public result URL such as `result.publicProjectUrl` or
-  `result.cloneUrl`; Tollora treats that handoff as the completed paid result.
+  `result.cloneUrl`; the gateway treats that handoff as the completed paid
+  result.
 - Retryable provider outages such as temporary 5xx, Cloudflare, timeout,
   rate-limit, or provider-marked `retryable: true` responses keep escrow
   reserved and retry for up to 24 hours before refunding.

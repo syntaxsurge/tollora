@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { WalletBalanceSummary } from '@/components/wallet/wallet-balance-summary'
 import { useUserSettings } from '@/hooks/use-user-settings'
 import { userDisplayName, userInitials } from '@/lib/settings/user-settings'
 
@@ -31,7 +32,7 @@ function ProfilePreviewContent({
   const username = settings.username ? `@${settings.username}` : '@builder'
 
   return (
-    <div className='grid gap-5 lg:grid-cols-[0.9fr_1.1fr]'>
+    <div className='grid gap-5 xl:grid-cols-[0.9fr_1.1fr]'>
       <Card className='bg-panel-sheen space-y-6'>
         <div className='bg-foreground text-background flex h-20 w-20 items-center justify-center rounded-2xl text-2xl font-semibold'>
           {userInitials(settings) || 'NB'}
@@ -52,23 +53,26 @@ function ProfilePreviewContent({
         </Link>
       </Card>
 
-      <Card className='space-y-5'>
-        <div>
-          <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
-            Creator identity
-          </p>
-          <h2 className='font-display mt-2 text-2xl'>Marketplace profile</h2>
-          <p className='text-foreground/65 mt-2 text-sm leading-6'>
-            This is the public creator identity buyers see beside your API
-            listings, receipts, and provider activity.
-          </p>
-        </div>
-        <div className='grid gap-3'>
-          <Metric label='Display name' value={displayName} />
-          <Metric label='Username' value={username} />
-          <Metric label='Email' value={settings.email || 'Not provided'} />
-        </div>
-      </Card>
+      <div className='grid gap-5 lg:grid-cols-2 xl:grid-cols-1'>
+        <WalletBalanceSummary walletAddress={walletAddress} />
+        <Card className='space-y-5'>
+          <div>
+            <p className='text-foreground/60 text-xs tracking-[0.16em] uppercase'>
+              Creator identity
+            </p>
+            <h2 className='font-display mt-2 text-2xl'>Marketplace profile</h2>
+            <p className='text-foreground/65 mt-2 text-sm leading-6'>
+              This is the public creator identity buyers see beside your API
+              listings, receipts, and provider activity.
+            </p>
+          </div>
+          <div className='grid gap-3'>
+            <Metric label='Display name' value={displayName} />
+            <Metric label='Username' value={username} />
+            <Metric label='Email' value={settings.email || 'Not provided'} />
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

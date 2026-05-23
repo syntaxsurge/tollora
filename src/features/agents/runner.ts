@@ -1,9 +1,14 @@
+import { x402Client } from '@x402/core/client'
 import {
   createPermit2ApprovalTx,
   getPermit2AllowanceReadParams
 } from '@x402/evm'
 import { registerExactEvmScheme } from '@x402/evm/exact/client'
-import { x402Client, x402HTTPClient, wrapFetchWithPayment } from '@x402/fetch'
+import {
+  type x402PaymentResult,
+  x402HTTPClient,
+  wrapFetchWithPayment
+} from '@x402/fetch'
 import {
   createPublicClient,
   createWalletClient,
@@ -22,24 +27,58 @@ import {
   buildPlannerSummary,
   parseOpenAiJson
 } from '@/features/agents/planner'
-import type { AgentAction, AgentRun } from '@/features/agents/types'
+import type {
+  AgentAction,
+  AgentAsyncPollingResponse,
+  AgentRun
+} from '@/features/agents/types'
 import { resolveProductPrice } from '@/features/marketplace/pricing'
+import { getProductBySlug } from '@/features/marketplace/products'
 import {
-  getProductBySlug,
-  type ApiProduct
-} from '@/features/marketplace/products'
-import type { MarketplaceReceipt } from '@/features/marketplace/receipts'
-import { defaultAppChain, mezoMusdTokenAddress } from '@/lib/config/chains'
+  buildExplorerUrl,
+  type MarketplaceReceipt
+} from '@/features/marketplace/receipts'
+import type { MarketplaceOrder } from '@/features/marketplace/types'
+import {
+  defaultAppChain,
+  paymentTokenAddress,
+  paymentTokenDecimals
+} from '@/lib/config/chains'
+import {
+  getAgentRunBytes32,
+  getAgentRunVaultBudget,
+  getAgentRunVaultAddress,
+  getAgentVaultPaymentId,
+  parsePaymentAmountToAtomic,
+  type AgentVaultWriteResult,
+  writeAgentRunVault
+} from '@/lib/contracts/agent-run-vault'
 import { envClient } from '@/lib/env/env.client'
 import { envServer } from '@/lib/env/env.server'
+import {
+  compactJsonPayload,
+  compactProviderRequestTrace
+} from '@/lib/utils/json-payload'
 
-const ASYNC_PROVIDER_POLL_INTERVAL_MS = 8000
-const ASYNC_PROVIDER_POLL_ATTEMPTS = 75
+const asyncProviderPollIntervalMs = 5_000
+const asyncProviderPollAttempts = 72
+
+type AgentRunProgress = {
+  actions: AgentAction[]
+  summary?: string
+}
+
+type AgentRunProgressHandler = (
+  progress: AgentRunProgress
+) => Promise<void> | void
+
+type AgentActionProgressHandler = (action: AgentAction) => Promise<void> | void
 
 export async function executeAgentRunActions(
   run: AgentRun,
   shouldStop: () => boolean = () => false,
-  appUrl = envClient.NEXT_PUBLIC_APP_URL
+  appUrl = envClient.NEXT_PUBLIC_APP_URL,
+  onProgress?: AgentRunProgressHandler
 ) {
   const plan =
     run.actions.length > 0
@@ -48,30 +87,61 @@ export async function executeAgentRunActions(
           metadata: buildPlannerSummary(run, run.actions)
         }
       : await buildAgentPlan(run)
-  const actions = prioritizeRequiredDeliverables(plan.actions, run)
+  const actions = plan.actions
   const completedActions: AgentAction[] = []
+  let progressActions = actions
   let spendUsd = 0
+  const publishProgress = async (summary?: string) => {
+    await onProgress?.({
+      actions: progressActions,
+      summary
+    })
+  }
+  const publishActionProgress = async (nextAction: AgentAction) => {
+    progressActions = progressActions.map(action =>
+      action.id === nextAction.id ? nextAction : action
+    )
+    await publishProgress(describeAgentActionProgress(nextAction))
+  }
+
+  await publishProgress(
+    `The agent planned ${actions.length} paid action${
+      actions.length === 1 ? '' : 's'
+    } and is preparing x402 settlement.`
+  )
 
   for (const action of actions) {
+    if (action.status === 'completed') {
+      completedActions.push(action)
+      spendUsd = addActionSpend(spendUsd, action)
+      await publishActionProgress(action)
+      continue
+    }
+
     if (shouldStop()) {
-      completedActions.push({
+      const stoppedAction = {
         ...action,
         status: 'failed',
         errorMessage: 'The agent run was stopped before this action executed.',
         completedAt: new Date().toISOString()
-      })
+      } satisfies AgentAction
+      completedActions.push(stoppedAction)
+      await publishActionProgress(stoppedAction)
       break
     }
 
-    const result = await executeAgentAction(run, action, spendUsd, appUrl)
+    const result = await executeAgentAction(
+      run,
+      action,
+      spendUsd,
+      appUrl,
+      publishActionProgress
+    )
 
-    if (result.receipt) {
-      spendUsd = Number(
-        (spendUsd + parseMusdLabel(result.receipt.amountMusd)).toFixed(6)
-      )
-    }
+    spendUsd = addActionSpend(spendUsd, result)
 
     completedActions.push(result)
+    await publishActionProgress(result)
 
     if (shouldStop()) {
       break
@@ -93,7 +163,7 @@ export async function executeAgentRunActions(
     deliverables,
     summary: completed
       ? receiptCount > 0
-        ? `The launch-pack agent completed ${completedActions.length} actions, captured ${receiptCount} MUSD receipt records, and prepared an auditable Mezo proof package.`
+        ? `The launch-pack agent completed ${completedActions.length} actions, captured ${receiptCount} MUSD receipt records, and prepared an auditable on-chain proof package.`
         : 'The launch-pack agent completed without receipt-backed paid actions.'
       : 'The launch-pack agent stopped before completing every selected paid action.',
     status: completed ? 'completed' : 'failed'
@@ -104,8 +174,13 @@ async function executeAgentAction(
   run: AgentRun,
   action: AgentAction,
   currentSpendUsd: number,
-  appUrl?: string
+  appUrl?: string,
+  onProgress?: AgentActionProgressHandler
 ) {
+  if (action.status === 'paid' && action.orderId && action.receipt && appUrl) {
+    return await completeExistingPaidAction(action, appUrl, onProgress)
+  }
+
   const product = await getProductBySlug(action.productSlug)
 
   if (!product) {
@@ -152,60 +227,175 @@ async function executeAgentAction(
     ...action,
     status: 'quoted',
     amountMusd: quotedPrice.amountLabel,
-    requestMethod: 'POST',
-    requestUrl: `${appUrl}/api/x402/products/${action.productSlug}/call`,
     requestPayload,
     startedAt: action.startedAt ?? new Date().toISOString()
   } satisfies AgentAction
+  await onProgress?.(started)
 
   if (!envServer.AGENT_SPENDER_PRIVATE_KEY || !appUrl) {
     return {
       ...started,
       status: 'failed',
       errorMessage:
-        'Production agent payment is not configured. Set AGENT_SPENDER_PRIVATE_KEY and NEXT_PUBLIC_APP_URL before running agent actions.',
+        'Production agent payment signing is not configured. Set AGENT_SPENDER_PRIVATE_KEY and NEXT_PUBLIC_APP_URL so the vault-funded signer can settle x402 payments.',
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   }
 
+  let advanced: AgentAction | null = null
+
   try {
+    advanced = {
+      ...(await advanceAgentVaultSpend({
+        runId: run.id,
+        action: started,
+        amountUsd: quotedPrice.amountUsd,
+        amountLabel: quotedPrice.amountLabel
+      })),
+      status: 'paid'
+    } satisfies AgentAction
+    await onProgress?.(advanced)
     await ensureAgentCanPayWithPermit2(quotedPrice.amountUsd)
+    let paidProgress = advanced
     const paidResult = await callPaidProductWithAgentWallet(
       run.id,
-      started,
-      appUrl
+      advanced,
+      appUrl,
+      async (progress, pollingResponse) => {
+        paidProgress = {
+          ...paidProgress,
+          responsePayload: buildPaidProductResponsePayload(progress),
+          latestAsyncPollingResponse:
+            pollingResponse ?? paidProgress.latestAsyncPollingResponse,
+          asyncPollingResponses: pollingResponse
+            ? [pollingResponse]
+            : paidProgress.asyncPollingResponses,
+          receipt: progress.receipt,
+          orderId: progress.order?.id,
+          requestId: progress.order?.requestId
+        } satisfies AgentAction
+        await onProgress?.(paidProgress)
+      }
     )
-    const finalPaidResult = await resolvePaidProductResult({
-      product,
-      paidResult,
-      appUrl
-    })
+
+    const resultStatus =
+      paidResult.order?.status === 'failed' ||
+      paidResult.order?.status === 'expired' ||
+      paidResult.order?.status === 'delta_payment_required'
+        ? 'failed'
+        : 'completed'
+
+    const refundedAdvance =
+      resultStatus === 'failed' && didEscrowRefundBuyer(paidResult)
+        ? await refundAgentVaultAdvance({
+            runId: run.id,
+            action: advanced,
+            amountUsd: quotedPrice.amountUsd,
+            amountLabel: quotedPrice.amountLabel
+          }).catch(error => ({
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unable to return the refunded x402 payment to the agent vault.'
+          }))
+        : null
+    const refundError =
+      refundedAdvance && 'error' in refundedAdvance
+        ? refundedAdvance.error
+        : undefined
+    const refundFields =
+      refundedAdvance && !('error' in refundedAdvance) ? refundedAdvance : {}
 
     return {
-      ...started,
-      status: 'completed',
-      responsePayload: finalPaidResult.data,
-      toolResponsePayload: finalPaidResult,
-      receipt: finalPaidResult.receipt,
-      orderId: finalPaidResult.order?.id,
-      requestId: finalPaidResult.order?.requestId,
+      ...paidProgress,
+      ...refundFields,
+      status: resultStatus,
+      responsePayload: buildPaidProductResponsePayload(paidResult),
+      latestAsyncPollingResponse: paidProgress.latestAsyncPollingResponse,
+      asyncPollingResponses: paidProgress.asyncPollingResponses,
+      receipt: paidResult.receipt,
+      orderId: paidResult.order?.id,
+      requestId: paidResult.order?.requestId,
+      errorMessage:
+        resultStatus === 'failed'
+          ? [
+              describeAsyncOrderFailure(paidResult.order),
+              refundError
+                ? `The x402 payment was refunded to the signer, but the gateway could not return it to the agent vault: ${refundError}`
+                : undefined
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : undefined,
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   } catch (caughtError) {
-    const paidCallError =
-      caughtError instanceof PaidProductCallError ? caughtError : null
+    const refundedAdvance = advanced
+      ? await refundAgentVaultAdvance({
+          runId: run.id,
+          action: advanced,
+          amountUsd: quotedPrice.amountUsd,
+          amountLabel: quotedPrice.amountLabel
+        }).catch(error => ({
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Unable to return the advanced vault spend.'
+        }))
+      : null
+    const refundError =
+      refundedAdvance && 'error' in refundedAdvance
+        ? refundedAdvance.error
+        : undefined
+    const refundFields =
+      refundedAdvance && !('error' in refundedAdvance) ? refundedAdvance : {}
 
     return {
-      ...started,
+      ...(advanced ?? started),
+      ...refundFields,
       status: 'failed',
-      errorMessage:
+      errorMessage: [
         caughtError instanceof Error
           ? caughtError.message
           : 'The paid x402 request failed.',
-      toolResponsePayload: paidCallError?.responsePayload,
+        refundError
+          ? `the gateway advanced this action from the vault, but could not return the unused signer funds: ${refundError}`
+          : undefined
+      ]
+        .filter(Boolean)
+        .join(' '),
       completedAt: new Date().toISOString()
     } satisfies AgentAction
   }
+}
+
+function describeAgentActionProgress(action: AgentAction) {
+  if (action.status === 'planned') {
+    return `${action.productName} is queued.`
+  }
+
+  if (action.status === 'quoted') {
+    return `${action.productName} was quoted at ${action.amountMusd}; the gateway is advancing vault funds.`
+  }
+
+  if (action.status === 'paid') {
+    return `${action.productName} is paid and running. Async tools stay in this state while the gateway polls the provider result.`
+  }
+
+  if (action.status === 'completed') {
+    return `${action.productName} completed and returned a receipt-backed result.`
+  }
+
+  if (action.status === 'skipped') {
+    return `${action.productName} was skipped: ${
+      action.errorMessage ??
+      'the action could not run inside the selected budget.'
+    }`
+  }
+
+  return `${action.productName} failed: ${
+    action.errorMessage ?? 'the paid action did not complete.'
+  }`
 }
 
 function parseMusdLabel(value: string) {
@@ -214,11 +404,122 @@ function parseMusdLabel(value: string) {
   return Number.isFinite(amount) ? amount : 0
 }
 
+function addActionSpend(currentSpendUsd: number, action: AgentAction) {
+  if (action.vaultAdvancedAmountMusd && !action.vaultRefundedAmountMusd) {
+    return Number(
+      (
+        currentSpendUsd + parseMusdLabel(action.vaultAdvancedAmountMusd)
+      ).toFixed(6)
+    )
+  }
+
+  if (action.receipt) {
+    return Number(
+      (currentSpendUsd + parseMusdLabel(action.receipt.amountMusd)).toFixed(6)
+    )
+  }
+
+  return currentSpendUsd
+}
+
+async function advanceAgentVaultSpend({
+  runId,
+  action,
+  amountUsd,
+  amountLabel
+}: {
+  runId: string
+  action: AgentAction
+  amountUsd: number
+  amountLabel: string
+}) {
+  const paymentId = getAgentVaultPaymentId(runId, action.id)
+  const result = await writeAgentRunVault({
+    functionName: 'recordSpend',
+    args: [
+      getAgentRunBytes32(runId),
+      paymentId,
+      parsePaymentAmountToAtomic(amountUsd)
+    ]
+  })
+
+  if (!result) {
+    throw new Error(
+      'AgentRunVault spend could not be advanced. Set NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS and AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY so the gateway can transfer the funded run budget to the agent signer before x402 settlement.'
+    )
+  }
+
+  return {
+    ...action,
+    vaultPaymentId: paymentId,
+    vaultAdvancedAmountMusd: amountLabel,
+    vaultSpendTxHash: result.txHash,
+    vaultSpendExplorerUrl: result.explorerUrl
+  } satisfies AgentAction
+}
+
+async function refundAgentVaultAdvance({
+  runId,
+  action,
+  amountUsd,
+  amountLabel
+}: {
+  runId: string
+  action: AgentAction
+  amountUsd: number
+  amountLabel: string
+}) {
+  if (!action.vaultPaymentId) {
+    throw new Error('The vault payment ID is missing for this agent action.')
+  }
+
+  const requestedAmount = parsePaymentAmountToAtomic(amountUsd)
+  const budget = await getAgentRunVaultBudget(runId).catch(() => null)
+  const refundableAmount =
+    budget && budget.spentAmount < requestedAmount
+      ? budget.spentAmount
+      : requestedAmount
+
+  if (refundableAmount <= 0n) {
+    return {
+      vaultRefundedAmountMusd: '0.00 MUSD'
+    } satisfies Partial<AgentAction>
+  }
+
+  const returnTx = await returnAgentSignerMusdToVault(refundableAmount)
+  const refund = await writeAgentRunVault({
+    functionName: 'recordSpendRefund',
+    args: [
+      getAgentRunBytes32(runId),
+      action.vaultPaymentId as Hex,
+      refundableAmount
+    ]
+  })
+
+  if (!refund) {
+    throw new Error(
+      'AgentRunVault refund record could not be written. The signer transfer was submitted, but the operator key or vault address is not configured for recordSpendRefund.'
+    )
+  }
+
+  return {
+    vaultRefundedAmountMusd:
+      refundableAmount === requestedAmount
+        ? amountLabel
+        : formatMusdAmount(refundableAmount),
+    vaultRefundTxHash: refund.txHash,
+    vaultRefundExplorerUrl: refund.explorerUrl,
+    vaultReturnTxHash: returnTx.txHash,
+    vaultReturnExplorerUrl: returnTx.explorerUrl
+  } satisfies Partial<AgentAction>
+}
+
 async function callPaidProductWithAgentWallet(
   runId: string,
   action: AgentAction,
-  appUrl: string
-): Promise<PaidProductResult> {
+  appUrl: string,
+  onProgress?: PaidProductProgressHandler
+) {
   const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
 
   if (!privateKey) {
@@ -238,304 +539,442 @@ async function callPaidProductWithAgentWallet(
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        'x-tollora-agent-run-id': runId
+        'x-app-agent-run-id': runId
       },
       body: JSON.stringify(action.requestPayload)
     }
   )
+  const paymentResult = await httpClient
+    .processResponse(response.clone())
+    .catch(() => null)
   const body = await readJsonResponse(response)
 
   if (!response.ok) {
-    throw new PaidProductCallError(describePaidCallFailure(response, body), {
-      status: response.status,
-      statusText: response.statusText,
-      body
-    })
+    throw new Error(describePaidCallFailure(response, body, paymentResult))
   }
 
-  return body as PaidProductResult
-}
+  await onProgress?.(body as PaidProductCallResponse)
 
-type PaidProductResult = {
-  order?: {
-    id?: string
-    requestId?: string
-    status?: string
-    resultUrl?: string
-    externalJobId?: string
-  }
-  receipt: MarketplaceReceipt
-  data: Record<string, unknown>
-  providerStatus?: Record<string, unknown>
-}
-
-async function resolvePaidProductResult({
-  product,
-  paidResult,
-  appUrl
-}: {
-  product: ApiProduct
-  paidResult: PaidProductResult
-  appUrl: string
-}): Promise<PaidProductResult> {
-  if (!shouldPollProviderResult({ product, paidResult })) {
-    return paidResult
-  }
-
-  const orderId = paidResult.order?.id
-
-  if (!orderId) {
-    throw new Error(
-      'The provider accepted an async job, but Tollora did not return an order ID to poll.'
-    )
-  }
-
-  let latestBody: Record<string, unknown> | null = null
-
-  for (let attempt = 0; attempt < ASYNC_PROVIDER_POLL_ATTEMPTS; attempt += 1) {
-    if (attempt > 0) {
-      await sleep(ASYNC_PROVIDER_POLL_INTERVAL_MS)
-    }
-
-    const response = await fetch(
-      `${appUrl}/api/orders/${encodeURIComponent(orderId)}/provider-status`,
-      {
-        method: 'GET',
-        headers: { Accept: 'application/json' }
-      }
-    )
-    const body = await readJsonResponse(response)
-    latestBody = body
-
-    if (!response.ok) {
-      throw new PaidProductCallError(
-        describePaidCallFailure(response, body),
-        body
-      )
-    }
-
-    const terminal = normalizeProviderPollResult(body, paidResult)
-
-    if (terminal.status === 'completed') {
-      return terminal.result
-    }
-
-    if (terminal.status === 'failed') {
-      throw new PaidProductCallError(
-        terminal.errorMessage ?? 'The async provider job failed.',
-        body
-      )
-    }
-  }
-
-  throw new PaidProductCallError(
-    `The async provider job did not finish after ${Math.round(
-      (ASYNC_PROVIDER_POLL_ATTEMPTS * ASYNC_PROVIDER_POLL_INTERVAL_MS) / 60000
-    )} minutes. Retry this agent run to continue polling the existing order.`,
-    latestBody ?? paidResult
-  )
-}
-
-function prioritizeRequiredDeliverables(actions: AgentAction[], run: AgentRun) {
-  if (!requiresMediaDeliverable(run)) {
-    return actions
-  }
-
-  return [...actions].sort((a, b) => {
-    const aRequiredMedia = isMediaAction(a) ? 0 : 1
-    const bRequiredMedia = isMediaAction(b) ? 0 : 1
-
-    return aRequiredMedia - bRequiredMedia
+  return await waitForPaidProductCompletion({
+    appUrl,
+    initial: body as PaidProductCallResponse,
+    onProgress
   })
 }
 
-function requiresMediaDeliverable(run: AgentRun) {
-  const text = `${run.objective} ${run.sourceText ?? ''}`.toLowerCase()
-
-  return (
-    /\b(video|clip|media|creative|project handoff|cliplore|launch asset)\b/.test(
-      text
-    ) && /\b(final|deliverable|handoff|output|project)\b/.test(text)
-  )
+type PaidProductCallResponse = {
+  order?: Partial<MarketplaceOrder>
+  receipt: MarketplaceReceipt
+  data: Record<string, unknown>
+  pricing?: unknown
+  provider?: unknown
+  x402?: unknown
+  escrow?: unknown
 }
 
-function isMediaAction(action: AgentAction) {
-  const text = `${action.productSlug} ${action.productName}`.toLowerCase()
+type PaidProductProgressHandler = (
+  result: PaidProductCallResponse,
+  pollingResponse?: AgentAsyncPollingResponse
+) => Promise<void> | void
 
-  return (
-    text.includes('video') ||
-    text.includes('cliplore') ||
-    text.includes('media')
-  )
+type ProviderStatusResponse = {
+  error?: string
+  order?: MarketplaceOrder
+  provider?: {
+    status?: string
+    externalJobId?: string
+    resultUrl?: string
+    responsePayload?: unknown
+    errorMessage?: string
+  }
+  pricing?: unknown
+  escrow?: unknown
 }
 
-function shouldPollProviderResult({
-  product,
-  paidResult
-}: {
-  product: ApiProduct
-  paidResult: PaidProductResult
-}) {
-  if (product.executionMode !== 'asynchronous') {
-    return false
-  }
-
-  if (!paidResult.order?.id) {
-    return false
-  }
-
-  const status = String(
-    paidResult.order.status ?? paidResult.data?.status ?? ''
-  ).toLowerCase()
-
-  if (hasResultUrl(paidResult.data) || hasResultUrl(paidResult.order)) {
-    return false
-  }
-
-  return (
-    status === 'processing' ||
-    status === 'queued' ||
-    status === 'paid' ||
-    status === 'reserved' ||
-    Boolean(paidResult.order.externalJobId)
-  )
-}
-
-function normalizeProviderPollResult(
-  body: Record<string, unknown>,
-  paidResult: PaidProductResult
-):
-  | { status: 'processing' }
-  | { status: 'failed'; errorMessage?: string }
-  | { status: 'completed'; result: PaidProductResult } {
-  const order = asRecord(body.order)
-  const provider = asRecord(body.provider)
-  const providerResponse = asRecord(provider.responsePayload)
-  const orderResponse = asRecord(order.responsePayload)
-  const status = String(
-    provider.status ?? order.status ?? orderResponse.status ?? ''
-  ).toLowerCase()
-
-  if (status === 'failed' || status === 'error' || status === 'cancelled') {
-    return {
-      status: 'failed',
-      errorMessage: String(
-        provider.errorMessage ??
-          provider.error ??
-          orderResponse.errorMessage ??
-          'The async provider job failed.'
-      )
+async function completeExistingPaidAction(
+  action: AgentAction,
+  appUrl: string,
+  onProgress?: AgentActionProgressHandler
+) {
+  let paidProgress = action
+  const latestPoll =
+    action.latestAsyncPollingResponse ?? action.asyncPollingResponses?.at(-1)
+  const paidResult = await waitForPaidProductCompletion({
+    appUrl,
+    initial: {
+      order: {
+        id: action.orderId,
+        status: latestPoll?.orderStatus ?? 'processing',
+        externalJobId: latestPoll?.externalJobId,
+        resultReleaseStatus: latestPoll?.resultReleaseStatus,
+        resultUrl: latestPoll?.resultUrl
+      } as PaidProductCallResponse['order'],
+      receipt: action.receipt!,
+      data: action.responsePayload ?? {},
+      provider: action.responsePayload?.provider,
+      pricing: action.responsePayload?.pricing,
+      escrow: action.responsePayload?.escrow
+    },
+    onProgress: async (progress, pollingResponse) => {
+      paidProgress = {
+        ...paidProgress,
+        responsePayload: buildPaidProductResponsePayload(progress),
+        latestAsyncPollingResponse:
+          pollingResponse ?? paidProgress.latestAsyncPollingResponse,
+        asyncPollingResponses: pollingResponse
+          ? [pollingResponse]
+          : paidProgress.asyncPollingResponses,
+        receipt: progress.receipt,
+        orderId: progress.order?.id ?? paidProgress.orderId,
+        requestId: progress.order?.requestId ?? paidProgress.requestId
+      } satisfies AgentAction
+      await onProgress?.(paidProgress)
     }
-  }
-
-  const resultUrl =
-    readString(order, 'resultUrl') ??
-    readResultUrl(provider) ??
-    readResultUrl(orderResponse) ??
-    readResultUrl(providerResponse)
-  const completed =
-    status === 'completed' ||
-    status === 'success' ||
-    status === 'succeeded' ||
-    Boolean(resultUrl)
-
-  if (!completed) {
-    return { status: 'processing' }
-  }
-
-  const data =
-    Object.keys(orderResponse).length > 0
-      ? orderResponse
-      : Object.keys(providerResponse).length > 0
-        ? providerResponse
-        : provider
-  const nextReceipt = {
-    ...paidResult.receipt,
-    resultUrl: resultUrl ?? paidResult.receipt.resultUrl,
-    escrowStatus:
-      readString(order, 'escrowStatus') === 'released'
-        ? 'released'
-        : paidResult.receipt.escrowStatus,
-    escrowReleaseTxHash:
-      readString(order, 'escrowReleaseTxHash') ??
-      paidResult.receipt.escrowReleaseTxHash,
-    escrowReleaseExplorerUrl:
-      readString(order, 'escrowReleaseExplorerUrl') ??
-      paidResult.receipt.escrowReleaseExplorerUrl
-  } satisfies MarketplaceReceipt
+  })
+  const resultStatus =
+    paidResult.order?.status === 'failed' ||
+    paidResult.order?.status === 'expired' ||
+    paidResult.order?.status === 'delta_payment_required'
+      ? 'failed'
+      : 'completed'
 
   return {
-    status: 'completed',
-    result: {
-      ...paidResult,
-      order: {
-        ...paidResult.order,
-        id: readString(order, 'id') ?? paidResult.order?.id,
-        requestId:
-          readString(order, 'requestId') ?? paidResult.order?.requestId,
-        status: 'completed',
-        resultUrl
+    ...paidProgress,
+    status: resultStatus,
+    responsePayload: buildPaidProductResponsePayload(paidResult),
+    receipt: paidResult.receipt,
+    orderId: paidResult.order?.id ?? paidProgress.orderId,
+    requestId: paidResult.order?.requestId ?? paidProgress.requestId,
+    errorMessage:
+      resultStatus === 'failed'
+        ? describeAsyncOrderFailure(paidResult.order)
+        : undefined,
+    completedAt: new Date().toISOString()
+  } satisfies AgentAction
+}
+
+async function waitForPaidProductCompletion({
+  appUrl,
+  initial,
+  onProgress
+}: {
+  appUrl: string
+  initial: PaidProductCallResponse
+  onProgress?: PaidProductProgressHandler
+}) {
+  const order = initial.order
+
+  if (!shouldPollPaidOrder(order)) {
+    return normalizePaidProductResponse(initial, order)
+  }
+
+  let lastOrder = order
+
+  for (let attempt = 1; attempt <= asyncProviderPollAttempts; attempt += 1) {
+    if (attempt > 1) {
+      await delay(asyncProviderPollIntervalMs)
+    }
+
+    const pollingUrl = `${appUrl}/api/orders/${encodeURIComponent(String(order?.id))}/provider-status`
+    const pollingRequest = {
+      method: 'GET',
+      url: pollingUrl,
+      headers: { Accept: 'application/json' },
+      params: { orderId: String(order?.id ?? '') }
+    }
+    const response = await fetch(pollingUrl, {
+      headers: pollingRequest.headers
+    })
+    const body = (await readJsonResponse(response)) as ProviderStatusResponse
+    const pollingResponse = buildAsyncPollingResponse({
+      attempt,
+      pollingUrl,
+      request: pollingRequest,
+      httpStatus: response.status,
+      body
+    })
+
+    if (!response.ok || !body.order) {
+      const failedProgress = normalizePaidProductResponse(
+        {
+          ...initial,
+          data: {
+            ...initial.data,
+            providerStatusError: body
+          }
+        },
+        lastOrder
+      )
+      await onProgress?.(failedProgress, pollingResponse)
+      throw new Error(
+        body.error ??
+          `Unable to poll async provider status (${response.status} ${response.statusText}).`
+      )
+    }
+
+    lastOrder = body.order
+    const next = normalizePaidProductResponse(
+      {
+        ...initial,
+        order: body.order,
+        data: buildProviderStatusData(body)
       },
-      receipt: nextReceipt,
-      data: {
-        ...data,
-        ...(resultUrl ? { resultUrl } : {})
-      },
-      providerStatus: body
+      body.order
+    )
+    await onProgress?.(next, pollingResponse)
+
+    if (!shouldPollPaidOrder(body.order)) {
+      return next
+    }
+  }
+
+  throw new Error(
+    [
+      `Async provider job ${lastOrder?.externalJobId ?? ''} did not finish before the agent polling window expired.`,
+      'Open the order page to continue polling, or retry the agent after the provider job completes.'
+    ]
+      .filter(Boolean)
+      .join(' ')
+  )
+}
+
+function buildAsyncPollingResponse({
+  attempt,
+  pollingUrl,
+  request,
+  httpStatus,
+  body
+}: {
+  attempt: number
+  pollingUrl: string
+  request: AgentAsyncPollingResponse['request']
+  httpStatus: number
+  body: ProviderStatusResponse
+}): AgentAsyncPollingResponse {
+  const resultUrl =
+    body.order?.resultUrl ??
+    body.provider?.resultUrl ??
+    extractResultUrl(body.order?.responsePayload) ??
+    extractResultUrl(body.provider?.responsePayload)
+
+  return {
+    id: `poll_${Date.now().toString(36)}_${attempt}`,
+    attempt,
+    polledAt: new Date().toISOString(),
+    pollingUrl,
+    request,
+    httpStatus,
+    orderStatus: body.order?.status,
+    resultReleaseStatus: body.order?.resultReleaseStatus,
+    externalJobId: body.order?.externalJobId ?? body.provider?.externalJobId,
+    resultUrl,
+    response: compactProviderStatusResponse(body)
+  }
+}
+
+function buildPaidProductResponsePayload(result: PaidProductCallResponse) {
+  const payload: Record<string, unknown> = {
+    data: compactJsonPayload(result.data, 0),
+    order: compactMarketplaceOrderForAgent(result.order),
+    receipt: result.receipt,
+    pricing: compactJsonPayload(result.pricing),
+    provider: compactJsonPayload(result.provider, 0),
+    x402: result.x402,
+    escrow: compactJsonPayload(result.escrow)
+  }
+  const resultUrl =
+    extractResultUrl(result.data) ??
+    extractResultUrl(result.order?.responsePayload) ??
+    result.order?.resultUrl
+
+  if (resultUrl) {
+    payload.resultUrl = resultUrl
+  }
+
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined)
+  )
+}
+
+function compactProviderStatusResponse(
+  body: ProviderStatusResponse
+): Record<string, unknown> {
+  return {
+    order: compactMarketplaceOrderForAgent(body.order),
+    provider: compactJsonPayload(body.provider, 0),
+    pricing: compactJsonPayload(body.pricing),
+    escrow: compactJsonPayload(body.escrow),
+    error: body.error
+  }
+}
+
+function compactMarketplaceOrderForAgent(
+  order: PaidProductCallResponse['order']
+) {
+  if (!order) {
+    return undefined
+  }
+
+  return {
+    ...order,
+    responsePayload: compactJsonPayload(order.responsePayload, 0),
+    lockedResponsePayload: compactJsonPayload(order.lockedResponsePayload, 0),
+    providerRequest: compactProviderRequestTrace(order.providerRequest)
+  }
+}
+
+function normalizePaidProductResponse(
+  response: PaidProductCallResponse,
+  order: PaidProductCallResponse['order']
+): PaidProductCallResponse {
+  return {
+    ...response,
+    order,
+    data: {
+      ...response.data,
+      order,
+      resultUrl:
+        order?.resultUrl ??
+        extractResultUrl(response.data) ??
+        response.data?.resultUrl,
+      externalJobId: order?.externalJobId ?? response.data?.externalJobId,
+      status: order?.status ?? response.data?.status,
+      resultReleaseStatus:
+        order?.resultReleaseStatus ?? response.data?.resultReleaseStatus
     }
   }
 }
 
-function hasResultUrl(value: unknown) {
-  return Boolean(readResultUrl(value))
+function buildProviderStatusData(body: ProviderStatusResponse) {
+  const order = body.order
+  const responsePayload =
+    order?.responsePayload ?? body.provider?.responsePayload
+  const resultUrl =
+    order?.resultUrl ??
+    body.provider?.resultUrl ??
+    extractResultUrl(responsePayload)
+
+  return {
+    status: order?.status ?? body.provider?.status,
+    resultReleaseStatus: order?.resultReleaseStatus,
+    externalJobId: order?.externalJobId ?? body.provider?.externalJobId,
+    resultUrl,
+    responsePayload,
+    provider: body.provider,
+    pricing: body.pricing,
+    escrow: body.escrow,
+    order
+  } as Record<string, unknown>
 }
 
-function readResultUrl(value: unknown) {
-  return (
-    readString(value, 'result.publicProjectUrl') ??
-    readString(value, 'publicProjectUrl') ??
-    readString(value, 'result.cloneUrl') ??
-    readString(value, 'cloneUrl') ??
-    readString(value, 'previewUrl') ??
-    readString(value, 'renderUrl') ??
-    readString(value, 'resultUrl') ??
-    readString(value, 'url') ??
-    readString(value, 'outputUrl')
+function shouldPollPaidOrder(order: PaidProductCallResponse['order']) {
+  if (!order?.id) {
+    return false
+  }
+
+  if (
+    order.status === 'completed' ||
+    order.status === 'failed' ||
+    order.status === 'expired' ||
+    order.status === 'delta_payment_required'
+  ) {
+    return false
+  }
+
+  return Boolean(
+    order.externalJobId ||
+      order.resultReleaseStatus === 'provider_retrying' ||
+      order.resultReleaseStatus === 'reserved'
   )
 }
 
-function readString(value: unknown, path: string) {
-  const result = path.split('.').reduce<unknown>((current, segment) => {
+function extractResultUrl(value: unknown): string | undefined {
+  const direct = getStringPath(value, [
+    'resultUrl',
+    'renderUrl',
+    'previewUrl',
+    'publicProjectUrl',
+    'projectUrl',
+    'cloneUrl',
+    'outputUrl',
+    'url'
+  ])
+
+  if (direct) {
+    return direct
+  }
+
+  return getStringPath(value, [
+    'result.resultUrl',
+    'result.renderUrl',
+    'result.previewUrl',
+    'result.publicProjectUrl',
+    'result.projectUrl',
+    'result.cloneUrl',
+    'result.outputUrl',
+    'data.resultUrl',
+    'data.renderUrl',
+    'data.previewUrl',
+    'data.publicProjectUrl',
+    'data.projectUrl',
+    'data.cloneUrl',
+    'data.outputUrl'
+  ])
+}
+
+function getStringPath(value: unknown, paths: string[]) {
+  for (const path of paths) {
+    const match = readPath(value, path)
+
+    if (typeof match === 'string' && match.trim().length > 0) {
+      return match
+    }
+  }
+
+  return undefined
+}
+
+function readPath(value: unknown, path: string): unknown {
+  return path.split('.').reduce<unknown>((current, key) => {
     if (!current || typeof current !== 'object') {
       return undefined
     }
 
-    return (current as Record<string, unknown>)[segment]
+    return (current as Record<string, unknown>)[key]
   }, value)
-
-  return typeof result === 'string' && result.trim().length > 0
-    ? result.trim()
-    : undefined
 }
 
-function asRecord(value: unknown) {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {}
-}
-
-function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-class PaidProductCallError extends Error {
-  responsePayload: Record<string, unknown>
-
-  constructor(message: string, responsePayload: Record<string, unknown>) {
-    super(message)
-    this.name = 'PaidProductCallError'
-    this.responsePayload = responsePayload
+function describeAsyncOrderFailure(order: PaidProductCallResponse['order']) {
+  if (!order) {
+    return 'The paid provider request failed.'
   }
+
+  const providerError =
+    typeof order.responsePayload === 'object' &&
+    order.responsePayload &&
+    'errorMessage' in order.responsePayload &&
+    typeof order.responsePayload.errorMessage === 'string'
+      ? order.responsePayload.errorMessage
+      : undefined
+
+  return (
+    providerError ||
+    `The provider job ended with status ${order.status}. Result release state: ${
+      order.resultReleaseStatus ?? 'unknown'
+    }.`
+  )
+}
+
+function didEscrowRefundBuyer(result: PaidProductCallResponse) {
+  return (
+    result.order?.resultReleaseStatus === 'refunded' ||
+    result.order?.escrowStatus === 'refunded' ||
+    result.receipt?.escrowStatus === 'refunded'
+  )
+}
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 const agentPublicClient = createPublicClient({
@@ -543,9 +982,58 @@ const agentPublicClient = createPublicClient({
   transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
 })
 
-const musdBalanceAbi = parseAbi([
-  'function balanceOf(address owner) view returns (uint256)'
+const musdAgentAbi = parseAbi([
+  'function balanceOf(address owner) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)'
 ])
+
+async function returnAgentSignerMusdToVault(amount: bigint) {
+  const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
+  const vaultAddress = getAgentRunVaultAddress()
+
+  if (!privateKey) {
+    throw new Error('AGENT_SPENDER_PRIVATE_KEY is not configured.')
+  }
+
+  if (!vaultAddress) {
+    throw new Error('NEXT_PUBLIC_AGENT_RUN_VAULT_ADDRESS is not configured.')
+  }
+
+  const account = privateKeyToAccount(
+    (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
+  )
+  const walletClient = createWalletClient({
+    account,
+    chain: defaultAppChain.viemChain,
+    transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
+  })
+  const txHash = await walletClient
+    .writeContract({
+      address: paymentTokenAddress as Address,
+      abi: musdAgentAbi,
+      functionName: 'transfer',
+      args: [vaultAddress, amount]
+    })
+    .catch(error => {
+      throw new Error(
+        `Agent signer could not return unused MUSD to the vault. The signer may need ${defaultAppChain.nativeCurrency.symbol} gas on ${defaultAppChain.shortName}. ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+    })
+  const receipt = await agentPublicClient.waitForTransactionReceipt({
+    hash: txHash
+  })
+
+  if (receipt.status !== 'success') {
+    throw new Error(`Agent signer MUSD return transaction reverted: ${txHash}`)
+  }
+
+  return {
+    txHash,
+    explorerUrl: buildExplorerUrl(txHash)
+  } satisfies AgentVaultWriteResult
+}
 
 async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   const privateKey = envServer.AGENT_SPENDER_PRIVATE_KEY
@@ -554,7 +1042,10 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
     throw new Error('AGENT_SPENDER_PRIVATE_KEY is not configured.')
   }
 
-  const requiredAmount = parseUnits(amountUsd.toFixed(6), 18)
+  const requiredAmount = parseUnits(
+    amountUsd.toFixed(Math.min(paymentTokenDecimals, 6)),
+    paymentTokenDecimals
+  )
 
   if (requiredAmount <= 0n) {
     return
@@ -563,12 +1054,11 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
   const account = privateKeyToAccount(
     (privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`) as Hex
   )
-  const tokenAddress = mezoMusdTokenAddress as Address
-  const [nativeBalance, balance, allowance] = await Promise.all([
-    agentPublicClient.getBalance({ address: account.address }),
+  const tokenAddress = paymentTokenAddress as Address
+  const [balance, allowance] = await Promise.all([
     agentPublicClient.readContract({
       address: tokenAddress,
-      abi: musdBalanceAbi,
+      abi: musdAgentAbi,
       functionName: 'balanceOf',
       args: [account.address]
     }),
@@ -580,17 +1070,11 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
     )
   ])
 
-  if (nativeBalance <= 0n) {
-    throw new Error(
-      'Agent signer has no native BTC gas on Mezo Testnet. Fund the production agent signer with Mezo Testnet BTC before running paid actions.'
-    )
-  }
-
   if (balance < requiredAmount) {
     throw new Error(
-      `Agent signer has insufficient MUSD. Required ${formatMusdAmount(
+      `Agent signer did not receive enough MUSD from AgentRunVault. Required ${formatMusdAmount(
         requiredAmount
-      )}, available ${formatMusdAmount(balance)}. Fund AGENT_SPENDER_PRIVATE_KEY on Mezo Testnet before running paid actions.`
+      )}, available ${formatMusdAmount(balance)}. Confirm the run vault is funded and AGENT_RUN_VAULT_OPERATOR_PRIVATE_KEY can call recordSpend.`
     )
   }
 
@@ -604,12 +1088,20 @@ async function ensureAgentCanPayWithPermit2(amountUsd: number) {
     transport: http(defaultAppChain.viemChain.rpcUrls.default.http[0])
   })
   const approval = createPermit2ApprovalTx(tokenAddress)
-  const txHash = await walletClient.sendTransaction({
-    account,
-    chain: defaultAppChain.viemChain,
-    to: approval.to,
-    data: approval.data
-  })
+  const txHash = await walletClient
+    .sendTransaction({
+      account,
+      chain: defaultAppChain.viemChain,
+      to: approval.to,
+      data: approval.data
+    })
+    .catch(error => {
+      throw new Error(
+        `Agent signer received vault MUSD but could not submit the Permit2 approval. Fund the agent signer with a small amount of ${defaultAppChain.nativeCurrency.symbol} on ${defaultAppChain.shortName} for gas. ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+    })
   const receipt = await agentPublicClient.waitForTransactionReceipt({
     hash: txHash
   })
@@ -655,9 +1147,12 @@ async function waitForAgentPermit2Allowance({
 }
 
 function formatMusdAmount(amount: bigint) {
-  return `${Number(formatUnits(amount, 18)).toLocaleString(undefined, {
-    maximumFractionDigits: 6
-  })} MUSD`
+  return `${Number(formatUnits(amount, paymentTokenDecimals)).toLocaleString(
+    undefined,
+    {
+      maximumFractionDigits: 6
+    }
+  )} MUSD`
 }
 
 async function readJsonResponse(response: Response) {
@@ -676,6 +1171,56 @@ async function readJsonResponse(response: Response) {
 
 function describePaidCallFailure(
   response: Response,
+  body: Record<string, unknown>,
+  paymentResult: x402PaymentResult | null
+) {
+  if (paymentResult?.kind === 'settle_failed') {
+    return (
+      [
+        paymentResult.settleResponse.errorMessage,
+        paymentResult.settleResponse.errorReason
+      ]
+        .filter(Boolean)
+        .join(' ') || 'MUSD settlement failed.'
+    )
+  }
+
+  if (paymentResult?.kind === 'payment_required') {
+    return [
+      paymentResult.paymentRequired.error,
+      body.error,
+      body.message,
+      body.guidance
+    ]
+      .filter(
+        (value): value is string =>
+          typeof value === 'string' && value.length > 0
+      )
+      .join(' ')
+  }
+
+  if (paymentResult?.kind === 'error') {
+    const resultBody =
+      paymentResult.body &&
+      typeof paymentResult.body === 'object' &&
+      !Array.isArray(paymentResult.body)
+        ? (paymentResult.body as Record<string, unknown>)
+        : {}
+    const message = describePaidCallFailureBody(response, resultBody)
+
+    if (message) {
+      return message
+    }
+  }
+
+  return (
+    describePaidCallFailureBody(response, body) ||
+    `Paid product call failed with ${response.status} ${response.statusText}.`
+  )
+}
+
+function describePaidCallFailureBody(
+  response: Response,
   body: Record<string, unknown>
 ) {
   const values = [
@@ -692,10 +1237,7 @@ function describePaidCallFailure(
     (value): value is string => typeof value === 'string' && value.length > 0
   )
 
-  return (
-    values.join(' ') ||
-    `Paid product call failed with ${response.status} ${response.statusText}.`
-  )
+  return values.join(' ')
 }
 
 async function buildDeliverables(
@@ -723,11 +1265,7 @@ async function buildDeliverables(
     })
 
     if (synthesized) {
-      return {
-        ...synthesized,
-        videoResultUrl:
-          synthesized.videoResultUrl || getCompletedActionResultUrl(actions)
-      }
+      return synthesized
     }
   }
 
@@ -767,14 +1305,10 @@ function buildFallbackDeliverables(
   )
   const asyncAction = completedActions.find(
     action =>
-      Boolean(action.responsePayload?.previewUrl) ||
-      Boolean(action.responsePayload?.renderUrl) ||
-      Boolean(action.responsePayload?.publicProjectUrl) ||
-      Boolean(action.responsePayload?.cloneUrl) ||
-      Boolean(action.responsePayload?.resultUrl) ||
-      Boolean(action.receipt?.resultUrl) ||
+      Boolean(extractResultUrl(action.responsePayload)) ||
       Boolean(action.responsePayload?.externalJobId)
   )
+  const videoResultUrl = extractResultUrl(asyncAction?.responsePayload)
 
   return {
     ...planMetadata,
@@ -786,40 +1320,8 @@ function buildFallbackDeliverables(
       completedActions.length > 0
         ? `${completedActions.length} paid tool result(s) are attached to this run.`
         : undefined,
-    videoResultUrl: getActionResultUrl(asyncAction)
+    videoResultUrl: videoResultUrl ?? ''
   }
-}
-
-function getActionResultUrl(action?: AgentAction) {
-  if (!action) {
-    return ''
-  }
-
-  return String(
-    action.responsePayload?.resultUrl ??
-      action.responsePayload?.previewUrl ??
-      action.responsePayload?.renderUrl ??
-      action.responsePayload?.publicProjectUrl ??
-      action.responsePayload?.cloneUrl ??
-      action.receipt?.resultUrl ??
-      ''
-  )
-}
-
-function getCompletedActionResultUrl(actions: AgentAction[]) {
-  for (const action of actions) {
-    if (action.status !== 'completed') {
-      continue
-    }
-
-    const resultUrl = getActionResultUrl(action)
-
-    if (resultUrl) {
-      return resultUrl
-    }
-  }
-
-  return ''
 }
 
 type OpenAiSynthesisResponse = {
@@ -851,10 +1353,10 @@ async function synthesizeWithOpenAi(
             {
               type: 'input_text',
               text: [
-                'You are Tollora Launch Pack Agent synthesizer.',
+                'You are Launch Pack Agent synthesizer.',
                 'Use the completed paid tool outputs, receipts, skipped tools, and objective to produce the final launch-pack deliverables.',
                 'Do not invent receipts, transactions, or provider results.',
-                'If a media result URL exists, include it in videoResultUrl. Otherwise use an empty string.',
+                'Only include videoResultUrl when a completed media action returned a final result, project, render, preview, clone, or output URL. Do not use queued or processing job IDs as final media output.',
                 'Return only structured JSON that matches the schema.'
               ].join('\n')
             }
@@ -897,7 +1399,7 @@ async function synthesizeWithOpenAi(
       text: {
         format: {
           type: 'json_schema',
-          name: 'tollora_agent_synthesis',
+          name: 'app_agent_synthesis',
           strict: true,
           schema: {
             type: 'object',

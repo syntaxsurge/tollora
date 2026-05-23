@@ -1,9 +1,9 @@
 import type { Chain } from 'viem'
-import { defineChain } from 'viem'
+import { defineChain, parseUnits } from 'viem'
 
 import { envClient } from '@/lib/env/env.client'
 
-export type SupportedChainKey = 'mezoTestnet'
+export type SupportedChainKey = 'app'
 
 export type AppChain = {
   key: SupportedChainKey
@@ -18,60 +18,95 @@ export type AppChain = {
   }
 }
 
+const appChainId = envClient.NEXT_PUBLIC_EVM_CHAIN_ID ?? 31611
+const appChainName =
+  envClient.NEXT_PUBLIC_EVM_CHAIN_NAME ?? 'Mezo Testnet'
+const appChainShortName =
+  envClient.NEXT_PUBLIC_EVM_CHAIN_SHORT_NAME ?? 'Mezo Testnet'
+const appChainRpcUrl =
+  envClient.NEXT_PUBLIC_EVM_RPC_URL ?? 'https://rpc.test.mezo.org'
+const appChainExplorerName =
+  envClient.NEXT_PUBLIC_EVM_EXPLORER_NAME ?? 'Mezo Testnet Explorer'
+const appChainExplorerUrl =
+  envClient.NEXT_PUBLIC_EVM_EXPLORER_URL ??
+  'https://explorer.test.mezo.org'
+const appChainNativeCurrency = {
+  name: envClient.NEXT_PUBLIC_EVM_NATIVE_CURRENCY_NAME ?? 'Bitcoin',
+  symbol: envClient.NEXT_PUBLIC_EVM_NATIVE_CURRENCY_SYMBOL ?? 'BTC',
+  decimals: envClient.NEXT_PUBLIC_EVM_NATIVE_CURRENCY_DECIMALS ?? 18
+}
+
 export const appChains = {
-  mezoTestnet: {
-    key: 'mezoTestnet',
-    id: envClient.NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID ?? 31611,
-    name: 'Mezo Testnet',
-    shortName: 'Mezo Testnet',
-    nativeCurrency: {
-      name: 'Bitcoin',
-      symbol: 'BTC',
-      decimals: 18
-    },
+  app: {
+    key: 'app',
+    id: appChainId,
+    name: appChainName,
+    shortName: appChainShortName,
+    nativeCurrency: appChainNativeCurrency,
     viemChain: defineChain({
-      id: envClient.NEXT_PUBLIC_MEZO_TESTNET_CHAIN_ID ?? 31611,
-      name: 'Mezo Testnet',
-      nativeCurrency: {
-        name: 'Bitcoin',
-        symbol: 'BTC',
-        decimals: 18
-      },
+      id: appChainId,
+      name: appChainName,
+      nativeCurrency: appChainNativeCurrency,
       rpcUrls: {
         default: {
-          http: [
-            envClient.NEXT_PUBLIC_MEZO_TESTNET_RPC_URL ??
-              'https://rpc.test.mezo.org'
-          ],
-          webSocket: ['wss://rpc-ws.test.mezo.org']
+          http: [appChainRpcUrl]
         }
       },
       blockExplorers: {
         default: {
-          name: 'Mezo Testnet Explorer',
-          url:
-            envClient.NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL ??
-            'https://explorer.test.mezo.org'
+          name: appChainExplorerName,
+          url: appChainExplorerUrl
         }
       },
-      testnet: true
+      testnet: envClient.NEXT_PUBLIC_EVM_IS_TESTNET ?? true
     }),
     explorer: {
-      name: 'Mezo Testnet Explorer',
-      baseUrl:
-        envClient.NEXT_PUBLIC_MEZO_TESTNET_EXPLORER_URL ??
-        'https://explorer.test.mezo.org'
+      name: appChainExplorerName,
+      baseUrl: appChainExplorerUrl
     }
   }
 } as const satisfies Record<SupportedChainKey, AppChain>
 
 export const supportedAppChains = Object.values(appChains)
-export const supportedViemChains = [appChains.mezoTestnet.viemChain] as const
-export const defaultAppChain = appChains.mezoTestnet
-export const x402Network = envClient.NEXT_PUBLIC_X402_NETWORK ?? 'eip155:31611'
-export const mezoMusdTokenAddress =
-  envClient.NEXT_PUBLIC_MUSD_TOKEN_ADDRESS ??
-  '0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'
+export const supportedViemChains = [appChains.app.viemChain] as const
+export const defaultAppChain = appChains.app
+export const x402Network =
+  envClient.NEXT_PUBLIC_X402_NETWORK ?? `eip155:${defaultAppChain.id}`
+export const defaultX402FacilitatorUrl =
+  'https://facilitator.vativ.io/'
+const defaultPaymentTokenAddress = '0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'
+const defaultPaymentTokenDomainName = 'MUSD'
+export const paymentTokenAddress =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_ADDRESS ?? defaultPaymentTokenAddress
+export const paymentTokenName =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_NAME ?? defaultPaymentTokenDomainName
+export const paymentTokenSymbol =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_SYMBOL ?? 'MUSD'
+export const paymentTokenLabel =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_LABEL ?? paymentTokenSymbol
+export const paymentTokenVersion =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_VERSION ?? '2'
+export const paymentTokenDecimals =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_DECIMALS ?? 18
+export const paymentTokenTransferMethod =
+  envClient.NEXT_PUBLIC_PAYMENT_TOKEN_TRANSFER_METHOD ?? 'permit2'
+
+export function toPaymentAssetAmount(amountUsd: number) {
+  return {
+    amount: parseUnits(
+      amountUsd.toFixed(Math.min(paymentTokenDecimals, 6)),
+      paymentTokenDecimals
+    ).toString(),
+    asset: paymentTokenAddress,
+    extra: {
+      name: paymentTokenName,
+      symbol: paymentTokenSymbol,
+      version: paymentTokenVersion,
+      decimals: paymentTokenDecimals,
+      assetTransferMethod: paymentTokenTransferMethod
+    }
+  }
+}
 
 export function getAppChainById(chainId?: number | null) {
   return (

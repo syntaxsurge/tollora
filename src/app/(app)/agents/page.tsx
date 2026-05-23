@@ -15,6 +15,7 @@ import {
 } from '@/components/data-display/server-data-table'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
+import { AgentRunRowActions } from '@/features/agents/agent-run-row-actions'
 import { agentRunStatusLabels } from '@/features/agents/status'
 import { getAgentMetrics, listAgentRuns } from '@/features/agents/store'
 import { type AgentTemplate, agentTemplates } from '@/features/agents/templates'
@@ -35,6 +36,8 @@ type AgentsPageProps = {
     pageSize?: string
   }>
 }
+
+export const dynamic = 'force-dynamic'
 
 export default async function AgentsPage({ searchParams }: AgentsPageProps) {
   const params = await searchParams
@@ -93,7 +96,7 @@ export default async function AgentsPage({ searchParams }: AgentsPageProps) {
               </h1>
               <p className='text-foreground/70 max-w-2xl text-sm leading-6'>
                 Start from a template or blank run. The agent plans with OpenAI,
-                spends through x402, records receipts, and publishes a Mezo
+                spends through x402, records receipts, and publishes an on-chain
                 proof.
               </p>
             </div>
@@ -334,15 +337,9 @@ const runColumns: ServerDataTableColumn<AgentRun>[] = [
   },
   {
     key: 'action',
-    label: 'Action',
-    render: run => (
-      <Link
-        href={`/agents/${run.id}`}
-        className={buttonClasses({ variant: 'outline', size: 'sm' })}
-      >
-        Open
-      </Link>
-    )
+    label: 'Actions',
+    className: 'w-20 text-right',
+    render: run => <AgentRunRowActions run={run} />
   }
 ]
 

@@ -18,17 +18,17 @@ const providerDocsSections: DocsSection[] = [
   {
     id: 'overview',
     group: 'Start here',
-    title: 'How Tollora sells your API',
+    title: 'How How the gateway sells your API',
     body: `
-Tollora lets a provider list an existing HTTPS API as a paid marketplace product. Buyers, applications, CLIs, and autonomous agents call the hosted Tollora endpoint. Tollora handles the x402 payment requirement, MUSD settlement on Mezo, provider request forwarding, receipts, and proof metadata.
+The gateway lets a provider list an existing HTTPS API as a paid marketplace product. Buyers, applications, CLIs, and autonomous agents call the hosted gateway endpoint. the gateway handles the x402 payment requirement, MUSD settlement on Mezo, provider request forwarding, receipts, and proof metadata.
 
-You do **not** need to clone Tollora or rebuild your API around blockchain code. Your API only needs normal HTTP endpoints that Tollora can call after payment is settled or reserved.
+You do **not** need to clone the app or rebuild your API around blockchain code. Your API only needs normal HTTP endpoints that the gateway can call after payment is settled or reserved.
 
 | Role | What it does |
 | --- | --- |
 | Provider API | Owns the real product logic, authentication, quotes, jobs, and results. |
-| Tollora gateway | Prices the request, collects x402 payment, calls the provider, stores receipts, and exposes buyer-facing status. |
-| Buyer or agent | Calls Tollora, pays through x402 or managed credits, then receives the provider result or a pollable job. |
+| gateway | Prices the request, collects x402 payment, calls the provider, stores receipts, and exposes buyer-facing status. |
+| Buyer or agent | Calls the gateway, pays through x402 or managed credits, then receives the provider result or a pollable job. |
 `
   },
   {
@@ -39,7 +39,7 @@ You do **not** need to clone Tollora or rebuild your API around blockchain code.
 1. Open **Provider -> Products -> New**.
 2. Import an OpenAPI file or paste each field manually.
 3. Choose **fixed** pricing for predictable per-call work, or **credit_metered** pricing for variable-cost work.
-4. Add provider authentication so Tollora can call your upstream API server-side.
+4. Add provider authentication so the gateway can call your upstream API server-side.
 5. If your API is long-running, map the job ID and status endpoint.
 6. Add request/response schemas and a reference payload.
 7. Save as **draft** first, test it, then publish it when the marketplace listing is accurate.
@@ -52,16 +52,16 @@ Use **draft** until the endpoint, auth, pricing, and schemas are real. Published
     group: 'Start here',
     title: 'Autonomous agent brain',
     body: `
-Tollora agent runs use OpenAI as the planning and synthesis brain when \`AGENT_LLM_API_KEY\` is configured. The model reads the user objective, source context, budget, max paid actions, and allowed marketplace tools, then returns structured JSON with selected tools, skipped tools, request payloads, budget strategy, and synthesis instructions.
+Agent runs use OpenAI as the planning and synthesis brain when \`AGENT_LLM_API_KEY\` is configured. The model reads the user objective, source context, budget, max paid actions, and allowed marketplace tools, then returns structured JSON with selected tools, skipped tools, request payloads, budget strategy, and synthesis instructions.
 
-The paid execution still belongs to Tollora:
+The paid execution still belongs to the gateway:
 
 1. OpenAI chooses the tools and payloads.
-2. Tollora quotes every selected product.
-3. Tollora skips tools that would exceed the run budget.
-4. Tollora pays x402/MUSD with the configured agent signer in production mode.
-5. Tollora stores receipts, response hashes, and final deliverables.
-6. Tollora writes the Mezo proof when the run is attested.
+2. the gateway quotes every selected product.
+3. the gateway skips tools that would exceed the run budget.
+4. the gateway pays x402/MUSD with the configured agent signer in production mode.
+5. the gateway stores receipts, response hashes, and final deliverables.
+6. the gateway writes the Mezo proof when the run is attested.
 
 If \`AGENT_LLM_API_KEY\` is missing, the run is labeled as deterministic fallback. Configure \`AGENT_LLM_API_KEY\` for model-planned runs and either leave \`AGENT_LLM_MODEL\` empty for the default \`gpt-5.2\` or set a lower-cost model for development.
 `
@@ -71,18 +71,18 @@ If \`AGENT_LLM_API_KEY\` is missing, the run is labeled as deterministic fallbac
     group: 'OpenAPI import',
     title: 'Import OpenAPI',
     body: `
-OpenAPI import is the fastest way to add many provider endpoints. Tollora reads the spec, detects operations, infers auth, builds schemas, picks reference payloads, and suggests async status mappings.
+OpenAPI import is the fastest way to add many provider endpoints. the gateway reads the spec, detects operations, infers auth, builds schemas, picks reference payloads, and suggests async status mappings.
 
 **What your API should expose**
 
 | Item | Why it helps |
 | --- | --- |
-| OpenAPI JSON or YAML URL | Lets Tollora import operations without manual copy/paste. |
-| Security schemes | Lets Tollora mark auth fields as required. |
-| Request bodies | Lets Tollora build buyer-facing request examples. |
-| Response schemas | Lets Tollora explain what buyers receive. |
-| 202 Accepted or job response schemas | Lets Tollora detect async job creation endpoints. |
-| Status endpoints with path parameters | Lets Tollora link a job-creation endpoint to a polling endpoint. |
+| OpenAPI JSON or YAML URL | Lets the gateway import operations without manual copy/paste. |
+| Security schemes | Lets the gateway mark auth fields as required. |
+| Request bodies | Lets the gateway build buyer-facing request examples. |
+| Response schemas | Lets the gateway explain what buyers receive. |
+| 202 Accepted or job response schemas | Lets the gateway detect async job creation endpoints. |
+| Status endpoints with path parameters | Lets the gateway link a job-creation endpoint to a polling endpoint. |
 
 **Good OpenAPI URL:** \`https://provider.example/api/openapi.json\`  
 **Avoid:** private localhost URLs, docs pages that return HTML, or OpenAPI specs that omit request and response schemas.
@@ -99,7 +99,7 @@ Paste a public URL that returns raw OpenAPI JSON or YAML.
 | --- | --- | --- |
 | \`https://provider.example/api/openapi.json\` | Yes | Direct machine-readable spec. |
 | \`https://provider.example/developers/openapi\` | Maybe | Only if it returns JSON/YAML, not an HTML page. |
-| \`http://localhost:3000/openapi.json\` | No for production | Tollora cannot fetch your local machine after deployment. |
+| \`http://localhost:3000/openapi.json\` | No for production | the gateway cannot fetch your local machine after deployment. |
 
 Validation: must be a valid URL when provided.
 `
@@ -142,7 +142,7 @@ Pick one buyer-facing action per listing. For example, create one listing for **
     group: 'OpenAPI import',
     title: 'Job status endpoint',
     body: `
-For async APIs, choose the imported endpoint Tollora should poll with the job ID returned by the paid call.
+For async APIs, choose the imported endpoint the gateway should poll with the job ID returned by the paid call.
 
 Good status endpoints usually look like:
 
@@ -160,9 +160,9 @@ The status endpoint should be cheap to call. Buyers should not pay again just to
     group: 'Product details',
     title: 'Product details',
     body: `
-Product details control how the listing appears in the marketplace and which upstream API Tollora calls after payment. These fields should describe the exact API operation buyers will run.
+Product details control how the listing appears in the marketplace and which upstream API the gateway calls after payment. These fields should describe the exact API operation buyers will run.
 
-The listing owner, payout wallet, and provider identity come from the connected Tollora profile. Complete your profile before publishing products so marketplace, receipt, and provider pages can show the correct creator identity.
+The listing owner, payout wallet, and provider identity come from the connected profile. Complete your profile before publishing products so marketplace, receipt, and provider pages can show the correct creator identity.
 `
   },
   {
@@ -183,7 +183,7 @@ Validation: 3 to 90 characters.
     group: 'Product details',
     title: 'Slug',
     body: `
-The stable URL identifier for the hosted Tollora endpoint.
+The stable URL identifier for the hosted gateway endpoint.
 
 \`\`\`txt
 https://yourdomain.com/api/x402/products/{slug}/call
@@ -217,9 +217,9 @@ The marketplace grouping used for discovery and filtering.
     group: 'Product details',
     title: 'Provider endpoint URL',
     body: `
-The real upstream URL Tollora calls after payment is settled or reserved.
+The real upstream URL the gateway calls after payment is settled or reserved.
 
-**Input:** the provider API endpoint, not the Tollora endpoint.  
+**Input:** the provider API endpoint, not the gateway endpoint.  
 **Good:** \`https://api.provider.example/v1/jobs\`  
 **Bad:** \`/api/jobs\`, \`localhost\`, or a browser docs page.
 
@@ -231,7 +231,7 @@ Validation: required valid URL.
     group: 'Product details',
     title: 'HTTP method',
     body: `
-Choose the upstream method Tollora should use.
+Choose the upstream method the gateway should use.
 
 Use \`POST\` for actions that create work, transform input, or start jobs. Use \`GET\` for read-only lookups where request values can safely be sent as query parameters.
 `
@@ -270,14 +270,14 @@ Validation: 20 to 800 characters.
     group: 'Pricing',
     title: 'Fixed or credit-metered pricing',
     body: `
-Pricing decides how Tollora calculates the x402 payment requirement.
+Pricing decides how the gateway calculates the x402 payment requirement.
 
 | Model | Best for | Payment timing |
 | --- | --- | --- |
 | \`fixed\` | Predictable per-call work | One exact price per call. |
 | \`credit_metered\` | Variable work based on duration, tokens, output size, or provider credits | Quote first, pay before expensive work, compare final usage later. |
 
-Credit-metered products should expose a cheap quote endpoint or a deterministic request field. Tollora converts that number into MUSD with your configured rate and multiplier.
+Credit-metered products should expose a cheap quote endpoint or a deterministic request field. the gateway converts that number into MUSD with your configured rate and multiplier.
 `
   },
   {
@@ -309,7 +309,7 @@ Validation: positive number up to 100000.
     group: 'Pricing',
     title: 'Quote endpoint URL',
     body: `
-Optional endpoint Tollora calls before payment to calculate a usage-based price.
+Optional endpoint the gateway calls before payment to calculate a usage-based price.
 
 The quote endpoint must be cheap and side-effect free. It should not start the job, call expensive models, render media, deduct credits, or mutate provider state.
 
@@ -375,7 +375,7 @@ Example:
 }
 \`\`\`
 
-If actual usage is higher than the prepaid quote, Tollora can lock the final result until the buyer pays the delta.
+If actual usage is higher than the prepaid quote, the gateway can lock the final result until the buyer pays the delta.
 `
   },
   {
@@ -438,9 +438,9 @@ Validation: if provided, it must be greater than the minimum charge.
     group: 'Authentication',
     title: 'Provider authentication',
     body: `
-Provider authentication is how Tollora calls your upstream API. The buyer never sees these credentials. Tollora stores them server-side and applies them only when forwarding a paid or reserved request.
+Provider authentication is how the gateway calls your upstream API. The buyer never sees these credentials. the gateway stores them server-side and applies them only when forwarding a paid or reserved request.
 
-Never put a provider API key in buyer-side JavaScript. Use these fields so Tollora can keep the secret on the server.
+Never put a provider API key in buyer-side JavaScript. Use these fields so the gateway can keep the secret on the server.
 `
   },
   {
@@ -448,7 +448,7 @@ Never put a provider API key in buyer-side JavaScript. Use these fields so Tollo
     group: 'Authentication',
     title: 'Auth type',
     body: `
-Choose how Tollora authenticates to the provider API.
+Choose how the gateway authenticates to the provider API.
 
 | Type | Use when |
 | --- | --- |
@@ -464,12 +464,12 @@ Choose how Tollora authenticates to the provider API.
     group: 'Authentication',
     title: 'Auth secret or API key',
     body: `
-The provider API key or token Tollora uses server-side.
+The provider API key or token the gateway uses server-side.
 
 Required for \`bearer\`, \`api_key_header\`, and \`api_key_query\`.
 
 **Input:** the raw secret value.  
-**Do not input:** \`Bearer \` prefix unless your provider specifically expects it as part of the secret. Tollora handles auth formatting based on auth type.
+**Do not input:** \`Bearer \` prefix unless your provider specifically expects it as part of the secret. the gateway handles auth formatting based on auth type.
 `
   },
   {
@@ -527,7 +527,7 @@ Required when auth type is \`basic\`. Use the eye button in the form to verify t
     group: 'Runtime',
     title: 'Runtime model',
     body: `
-Runtime fields tell Tollora whether the provider returns a final result immediately or creates a job that needs polling.
+Runtime fields tell the gateway whether the provider returns a final result immediately or creates a job that needs polling.
 `
   },
   {
@@ -562,7 +562,7 @@ How buyers retrieve the usable result.
 | Value | Meaning |
 | --- | --- |
 | \`direct_response\` | Provider returns the final result in the paid response. |
-| \`poll_or_webhook\` | Provider returns a job ID; Tollora polls or receives updates. |
+| \`poll_or_webhook\` | Provider returns a job ID; the gateway polls or receives updates. |
 | \`claim_after_completion\` | Final payload can stay locked until a claim payment is complete. |
 `
   },
@@ -582,7 +582,7 @@ Avoid fake precision such as \`0.0001 seconds\` for long-running APIs.
     group: 'Runtime',
     title: 'Timeout seconds',
     body: `
-Maximum time Tollora waits for the upstream provider response.
+Maximum time the gateway waits for the upstream provider response.
 
 Use short values for synchronous APIs. Use longer values for job creation endpoints only if the provider can take time to accept the job.
 
@@ -620,7 +620,7 @@ Required when execution mode is \`asynchronous\`.
     group: 'Async polling',
     title: 'Status method',
     body: `
-HTTP method Tollora uses to poll status.
+HTTP method the gateway uses to poll status.
 
 Most providers should use \`GET\`. Use \`POST\` only when the provider status API requires a JSON body.
 `
@@ -630,7 +630,7 @@ Most providers should use \`GET\`. Use \`POST\` only when the provider status AP
     group: 'Async polling',
     title: 'External job ID path',
     body: `
-Dot-path where Tollora finds the provider job ID in the job creation response.
+Dot-path where the gateway finds the provider job ID in the job creation response.
 
 Examples:
 
@@ -649,7 +649,7 @@ Required for async APIs.
     group: 'Async polling',
     title: 'Status path',
     body: `
-Dot-path where Tollora reads the provider job status in polling responses.
+Dot-path where the gateway reads the provider job status in polling responses.
 
 Examples:
 
@@ -659,7 +659,7 @@ data.status
 job.state
 \`\`\`
 
-Tollora expects values that can be mapped to processing, ready, completed, failed, or cancelled behavior.
+the gateway expects values that can be mapped to processing, ready, completed, failed, or cancelled behavior.
 `
   },
   {
@@ -667,11 +667,11 @@ Tollora expects values that can be mapped to processing, ready, completed, faile
     group: 'Async polling',
     title: 'Result URL path',
     body: `
-Optional dot-path where Tollora reads the final output URL.
+Optional dot-path where the gateway reads the final output URL.
 
 Examples: \`resultUrl\`, \`output.url\`, \`data.assets.videoUrl\`, \`result.publicProjectUrl\`, or \`result.cloneUrl\`.
 
-For provider APIs that create editable projects instead of a finished file, return a public handoff or clone URL. Tollora treats that URL as the paid result and can complete the order when the provider status is completed or handoff-ready.
+For provider APIs that create editable projects instead of a finished file, return a public handoff or clone URL. the gateway treats that URL as the paid result and can complete the order when the provider status is completed or handoff-ready.
 `
   },
   {
@@ -679,7 +679,7 @@ For provider APIs that create editable projects instead of a finished file, retu
     group: 'Async polling',
     title: 'Error message path',
     body: `
-Optional dot-path where Tollora reads provider error details.
+Optional dot-path where the gateway reads provider error details.
 
 Use this so buyers see a useful failure reason instead of a generic failed status.
 `
@@ -760,7 +760,7 @@ Use realistic values that can succeed for this operation. Do not include private
     group: 'Automation',
     title: 'Webhooks and agent availability',
     body: `
-Automation fields help Tollora keep long-running work updated and make products available to autonomous agents.
+Automation fields help the gateway keep long-running work updated and make products available to autonomous agents.
 `
   },
   {
@@ -795,7 +795,7 @@ Only enable this when:
     group: 'Provider code',
     title: 'What to add to your own API codebase',
     body: `
-You can integrate a provider API with Tollora using normal HTTP patterns.
+You can integrate a provider API with the gateway using normal HTTP patterns.
 
 ## Fixed-price API
 
@@ -811,7 +811,7 @@ app.post("/api/summarize", async (req, res) => {
 })
 \`\`\`
 
-List this as \`pricingModel: "fixed"\`. Tollora charges the configured MUSD amount when the paid request succeeds.
+List this as \`pricingModel: "fixed"\`. the gateway charges the configured MUSD amount when the paid request succeeds.
 
 ## Credit-metered async API
 
@@ -863,9 +863,9 @@ app.get("/api/jobs/:jobId", async (req, res) => {
 })
 \`\`\`
 
-The provider API should stay generic. It reports credits, job state, and handoff/result URLs. Tollora maps those credits to x402 payments, receipts, refunds, deltas, and proofs. If a provider returns \`review_required\` without a result URL, Tollora keeps the order processing instead of releasing funds. If the provider returns a cloneable handoff URL, Tollora can complete the order and release escrow even when the final render is handled separately.
+The provider API should stay generic. It reports credits, job state, and handoff/result URLs. the gateway maps those credits to x402 payments, receipts, refunds, deltas, and proofs. If a provider returns \`review_required\` without a result URL, the gateway keeps the order processing instead of releasing funds. If the provider returns a cloneable handoff URL, the gateway can complete the order and release escrow even when the final render is handled separately.
 
-For temporary provider outages, return a normal error payload with \`retryable: true\`, an HTTP 408/429/5xx status, or a \`retry_after\` value. Tollora keeps escrow reserved, retries the provider call or status check, and refunds only when the 24-hour retry window expires without a valid provider result.
+For temporary provider outages, return a normal error payload with \`retryable: true\`, an HTTP 408/429/5xx status, or a \`retry_after\` value. the gateway keeps escrow reserved, retries the provider call or status check, and refunds only when the 24-hour retry window expires without a valid provider result.
 `
   }
 ]
@@ -950,7 +950,7 @@ export default function DeveloperDocsPage() {
       <section className='space-y-4'>
         <Badge>GitHub-flavored docs</Badge>
         <h1 className='font-display max-w-3xl text-4xl leading-tight'>
-          Tollora provider integration guide
+          Provider integration guide
         </h1>
         <p className='text-foreground/70 max-w-3xl text-sm leading-6'>
           A field-by-field guide for listing paid APIs, importing OpenAPI specs,

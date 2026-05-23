@@ -142,5 +142,5 @@ function createProviderIdempotencyKey({
   orderId: string
   requestId: string
 }) {
-  return `tollora_${orderId}_${requestId}`
+  return `app_${orderId}_${requestId}`
 }

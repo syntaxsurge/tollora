@@ -19,18 +19,12 @@ type LegacyUserSettings = Partial<UserSettings> & {
   website?: unknown
 }
 
-const adminProviderWallet = '0x7CE33579392AEAF1791c9B0c8302a502B5867688'
 const userSettingsCache = new Map<string, UserSettings>()
 
 const publicProfilesByWallet: Record<
   string,
   Omit<PublicUserProfile, 'walletAddress' | 'avatarInitials'>
-> = {
-  [adminProviderWallet.toLowerCase()]: {
-    fullName: 'Tollora Labs',
-    username: 'tollora'
-  }
-}
+> = {}
 
 export const defaultUserSettings: UserSettings = {
   fullName: '',
@@ -53,7 +47,7 @@ export function writeUserSettings(
   )
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('tollora:user-settings-updated'))
+    window.dispatchEvent(new Event('app:user-settings-updated'))
   }
 }
 
@@ -61,7 +55,7 @@ export function clearUserSettings(walletAddress?: string | null) {
   userSettingsCache.delete(cacheKey(walletAddress))
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('tollora:user-settings-updated'))
+    window.dispatchEvent(new Event('app:user-settings-updated'))
   }
 }
 

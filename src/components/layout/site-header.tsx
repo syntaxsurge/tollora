@@ -17,6 +17,7 @@ import { AdminHeaderLink } from '@/components/layout/admin-header-link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { WalletConnectButton } from '@/components/ui/wallet-connect-button'
 import { WalletAddressConsumer } from '@/components/wallet/wallet-address-consumer'
+import { WalletBalanceSummary } from '@/components/wallet/wallet-balance-summary'
 import { useUserSettings } from '@/hooks/use-user-settings'
 import { primaryNav } from '@/lib/config/navigation'
 import { siteConfig } from '@/lib/config/site'
@@ -27,21 +28,21 @@ export function SiteHeader() {
   const pathname = usePathname()
 
   return (
-    <header className='border-border bg-background/95 sticky top-0 z-50 border-b backdrop-blur'>
-      <div className='mx-auto flex min-h-20 w-full max-w-[98rem] items-center gap-5 px-4 py-3 sm:px-6 lg:px-8'>
+    <header className='border-border/80 bg-background/92 sticky top-0 z-50 border-b shadow-sm backdrop-blur-xl'>
+      <div className='mx-auto flex min-h-[4.5rem] w-full max-w-[98rem] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8'>
         <Link href='/' className='group flex shrink-0 items-center gap-3'>
-          <span className='logo-mark-surface ring-border grid h-12 w-12 shrink-0 place-items-center rounded-lg p-1.5 ring-1 transition group-hover:scale-[1.02]'>
+          <span className='logo-mark-surface ring-border/80 group-hover:ring-primary/45 grid h-11 w-11 shrink-0 place-items-center rounded-lg p-1.5 ring-1 transition group-hover:scale-[1.02]'>
             <Image
-              src='/images/tollora-logo.png'
-              alt='Tollora'
+              src='/images/app-logo.png'
+              alt={siteConfig.name}
               width={44}
               height={44}
               priority
-              className='h-10 w-10 object-contain'
+              className='h-9 w-9 object-contain'
             />
           </span>
           <div className='min-w-0 text-left'>
-            <p className='truncate text-xl leading-6 font-semibold'>
+            <p className='truncate text-lg leading-6 font-semibold sm:text-xl'>
               {siteConfig.name}
             </p>
           </div>
@@ -141,7 +142,7 @@ function ProfileMenuContent({
       ? `@${settings.username}`
       : 'Set username'
     : 'Connect a wallet'
-  const initials = isAuthenticated ? userInitials(settings) || 'T' : 'T'
+  const initials = isAuthenticated ? userInitials(settings) || 'P' : 'P'
 
   return (
     <details className='group relative'>
@@ -168,6 +169,9 @@ function ProfileMenuContent({
             <p className='text-muted-foreground truncate text-xs'>{username}</p>
           </div>
         </div>
+        {isAuthenticated ? (
+          <WalletBalanceSummary walletAddress={walletAddress} variant='menu' />
+        ) : null}
         {isAuthenticated ? (
           <div className='my-3 grid gap-1'>
             <MenuLink href='/dashboard' icon={LayoutDashboard}>

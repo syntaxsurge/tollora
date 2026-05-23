@@ -94,9 +94,9 @@ export function getAdminUserSeed() {
     return {
       id: address,
       walletAddress: address,
-      displayName: 'Tollora Labs',
-      username: 'tollora',
-      email: 'hello@tollora.com',
+      displayName: 'Provider Labs',
+      username: 'platform',
+      email: 'hello@example.com',
       role: 'admin',
       plan: 'free',
       status: 'active',

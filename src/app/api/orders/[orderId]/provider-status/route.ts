@@ -150,7 +150,7 @@ async function handleProviderStatus(
       ? {
           status: 'ready',
           message:
-            'Final usage exceeded the prepaid quote. Pay the delta before Tollora reveals the provider result.',
+            'Final usage exceeded the prepaid quote. Pay the delta before the gateway reveals the provider result.',
           externalJobId: providerResult.externalJobId ?? order.externalJobId
         }
       : omitIndexedCharacterMaps(
@@ -333,7 +333,7 @@ function createProviderIdempotencyKey({
   orderId: string
   requestId: string
 }) {
-  return `tollora_${orderId}_${requestId}`
+  return `app_${orderId}_${requestId}`
 }
 
 function parseJsonOrEmpty(value: string | undefined) {
