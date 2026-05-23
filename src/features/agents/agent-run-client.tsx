@@ -1642,7 +1642,7 @@ function PaymentAttemptPanel({
     return null
   }
 
-  const failedAttempts = attempts.filter(attempt => attempt.status === 'failed')
+  const retryCount = attempts.filter(attempt => attempt.retryDelayMs).length
 
   return (
     <details className='group border-border/80 bg-card/45 mt-3 overflow-hidden rounded-lg border'>
@@ -1653,9 +1653,9 @@ function PaymentAttemptPanel({
           <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
             {attempts.length} total
           </span>
-          {failedAttempts.length ? (
+          {retryCount ? (
             <span className='rounded-md bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600 dark:text-red-300'>
-              {failedAttempts.length} retried
+              {retryCount} {retryCount === 1 ? 'retry' : 'retries'}
             </span>
           ) : null}
         </span>

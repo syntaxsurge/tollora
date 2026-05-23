@@ -69,6 +69,8 @@ import {
 const asyncProviderPollIntervalMs = 5_000
 const asyncProviderPollAttempts = 72
 const agentPaymentTransactionMaxAttempts = 3
+const agentPaidToolCallMaxRetries = 3
+const agentPaidToolCallMaxAttempts = agentPaidToolCallMaxRetries + 1
 const agentPaymentTransactionBaseRetryDelayMs = 750
 
 type AgentRunProgress = {
@@ -607,11 +609,7 @@ async function callPaidProductWithAgentWallet(
   const paidFetch = wrapFetchWithPayment(fetch, httpClient)
   let acceptedResult: PaidProductCallResponse | null = null
 
-  for (
-    let attempt = 1;
-    attempt <= agentPaymentTransactionMaxAttempts;
-    attempt += 1
-  ) {
+  for (let attempt = 1; attempt <= agentPaidToolCallMaxAttempts; attempt += 1) {
     try {
       const response = await paidFetch(
         `${appUrl}/api/x402/products/${action.productSlug}/call`,
@@ -649,7 +647,7 @@ async function callPaidProductWithAgentWallet(
     } catch (error) {
       const message = describeTransactionError(error)
       const shouldRetry =
-        attempt < agentPaymentTransactionMaxAttempts &&
+        attempt < agentPaidToolCallMaxAttempts &&
         isRetryableAgentPaymentTransactionError(message)
       const retryDelayMs = shouldRetry
         ? getAgentPaymentRetryDelayMs(attempt)
@@ -674,7 +672,7 @@ async function callPaidProductWithAgentWallet(
 
   if (!acceptedResult) {
     throw new AgentPaymentTransactionError(
-      `x402 payment failed after ${agentPaymentTransactionMaxAttempts} attempts.`,
+      `x402 payment failed after ${agentPaidToolCallMaxRetries} retries.`,
       attempts
     )
   }
@@ -1339,6 +1337,9 @@ function isRetryableAgentPaymentTransactionError(message: string) {
     lower.includes('temporar') ||
     lower.includes('rate limit') ||
     lower.includes('429') ||
+    lower.includes('500') ||
+    lower.includes('internal server error') ||
+    lower.includes('bad gateway') ||
     lower.includes('503') ||
     lower.includes('nonce too low') ||
     lower.includes('underpriced')
