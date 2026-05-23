@@ -9,6 +9,7 @@ import {
   Bot,
   Braces,
   CheckCircle2,
+  ChevronDown,
   CircleDollarSign,
   Clock,
   ExternalLink,
@@ -533,8 +534,6 @@ function AgentRunContent({
 
       <ExecutionSection run={run} />
 
-      <AdvancedRunDetails run={run} />
-
       <FinalOutputSection outputs={finalOutputs} run={run} />
     </div>
   )
@@ -758,6 +757,17 @@ function RunSummaryCard({
   run: AgentRun
   completedPaidActions: number
 }) {
+  const completed = run.actions.filter(
+    action => action.status === 'completed'
+  ).length
+  const failed = run.actions.filter(action => action.status === 'failed').length
+  const running = run.actions.filter(action =>
+    ['quoted', 'paid'].includes(action.status)
+  ).length
+  const queued = run.actions.filter(
+    action => action.status === 'planned'
+  ).length
+
   return (
     <Card className='overflow-hidden p-0'>
       <div className='border-border/70 bg-background/35 border-b p-5 sm:p-6'>
@@ -803,6 +813,18 @@ function RunSummaryCard({
             icon={Sparkles}
             label='Planner'
             value={formatPlanner(run)}
+          />
+          <SummaryStat icon={Clock} label='Running' value={String(running)} />
+          <SummaryStat icon={Bot} label='Queued' value={String(queued)} />
+          <SummaryStat
+            icon={CheckCircle2}
+            label='Completed'
+            value={String(completed)}
+          />
+          <SummaryStat
+            icon={AlertTriangle}
+            label='Failed'
+            value={String(failed)}
           />
         </div>
 
@@ -1161,125 +1183,18 @@ function ExecutionSection({ run }: { run: AgentRun }) {
           Actions appear here after the planner chooses tools.
         </div>
       ) : (
-        <>
-          <ExecutionOverview run={run} />
-          <div className='grid gap-3'>
-            {run.actions.map((action, index) => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                run={run}
-                stepNumber={index + 1}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </section>
-  )
-}
-
-function ExecutionOverview({ run }: { run: AgentRun }) {
-  const completed = run.actions.filter(
-    action => action.status === 'completed'
-  ).length
-  const failed = run.actions.filter(action => action.status === 'failed').length
-  const running = run.actions.filter(action =>
-    ['quoted', 'paid'].includes(action.status)
-  ).length
-  const queued = run.actions.filter(
-    action => action.status === 'planned'
-  ).length
-
-  return (
-    <div className='border-border/80 bg-card/65 grid gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(0,1fr)_280px]'>
-      <div className='min-w-0 space-y-3'>
-        <div className='flex flex-wrap items-center justify-between gap-3'>
-          <SectionLabel icon={Activity} label='Live tool map' />
-          <span className='text-foreground/55 text-xs'>
-            {completed} of {run.actions.length} completed
-          </span>
-        </div>
-        <div className='grid gap-2 md:grid-cols-2'>
+        <div className='grid gap-3'>
           {run.actions.map((action, index) => (
-            <ToolCallSnapshot
+            <ActionCard
               key={action.id}
               action={action}
+              run={run}
               stepNumber={index + 1}
             />
           ))}
         </div>
-      </div>
-      <div className='border-border/70 bg-background/45 grid content-start gap-3 rounded-lg border p-3 text-sm'>
-        <p className='font-semibold'>Budget status</p>
-        <div className='grid grid-cols-2 gap-2'>
-          <ActionMetric label='Funded' value={run.fundedAmountMusd} />
-          <ActionMetric label='Available' value={run.availableAmountMusd} />
-          <ActionMetric label='Running' value={String(running)} />
-          <ActionMetric label='Queued' value={String(queued)} />
-          <ActionMetric label='Completed' value={String(completed)} />
-          <ActionMetric label='Failed' value={String(failed)} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ToolCallSnapshot({
-  action,
-  stepNumber
-}: {
-  action: AgentRun['actions'][number]
-  stepNumber: number
-}) {
-  const displayStatus = getActionDisplayStatus(action)
-  const latestPoll = getLatestAsyncPoll(action)
-  const attempts = collectPaymentAttempts(action)
-
-  return (
-    <div className='border-border/70 bg-background/45 rounded-lg border p-3'>
-      <div className='flex min-w-0 items-start gap-3'>
-        <span
-          className={[
-            'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-            displayStatus.tone === 'completed'
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
-              : displayStatus.tone === 'failed'
-                ? 'bg-red-500/10 text-red-600 dark:text-red-300'
-                : 'bg-primary/10 text-primary'
-          ].join(' ')}
-        >
-          {stepNumber}
-        </span>
-        <div className='min-w-0'>
-          <p className='truncate text-sm font-semibold'>{action.productName}</p>
-          <p className='text-foreground/55 mt-0.5 truncate text-xs'>
-            {action.providerName} - {action.amountMusd}
-          </p>
-          <div className='mt-2 flex flex-wrap items-center gap-1.5'>
-            <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
-              {displayStatus.label}
-            </span>
-            {latestPoll?.orderStatus ? (
-              <span className='border-border/70 rounded-md border px-2 py-1 text-xs'>
-                {latestPoll.orderStatus}
-              </span>
-            ) : null}
-            {action.orderId ? (
-              <span className='border-border/70 rounded-md border px-2 py-1 text-xs'>
-                Order {shorten(action.orderId)}
-              </span>
-            ) : null}
-            {attempts.length ? (
-              <span className='border-border/70 rounded-md border px-2 py-1 text-xs'>
-                {attempts.length} payment attempt
-                {attempts.length === 1 ? '' : 's'}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+    </section>
   )
 }
 
@@ -1491,8 +1406,8 @@ function ActionCard({
   const outputItems = collectActionOutputs(action)
 
   return (
-    <div className='border-border bg-background/55 rounded-lg border p-4 shadow-sm'>
-      <div className='flex flex-wrap items-start justify-between gap-3'>
+    <details className='group border-border bg-background/55 overflow-hidden rounded-lg border shadow-sm'>
+      <summary className='flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden'>
         <div className='min-w-0'>
           <div className='flex items-center gap-2'>
             <span className='bg-primary/10 text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold'>
@@ -1510,79 +1425,89 @@ function ActionCard({
           <span className='bg-muted rounded-md px-2 py-1 text-xs font-semibold'>
             {displayStatus.label}
           </span>
-        </div>
-      </div>
-      {action.errorMessage ? (
-        <ActionErrorPanel action={action} run={run} />
-      ) : null}
-      <PaymentAttemptPanel action={action} />
-      <div className='mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
-        <ActionMetric label='Quote' value={action.amountMusd} />
-        <ActionMetric label='Phase' value={getActionPhaseLabel(action)} />
-        <ActionMetric
-          label='Vault spend'
-          value={action.vaultAdvancedAmountMusd ?? 'Not advanced'}
-        />
-        <ActionMetric
-          label='Order'
-          value={action.orderId ? shorten(action.orderId) : 'Not created'}
-        />
-      </div>
-      <p className='text-foreground/65 mt-3 text-sm leading-6 break-words'>
-        {action.objective}
-      </p>
-      {action.planningRationale ? (
-        <details className='border-border bg-muted/30 mt-3 rounded-lg border p-3 text-sm'>
-          <summary className='cursor-pointer font-semibold'>
-            Planner rationale
-          </summary>
-          <p className='text-foreground/65 mt-2 leading-6'>
-            {action.planningRationale}
-          </p>
-        </details>
-      ) : null}
-      {outputItems.length > 0 ? (
-        <div className='mt-4'>
-          <SectionLabel icon={Link2} label='Tool output' />
-          <OutputGallery outputs={outputItems} className='mt-2' compact />
-        </div>
-      ) : null}
-      {action.asyncPollingResponses?.length ? (
-        <AsyncPollingPanel action={action} />
-      ) : null}
-      <details className='border-border/70 bg-muted/20 mt-4 rounded-lg border'>
-        <summary className='flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
-          <span className='flex items-center gap-2'>
-            <Braces className='text-primary h-4 w-4' aria-hidden />
-            Request and response JSON
+          <span className='text-foreground/50 inline-flex items-center gap-1 text-xs font-semibold group-open:hidden'>
+            Expand
+            <ChevronDown className='h-3.5 w-3.5' aria-hidden />
           </span>
-          <span className='text-foreground/50 text-xs'>Expand</span>
-        </summary>
-        <div className='border-border/70 grid gap-3 border-t p-3 lg:grid-cols-2'>
-          <JsonViewer
-            title='Tool request'
-            value={action.requestPayload}
-            defaultOpen={false}
-            copyLabel='Copy request'
+          <span className='text-foreground/50 hidden items-center gap-1 text-xs font-semibold group-open:inline-flex'>
+            Collapse
+            <ChevronDown className='h-3.5 w-3.5 rotate-180' aria-hidden />
+          </span>
+        </div>
+      </summary>
+      <div className='border-border/70 border-t p-4'>
+        {action.errorMessage ? (
+          <ActionErrorPanel action={action} run={run} />
+        ) : null}
+        <PaymentAttemptPanel action={action} />
+        <div className='mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
+          <ActionMetric label='Quote' value={action.amountMusd} />
+          <ActionMetric label='Phase' value={getActionPhaseLabel(action)} />
+          <ActionMetric
+            label='Vault spend'
+            value={action.vaultAdvancedAmountMusd ?? 'Not advanced'}
           />
-          <JsonViewer
-            title='Tool response'
-            value={
-              action.responsePayload ?? {
-                status: action.status,
-                message:
-                  action.errorMessage ??
-                  (action.status === 'paid'
-                    ? 'The paid request is running. the gateway is waiting for the provider response.'
-                    : 'No response payload recorded yet.')
-              }
-            }
-            defaultOpen={false}
-            copyLabel='Copy response'
+          <ActionMetric
+            label='Order'
+            value={action.orderId ? shorten(action.orderId) : 'Not created'}
           />
         </div>
-      </details>
-    </div>
+        <p className='text-foreground/65 mt-3 text-sm leading-6 break-words'>
+          {action.objective}
+        </p>
+        {action.planningRationale ? (
+          <details className='border-border bg-muted/30 mt-3 rounded-lg border p-3 text-sm'>
+            <summary className='cursor-pointer font-semibold'>
+              Planner rationale
+            </summary>
+            <p className='text-foreground/65 mt-2 leading-6'>
+              {action.planningRationale}
+            </p>
+          </details>
+        ) : null}
+        {outputItems.length > 0 ? (
+          <div className='mt-4'>
+            <SectionLabel icon={Link2} label='Tool output' />
+            <OutputGallery outputs={outputItems} className='mt-2' compact />
+          </div>
+        ) : null}
+        {action.asyncPollingResponses?.length ? (
+          <AsyncPollingPanel action={action} />
+        ) : null}
+        <details className='border-border/70 bg-muted/20 mt-4 rounded-lg border'>
+          <summary className='flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold [&::-webkit-details-marker]:hidden'>
+            <span className='flex items-center gap-2'>
+              <Braces className='text-primary h-4 w-4' aria-hidden />
+              Request and response JSON
+            </span>
+            <span className='text-foreground/50 text-xs'>Expand</span>
+          </summary>
+          <div className='border-border/70 grid gap-3 border-t p-3 lg:grid-cols-2'>
+            <JsonViewer
+              title='Tool request'
+              value={action.requestPayload}
+              defaultOpen={false}
+              copyLabel='Copy request'
+            />
+            <JsonViewer
+              title='Tool response'
+              value={
+                action.responsePayload ?? {
+                  status: action.status,
+                  message:
+                    action.errorMessage ??
+                    (action.status === 'paid'
+                      ? 'The paid request is running. the gateway is waiting for the provider response.'
+                      : 'No response payload recorded yet.')
+                }
+              }
+              defaultOpen={false}
+              copyLabel='Copy response'
+            />
+          </div>
+        </details>
+      </div>
+    </details>
   )
 }
 
@@ -2045,6 +1970,7 @@ function ActionLinks({ action }: { action: AgentRun['actions'][number] }) {
             className={classes}
             title={label}
             aria-label={label}
+            onClick={event => event.stopPropagation()}
           >
             <Icon className='h-4 w-4' aria-hidden />
           </a>
@@ -2055,6 +1981,7 @@ function ActionLinks({ action }: { action: AgentRun['actions'][number] }) {
             className={classes}
             title={label}
             aria-label={label}
+            onClick={event => event.stopPropagation()}
           >
             <Icon className='h-4 w-4' aria-hidden />
           </Link>
@@ -2249,6 +2176,7 @@ function FinalOutputSection({
           inspect failed or pending calls.
         </p>
       )}
+      <AdvancedRunDetails run={run} />
     </Card>
   )
 }

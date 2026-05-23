@@ -554,9 +554,12 @@ Before creating a new helper or service file:
   searched, sorted, and paginated without resetting neighboring tables.
   Selection is enabled only for tables that need row-level or bulk operations,
   and the shared selection controller supports current-page master selection
-  plus controlled selection state for custom workflows. Server-side query
-  helpers live in `src/lib/table/server-table.ts` and are used by agent
-  templates/runs, marketplace products, orders, and provider product management.
+  plus controlled selection state for custom workflows. Bulk selection renders
+  as an active command bar; destructive actions such as delete/remove use red
+  buttons and red confirmation affordances across every server-fed table.
+  Server-side query helpers live in `src/lib/table/server-table.ts` and are used
+  by agent templates/runs, marketplace products, orders, and provider product
+  management.
 - Shared site header in `src/components/layout/site-header.tsx` across marketing
   and app shells, with app logo branding, public navigation, theme controls, a
   server-verified admin shortcut for allowlisted active wallets, and an avatar
@@ -715,13 +718,15 @@ Before creating a new helper or service file:
   planned tools after an async action reaches a terminal state, renders the
   latest async poll as a compact live-status disclosure without poll-number
   timeline rows, summarizes each tool's quote, phase, vault spend, order, and
-  status in the execution map, and keeps compact request/response JSON inside
-  expandable diagnostics. Receipt, settlement, and vault transaction links
-  render as icon actions on each tool card. Payment transaction attempts render
-  in expandable chronological per-action diagnostics with step numbers, per-step
-  retry numbers, gas limit, retry delay, message, and transaction link when
-  available. Long provider, gateway, and contract failure text stays inside
-  expandable copyable diagnostics with user-facing summaries for budget,
+  status in collapsed-by-default tool cards, and keeps compact request/response
+  JSON inside expandable diagnostics. Receipt, settlement, and vault transaction
+  links render as icon actions in each tool card header. Payment transaction
+  attempts render in expandable chronological per-action diagnostics with step
+  numbers, per-step retry numbers, gas limit, retry delay, message, and
+  transaction link when available. Funding, skipped tools, planner receipts, and
+  deliverable diagnostics live as collapsed sections at the bottom of the final
+  deliverable card. Long provider, gateway, and contract failure text stays
+  inside expandable copyable diagnostics with user-facing summaries for budget,
   gas-floor, agent signer settlement-token balance, contract, refund, and tool
   failures; AgentRunVault over-budget errors show funded, spent, available, and
   attempted tool-spend context before the raw error. Public provider result
