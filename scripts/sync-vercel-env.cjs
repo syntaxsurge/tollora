@@ -37,12 +37,8 @@ if (entries.length === 0) {
   process.exit(1)
 }
 
-for (const key of Object.keys(parsed)) {
-  runVercel(['env', 'rm', key, target, '--yes'])
-}
-
 for (const [key, value] of entries) {
-  runVercel(['env', 'add', key, target, '--yes'], value)
+  runVercel(['env', 'add', key, target, '--force', '--yes'], value)
 }
 
 if (shouldDeploy) {

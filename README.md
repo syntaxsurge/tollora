@@ -154,8 +154,8 @@ variable. Redeploy with `pnpm exec vercel --prod` after environment changes so
 the new values are available to the build and runtime.
 
 To replace Vercel production environment variables with the values currently in
-`.env.local`, remove the matching production keys, re-add them from the local
-file, then redeploy:
+`.env.local`, upsert the local keys with `vercel env add --force`, then
+redeploy:
 
 ```bash
 pnpm vercel:env:sync:production
@@ -165,9 +165,9 @@ Use `pnpm vercel:env:sync:preview` or `pnpm vercel:env:sync:development` to
 reset those Vercel environments without a production redeploy. The sync script
 requires an existing Vercel project link and never pulls Vercel env values into
 `.env.local`. If the project is not linked yet, run `pnpm exec vercel link`
-first and do not pull environment variables when prompted. The sync script only
-touches keys present in `.env.local`; remove extra Vercel-only keys manually
-with `pnpm exec vercel env rm <KEY> production --yes`.
+first and do not pull environment variables when prompted. The sync script
+creates or replaces keys present in `.env.local`; remove extra Vercel-only keys
+manually with `pnpm exec vercel env rm <KEY> production --yes`.
 
 ## Environment
 
