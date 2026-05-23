@@ -978,7 +978,9 @@ Before creating a new helper or service file:
   detection, `pnpm install --frozen-lockfile`, `pnpm build`, and `pnpm dev`. Git
   deployments are explicitly enabled for Git-connected Vercel projects so
   repository pushes can create deployments unless the Vercel project dashboard
-  disables deployments for a branch.
+  disables deployments for a branch. Vercel environment resets from `.env.local`
+  use `scripts/sync-vercel-env.cjs` through the `vercel:env:sync:*` package
+  scripts.
 - Theme switching using `next-themes` with class-based dark mode.
 
 ## Core Commands

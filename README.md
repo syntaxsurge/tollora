@@ -158,43 +158,13 @@ To replace Vercel production environment variables with the values currently in
 file, then redeploy:
 
 ```bash
-pnpm exec vercel link
-
-node - production <<'NODE'
-const fs = require('node:fs')
-const cp = require('node:child_process')
-const dotenv = require('dotenv')
-
-const target = process.argv[2]
-const parsed = dotenv.parse(fs.readFileSync('.env.local'))
-
-for (const key of Object.keys(parsed)) {
-  cp.spawnSync('pnpm', ['exec', 'vercel', 'env', 'rm', key, target, '--yes'], {
-    stdio: 'inherit'
-  })
-}
-
-for (const [key, value] of Object.entries(parsed)) {
-  const result = cp.spawnSync(
-    'pnpm',
-    ['exec', 'vercel', 'env', 'add', key, target, '--yes'],
-    {
-      input: value,
-      stdio: ['pipe', 'inherit', 'inherit']
-    }
-  )
-
-  if (result.status !== 0) process.exit(result.status ?? 1)
-}
-NODE
-
-pnpm exec vercel --prod
+pnpm vercel:env:sync:production
 ```
 
-Replace `production` with `preview` or `development` in the Node command when
-you want to reset that Vercel environment instead. The command only touches keys
-present in `.env.local`; remove extra Vercel-only keys manually with
-`pnpm exec vercel env rm <KEY> production --yes`.
+Use `pnpm vercel:env:sync:preview` or `pnpm vercel:env:sync:development` to
+reset those Vercel environments without a production redeploy. The sync script
+only touches keys present in `.env.local`; remove extra Vercel-only keys
+manually with `pnpm exec vercel env rm <KEY> production --yes`.
 
 ## Environment
 
